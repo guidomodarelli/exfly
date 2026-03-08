@@ -861,6 +861,7 @@ export default function MonthlyExpensesPage({
           feedbackMessage={feedbackMessage}
           feedbackTone={feedbackTone}
           isAuthenticated={isAuthenticated}
+          isSessionLoading={isSessionLoading}
           isSubmitting={formState.isSubmitting}
           lenders={lendersState.lenders}
           loadError={loadError}

@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { LoaderCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ interface MonthlyExpensesTableProps {
   feedbackMessage: string;
   feedbackTone: "default" | "error" | "success";
   isAuthenticated: boolean;
+  isSessionLoading: boolean;
   isSubmitting: boolean;
   lenders: LenderOption[];
   loadError: string | null;
@@ -90,6 +92,7 @@ export function MonthlyExpensesTable({
   feedbackMessage,
   feedbackTone,
   isAuthenticated,
+  isSessionLoading,
   isSubmitting,
   lenders,
   loadError,
@@ -105,6 +108,12 @@ export function MonthlyExpensesTable({
   rows,
   sessionMessage,
 }: MonthlyExpensesTableProps) {
+  const sessionStatus = isSessionLoading
+    ? "loading"
+    : isAuthenticated
+      ? "active"
+      : "inactive";
+
   return (
     <section
       aria-labelledby="monthly-expenses-title"
@@ -124,15 +133,29 @@ export function MonthlyExpensesTable({
           <Badge
             className={cn(
               styles.sessionStatusBadge,
-              isAuthenticated ? styles.sessionReadyBadge : styles.sessionPendingBadge,
+              sessionStatus === "active"
+                ? styles.sessionReadyBadge
+                : sessionStatus === "loading"
+                  ? styles.sessionLoadingBadge
+                  : styles.sessionPendingBadge,
             )}
             role="status"
             title={sessionMessage}
-            variant={isAuthenticated ? "default" : "outline"}
+            variant={sessionStatus === "active" ? "default" : "outline"}
           >
-            {isAuthenticated
-              ? "Google conectado - Activo"
-              : "Google desconectado - Inactivo"}
+            {sessionStatus === "loading" ? (
+              <>
+                <LoaderCircle
+                  aria-hidden="true"
+                  className={styles.sessionLoadingIcon}
+                />
+                Google conectado - Verificando
+              </>
+            ) : sessionStatus === "active" ? (
+              "Google conectado - Activo"
+            ) : (
+              "Google desconectado - Inactivo"
+            )}
           </Badge>
         </div>
 

@@ -198,6 +198,48 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByText("Google conectado - Activo")).toBeInTheDocument();
   });
 
+  it("renders a loading Google connection badge while the session is being verified", () => {
+    mockedUseSession.mockReturnValue({
+      data: null,
+      status: "loading",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByText("Google conectado - Verificando"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders an inactive Google connection badge when the user is not authenticated", () => {
+    mockedUseSession.mockReturnValue({
+      data: null,
+      status: "unauthenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Google desconectado - Inactivo")).toBeInTheDocument();
+  });
+
   it("adds and removes manual expense rows", async () => {
     const user = userEvent.setup();
 
