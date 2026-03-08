@@ -14,31 +14,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { getGoogleDriveBootstrapConfig } from "@/modules/google-drive/application/use-cases/get-google-drive-bootstrap-config";
 import type {
-  GoogleDriveBootstrapResult,
-  GoogleDriveStorageTargetResult,
-} from "@/modules/google-drive/application/results/google-drive-bootstrap-result";
-import { GOOGLE_DRIVE_SCOPES } from "@/modules/google-drive/infrastructure/auth/google-drive-scopes";
+  StorageBootstrap,
+  StorageTargetId,
+} from "@/server/storage/get-storage-bootstrap";
+import { getStorageBootstrap } from "@/server/storage/get-storage-bootstrap";
+import { GOOGLE_OAUTH_SCOPES } from "@/server/auth/google-oauth-scopes";
 import { isGoogleOAuthConfigured } from "@/server/auth/google-oauth-config";
 
 import styles from "./index.module.scss";
 
 const STORAGE_TARGET_COPY: Record<
-  GoogleDriveStorageTargetResult["id"],
+  StorageTargetId,
   {
     description: string;
     note: string;
     title: string;
   }
 > = {
-  appDataFolder: {
+  applicationSettings: {
     description:
       "Guarda metadatos de la aplicación que el usuario no necesita manipular directamente.",
     note: "Usa `parents: ['appDataFolder']` y nunca expone estos archivos en My Drive.",
     title: "Metadatos de aplicación",
   },
-  myDrive: {
+  userFiles: {
     description:
       "Guarda archivos visibles del usuario usando alcance mínimo y acceso explícito.",
     note: "Mantiene el acceso restringido a archivos creados por la app o elegidos por el usuario.",
@@ -47,7 +47,7 @@ const STORAGE_TARGET_COPY: Record<
 };
 
 type HomePageProps = {
-  bootstrap: GoogleDriveBootstrapResult;
+  bootstrap: StorageBootstrap;
   hasBootstrapError: boolean;
 };
 
@@ -128,7 +128,7 @@ export default function HomePage({
                 </CardHeader>
                 <CardContent>
                   <ul className={styles.targetList}>
-                    <li>Scope requerido: {storageTarget.scope}</li>
+                    <li>Scope requerido: {storageTarget.requiredScope}</li>
                     <li>
                       Visible para el usuario:{" "}
                       {storageTarget.writesUserVisibleFiles ? "sí" : "no"}
@@ -151,9 +151,9 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   try {
     return {
       props: {
-        bootstrap: getGoogleDriveBootstrapConfig({
+        bootstrap: getStorageBootstrap({
           isGoogleOAuthConfigured: isGoogleOAuthConfigured(),
-          requiredScopes: GOOGLE_DRIVE_SCOPES,
+          requiredScopes: GOOGLE_OAUTH_SCOPES,
         }),
         hasBootstrapError: false,
       },
@@ -161,7 +161,7 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
   } catch {
     return {
       props: {
-        bootstrap: getGoogleDriveBootstrapConfig({
+        bootstrap: getStorageBootstrap({
           isGoogleOAuthConfigured: false,
           requiredScopes: [],
         }),

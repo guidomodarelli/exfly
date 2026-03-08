@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 
 import HomePage from "@/pages/index";
-import type { GoogleDriveBootstrapResult } from "@/modules/google-drive/application/results/google-drive-bootstrap-result";
+import type { StorageBootstrap } from "@/server/storage/get-storage-bootstrap";
 
-const bootstrap: GoogleDriveBootstrapResult = {
+const bootstrap: StorageBootstrap = {
   architecture: {
     dataStrategy: "ssr-first",
     middleendLocation: "src/modules",
@@ -19,13 +19,13 @@ const bootstrap: GoogleDriveBootstrapResult = {
   ],
   storageTargets: [
     {
-      id: "appDataFolder",
-      scope: "https://www.googleapis.com/auth/drive.appdata",
+      id: "applicationSettings",
+      requiredScope: "https://www.googleapis.com/auth/drive.appdata",
       writesUserVisibleFiles: false,
     },
     {
-      id: "myDrive",
-      scope: "https://www.googleapis.com/auth/drive.file",
+      id: "userFiles",
+      requiredScope: "https://www.googleapis.com/auth/drive.file",
       writesUserVisibleFiles: true,
     },
   ],

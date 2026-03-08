@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import {
-  GOOGLE_DRIVE_SCOPES,
-  GOOGLE_DRIVE_SCOPE_STRING,
-} from "@/modules/google-drive/infrastructure/auth/google-drive-scopes";
+  GOOGLE_OAUTH_SCOPES,
+  GOOGLE_OAUTH_SCOPE_STRING,
+} from "./google-oauth-scopes";
 
 const googleOAuthServerEnvSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().trim().min(1),
@@ -34,8 +34,8 @@ export function getGoogleOAuthServerConfig(): GoogleOAuthServerConfig | null {
     clientId: parsedEnvironment.data.GOOGLE_CLIENT_ID,
     clientSecret: parsedEnvironment.data.GOOGLE_CLIENT_SECRET,
     nextAuthSecret: parsedEnvironment.data.NEXTAUTH_SECRET,
-    scopes: GOOGLE_DRIVE_SCOPES,
-    scopeString: GOOGLE_DRIVE_SCOPE_STRING,
+    scopes: GOOGLE_OAUTH_SCOPES,
+    scopeString: GOOGLE_OAUTH_SCOPE_STRING,
   };
 }
 
