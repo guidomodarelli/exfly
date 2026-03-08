@@ -13,7 +13,10 @@ export function toMonthlyExpensesDocumentResult(
   document: MonthlyExpensesDocument,
 ): MonthlyExpensesDocumentResult {
   return {
-    items: document.items.map((item) => ({ ...item })),
+    items: document.items.map((item) => ({
+      ...item,
+      ...(item.loan ? { loan: { ...item.loan } } : {}),
+    })),
     month: document.month,
   };
 }

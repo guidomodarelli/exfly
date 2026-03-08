@@ -1,6 +1,8 @@
 import {
-  createMonthlyExpensesDocument,
   calculateMonthlyExpenseTotal,
+  calculateLoanEndMonth,
+  calculatePaidLoanInstallments,
+  createMonthlyExpensesDocument,
 } from "./monthly-expenses-document";
 
 describe("monthlyExpensesDocument", () => {
@@ -12,6 +14,11 @@ describe("monthlyExpensesDocument", () => {
             currency: "ARS",
             description: "  Empleada domestica  ",
             id: "expense-1",
+            loan: {
+              installmentCount: 12,
+              lenderName: "  Papa  ",
+              startMonth: "2026-01",
+            },
             occurrencesPerMonth: 8,
             subtotal: 6000,
           },
@@ -27,6 +34,13 @@ describe("monthlyExpensesDocument", () => {
           currency: "ARS",
           description: "Empleada domestica",
           id: "expense-1",
+          loan: {
+            endMonth: "2026-12",
+            installmentCount: 12,
+            lenderName: "Papa",
+            paidInstallments: 3,
+            startMonth: "2026-01",
+          },
           occurrencesPerMonth: 8,
           subtotal: 6000,
           total: 48000,
@@ -70,6 +84,32 @@ describe("monthlyExpensesDocument", () => {
     );
   });
 
+  it("rejects loan items without a valid start month and installment count", () => {
+    expect(() =>
+      createMonthlyExpensesDocument(
+        {
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              loan: {
+                installmentCount: 0,
+                startMonth: "2026/01",
+              },
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+            },
+          ],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      ),
+    ).toThrow(
+      "Saving monthly expenses requires a loan start month in YYYY-MM format.",
+    );
+  });
+
   it("keeps currency totals stable for decimal subtotals", () => {
     expect(
       calculateMonthlyExpenseTotal({
@@ -77,5 +117,59 @@ describe("monthlyExpensesDocument", () => {
         subtotal: 2.49,
       }),
     ).toBe(19.92);
+  });
+
+  it("calculates the loan end month from the start month and installments", () => {
+    expect(
+      calculateLoanEndMonth({
+        installmentCount: 12,
+        startMonth: "2026-01",
+      }),
+    ).toBe("2026-12");
+  });
+
+  it("calculates paid installments for the visible month and caps them at the total", () => {
+    expect(
+      calculatePaidLoanInstallments({
+        installmentCount: 12,
+        startMonth: "2026-01",
+        targetMonth: "2026-02",
+      }),
+    ).toBe(2);
+
+    expect(
+      calculatePaidLoanInstallments({
+        installmentCount: 12,
+        startMonth: "2026-01",
+        targetMonth: "2027-02",
+      }),
+    ).toBe(12);
+  });
+
+  it("supports regular expenses without loan metadata", () => {
+    const result = createMonthlyExpensesDocument(
+      {
+        items: [
+          {
+            currency: "USD",
+            description: "Google One",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            subtotal: 2.49,
+          },
+        ],
+        month: "2026-03",
+      },
+      "Saving monthly expenses",
+    );
+
+    expect(result.items[0]).toEqual({
+      currency: "USD",
+      description: "Google One",
+      id: "expense-1",
+      occurrencesPerMonth: 1,
+      subtotal: 2.49,
+      total: 2.49,
+    });
   });
 });

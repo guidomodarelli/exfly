@@ -297,4 +297,208 @@ describe("MonthlyExpensesPage", () => {
       screen.getByRole("button", { name: "Guardar gastos" }),
     ).toBeDisabled();
   });
+
+  it("shows and hides the debt fields when the loan checkbox changes", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MonthlyExpensesPage
+        bootstrap={bootstrap}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+        loadError={null}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Prestador")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Marcá el check si este gasto representa una deuda con una persona o entidad.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+
+    expect(screen.getByLabelText("Prestador")).toBeInTheDocument();
+    expect(screen.getByLabelText("Inicio de la deuda")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Cantidad total de cuotas"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Fin de la deuda")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+
+    expect(screen.queryByLabelText("Prestador")).not.toBeInTheDocument();
+  });
+
+  it("recalculates the loan progress when the selected month changes", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MonthlyExpensesPage
+        bootstrap={bootstrap}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              loan: {
+                endMonth: "2026-12",
+                installmentCount: 12,
+                lenderName: "Papa",
+                paidInstallments: 3,
+                startMonth: "2026-01",
+              },
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+        loadError={null}
+      />,
+    );
+
+    expect(screen.getByText("3 de 12 cuotas pagadas")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Mes"));
+    await user.type(screen.getByLabelText("Mes"), "2026-02");
+
+    expect(screen.getByText("2 de 12 cuotas pagadas")).toBeInTheDocument();
+  });
+
+  it("shows inline validation when a debt is missing start month or installments", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    render(
+      <MonthlyExpensesPage
+        bootstrap={bootstrap}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+        loadError={null}
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+
+    expect(
+      screen.getByText(
+        "Completá fecha de inicio y cantidad total de cuotas en cada deuda antes de guardar.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Guardar gastos" }),
+    ).toBeDisabled();
+  });
+
+  it("submits loan metadata and keeps lender optional", async () => {
+    const user = userEvent.setup();
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: async () => ({
+        data: {
+          id: "monthly-expenses-file-id",
+          month: "2026-03",
+          name: "monthly-expenses-2026-03.json",
+          viewUrl: null,
+        },
+      }),
+      ok: true,
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    render(
+      <MonthlyExpensesPage
+        bootstrap={bootstrap}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              loan: {
+                endMonth: "2026-12",
+                installmentCount: 12,
+                paidInstallments: 3,
+                startMonth: "2026-01",
+              },
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+        loadError={null}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Guardar gastos" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/storage/monthly-expenses",
+        expect.objectContaining({
+          body: JSON.stringify({
+            items: [
+              {
+                currency: "ARS",
+                description: "Prestamo tarjeta",
+                id: "expense-1",
+                loan: {
+                  installmentCount: 12,
+                  startMonth: "2026-01",
+                },
+                occurrencesPerMonth: 1,
+                subtotal: 50000,
+              },
+            ],
+            month: "2026-03",
+          }),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        }),
+      );
+    });
+  });
 });

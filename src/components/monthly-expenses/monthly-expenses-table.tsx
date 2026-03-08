@@ -35,7 +35,13 @@ export interface MonthlyExpensesEditableRow {
   currency: MonthlyExpenseCurrency;
   description: string;
   id: string;
+  installmentCount: string;
+  isLoan: boolean;
+  lenderName: string;
+  loanEndMonth: string;
+  loanProgress: string;
   occurrencesPerMonth: string;
+  startMonth: string;
   subtotal: string;
   total: string;
 }
@@ -43,7 +49,10 @@ export interface MonthlyExpensesEditableRow {
 type EditableFieldName =
   | "currency"
   | "description"
+  | "installmentCount"
+  | "lenderName"
   | "occurrencesPerMonth"
+  | "startMonth"
   | "subtotal";
 
 interface MonthlyExpensesTableProps {
@@ -60,6 +69,7 @@ interface MonthlyExpensesTableProps {
     fieldName: EditableFieldName,
     value: string,
   ) => void;
+  onExpenseLoanToggle: (expenseId: string, checked: boolean) => void;
   onMonthChange: (value: string) => void;
   onRemoveExpense: (expenseId: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -78,6 +88,7 @@ export function MonthlyExpensesTable({
   month,
   onAddExpense,
   onExpenseFieldChange,
+  onExpenseLoanToggle,
   onMonthChange,
   onRemoveExpense,
   onSubmit,
@@ -158,6 +169,9 @@ export function MonthlyExpensesTable({
                         Cantidad de veces por mes
                       </TableHead>
                       <TableHead className={styles.headCell}>Total</TableHead>
+                      <TableHead className={styles.headCell}>
+                        Deuda / cuotas
+                      </TableHead>
                       <TableHead className={styles.headCell}>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -167,6 +181,12 @@ export function MonthlyExpensesTable({
                       const subtotalFieldId = `expense-subtotal-${row.id}`;
                       const occurrencesFieldId = `expense-occurrences-${row.id}`;
                       const totalFieldId = `expense-total-${row.id}`;
+                      const loanToggleFieldId = `expense-loan-toggle-${row.id}`;
+                      const lenderFieldId = `expense-lender-${row.id}`;
+                      const loanStartFieldId = `expense-loan-start-${row.id}`;
+                      const installmentCountFieldId =
+                        `expense-installment-count-${row.id}`;
+                      const loanEndFieldId = `expense-loan-end-${row.id}`;
 
                       return (
                         <TableRow key={row.id}>
@@ -286,6 +306,118 @@ export function MonthlyExpensesTable({
                               type="text"
                               value={row.total}
                             />
+                          </TableCell>
+                          <TableCell>
+                            <div className={styles.loanCell}>
+                              <div className={styles.loanToggleRow}>
+                                <input
+                                  checked={row.isLoan}
+                                  className={styles.loanToggle}
+                                  id={loanToggleFieldId}
+                                  onChange={(event) =>
+                                    onExpenseLoanToggle(row.id, event.target.checked)
+                                  }
+                                  type="checkbox"
+                                />
+                                <Label htmlFor={loanToggleFieldId}>
+                                  Es deuda/préstamo
+                                </Label>
+                              </div>
+
+                              {row.isLoan ? (
+                                <div className={styles.loanDetails}>
+                                  <div className={styles.loanFieldGroup}>
+                                    <Label htmlFor={lenderFieldId}>
+                                      Prestador (opcional)
+                                    </Label>
+                                    <Input
+                                      aria-label="Prestador"
+                                      className={styles.cellField}
+                                      id={lenderFieldId}
+                                      onChange={(event) =>
+                                        onExpenseFieldChange(
+                                          row.id,
+                                          "lenderName",
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder="Ej. papa, amigo, banco"
+                                      type="text"
+                                      value={row.lenderName}
+                                    />
+                                  </div>
+
+                                  <div className={styles.loanFieldGrid}>
+                                    <div className={styles.loanFieldGroup}>
+                                      <Label htmlFor={loanStartFieldId}>
+                                        Inicio de la deuda
+                                      </Label>
+                                      <Input
+                                        aria-label="Inicio de la deuda"
+                                        className={styles.cellField}
+                                        id={loanStartFieldId}
+                                        onChange={(event) =>
+                                          onExpenseFieldChange(
+                                            row.id,
+                                            "startMonth",
+                                            event.target.value,
+                                          )
+                                        }
+                                        type="month"
+                                        value={row.startMonth}
+                                      />
+                                    </div>
+
+                                    <div className={styles.loanFieldGroup}>
+                                      <Label htmlFor={installmentCountFieldId}>
+                                        Cantidad total de cuotas
+                                      </Label>
+                                      <Input
+                                        aria-label="Cantidad total de cuotas"
+                                        className={styles.cellField}
+                                        id={installmentCountFieldId}
+                                        inputMode="numeric"
+                                        min="1"
+                                        onChange={(event) =>
+                                          onExpenseFieldChange(
+                                            row.id,
+                                            "installmentCount",
+                                            event.target.value,
+                                          )
+                                        }
+                                        step="1"
+                                        type="number"
+                                        value={row.installmentCount}
+                                      />
+                                    </div>
+
+                                    <div className={styles.loanFieldGroup}>
+                                      <Label htmlFor={loanEndFieldId}>
+                                        Fin de la deuda
+                                      </Label>
+                                      <Input
+                                        aria-label="Fin de la deuda"
+                                        className={styles.cellField}
+                                        id={loanEndFieldId}
+                                        readOnly
+                                        type="month"
+                                        value={row.loanEndMonth}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <p className={styles.loanStatus} role="status">
+                                    {row.loanProgress ||
+                                      "Completá inicio y cuotas para ver el avance."}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className={styles.loanHint}>
+                                  Marcá el check si este gasto representa una deuda
+                                  con una persona o entidad.
+                                </p>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className={styles.actionsCell}>
                             <Button

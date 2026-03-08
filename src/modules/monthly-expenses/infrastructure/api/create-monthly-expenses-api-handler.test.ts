@@ -88,7 +88,7 @@ describe("createMonthlyExpensesApiHandler", () => {
     expect(response.statusCode).toBe(400);
     expect(response.body).toEqual({
       error:
-        "monthly-expenses requires a month in YYYY-MM format and items with description, currency, subtotal, and occurrences per month.",
+        "monthly-expenses requires a month in YYYY-MM format, valid expense rows, and complete loan details when a debt is included.",
     });
   });
 
@@ -149,6 +149,67 @@ describe("createMonthlyExpensesApiHandler", () => {
         viewUrl: "https://drive.google.com/file/d/monthly-expenses-file-id/view",
       },
     });
+  });
+
+  it("passes loan metadata to the save use case when a debt is included", async () => {
+    const driveClient = {} as drive_v3.Drive;
+    const save = jest.fn().mockResolvedValue({
+      id: "monthly-expenses-file-id",
+      month: "2026-03",
+      name: "monthly-expenses-2026-03.json",
+      viewUrl: null,
+    });
+    const handler = createMonthlyExpensesApiHandler({
+      getDriveClient: jest.fn().mockResolvedValue(driveClient),
+      save,
+    });
+
+    const request = {
+      body: {
+        items: [
+          {
+            currency: "ARS",
+            description: "Prestamo tarjeta",
+            id: "expense-1",
+            loan: {
+              installmentCount: 12,
+              lenderName: "Papa",
+              startMonth: "2026-01",
+            },
+            occurrencesPerMonth: 1,
+            subtotal: 50000,
+          },
+        ],
+        month: "2026-03",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(save).toHaveBeenCalledWith({
+      command: {
+        items: [
+          {
+            currency: "ARS",
+            description: "Prestamo tarjeta",
+            id: "expense-1",
+            loan: {
+              installmentCount: 12,
+              lenderName: "Papa",
+              startMonth: "2026-01",
+            },
+            occurrencesPerMonth: 1,
+            subtotal: 50000,
+          },
+        ],
+        month: "2026-03",
+      },
+      driveClient,
+      request,
+    });
+    expect(response.statusCode).toBe(201);
   });
 
   it("returns 401 when Google authentication is missing", async () => {

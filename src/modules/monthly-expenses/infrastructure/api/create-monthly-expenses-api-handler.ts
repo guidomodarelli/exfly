@@ -14,6 +14,13 @@ const monthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
   description: z.string().trim().min(1),
   id: z.string().trim().min(1),
+  loan: z
+    .object({
+      installmentCount: z.number().int().positive(),
+      lenderName: z.string().optional(),
+      startMonth: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    })
+    .optional(),
   occurrencesPerMonth: z.number().int().positive(),
   subtotal: z.number().positive(),
 });
@@ -56,7 +63,7 @@ export function createMonthlyExpensesApiHandler<TResult>({
     if (!parsedBody.success) {
       return response.status(400).json({
         error:
-          "monthly-expenses requires a month in YYYY-MM format and items with description, currency, subtotal, and occurrences per month.",
+          "monthly-expenses requires a month in YYYY-MM format, valid expense rows, and complete loan details when a debt is included.",
       });
     }
 

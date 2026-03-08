@@ -14,6 +14,7 @@ import {
 import { isGoogleOAuthConfigured } from "@/modules/auth/infrastructure/oauth/google-oauth-config";
 import { GOOGLE_OAUTH_SCOPES } from "@/modules/auth/infrastructure/oauth/google-oauth-scopes";
 import type { SaveMonthlyExpensesCommand } from "@/modules/monthly-expenses/application/commands/save-monthly-expenses-command";
+import { getMonthlyExpenseLoanPreview } from "@/modules/monthly-expenses/application/queries/get-monthly-expense-loan-preview";
 import {
   getMonthlyExpensesDocument,
 } from "@/modules/monthly-expenses/application/use-cases/get-monthly-expenses-document";
@@ -92,7 +93,13 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     currency: "ARS",
     description: "",
     id: createExpenseRowId(),
+    installmentCount: "",
+    isLoan: false,
+    lenderName: "",
+    loanEndMonth: "",
+    loanProgress: "",
     occurrencesPerMonth: "",
+    startMonth: "",
     subtotal: "",
     total: "0.00",
   };
@@ -110,7 +117,17 @@ function toEditableRows(
       currency: item.currency,
       description: item.description,
       id: item.id,
+      installmentCount: item.loan
+        ? formatEditableNumber(item.loan.installmentCount)
+        : "",
+      isLoan: Boolean(item.loan),
+      lenderName: item.loan?.lenderName ?? "",
+      loanEndMonth: item.loan?.endMonth ?? "",
+      loanProgress: item.loan
+        ? `${item.loan.paidInstallments} de ${item.loan.installmentCount} cuotas pagadas`
+        : "",
       occurrencesPerMonth: formatEditableNumber(item.occurrencesPerMonth),
+      startMonth: item.loan?.startMonth ?? "",
       subtotal: formatEditableNumber(item.subtotal),
       total: item.total.toFixed(2),
     })),
@@ -130,11 +147,61 @@ function createMonthlyExpensesFormState(
   };
 }
 
+function buildLoanProgressLabel(
+  paidInstallments: number,
+  installmentCount: number,
+): string {
+  return `${paidInstallments} de ${installmentCount} cuotas pagadas`;
+}
+
+function normalizeLoanPreview(
+  month: string,
+  row: MonthlyExpensesEditableRow,
+): Pick<MonthlyExpensesEditableRow, "loanEndMonth" | "loanProgress"> {
+  const normalizedMonth = month.trim();
+  const normalizedStartMonth = row.startMonth.trim();
+  const installmentCount = Number(row.installmentCount);
+
+  if (
+    !MONTH_PATTERN.test(normalizedMonth) ||
+    !MONTH_PATTERN.test(normalizedStartMonth) ||
+    !Number.isInteger(installmentCount) ||
+    installmentCount <= 0
+  ) {
+    return {
+      loanEndMonth: "",
+      loanProgress: "",
+    };
+  }
+
+  const { endMonth: loanEndMonth, paidInstallments } =
+    getMonthlyExpenseLoanPreview({
+    installmentCount,
+    startMonth: normalizedStartMonth,
+    targetMonth: normalizedMonth,
+  });
+
+  return {
+    loanEndMonth,
+    loanProgress: buildLoanProgressLabel(paidInstallments, installmentCount),
+  };
+}
+
 function normalizeEditableRows(
+  month: string,
   rows: MonthlyExpensesEditableRow[],
 ): MonthlyExpensesEditableRow[] {
   return rows.map((row) => ({
     ...row,
+    ...(row.isLoan
+      ? normalizeLoanPreview(month, row)
+      : {
+          installmentCount: "",
+          lenderName: "",
+          loanEndMonth: "",
+          loanProgress: "",
+          startMonth: "",
+        }),
     total: calculateRowTotal(row.subtotal, row.occurrencesPerMonth),
   }));
 }
@@ -164,6 +231,21 @@ function getValidationMessage(
     return "Completá descripción, subtotal y cantidad de veces por mes en cada gasto antes de guardar.";
   }
 
+  const hasInvalidLoanRow = rows.some((row) => {
+    const installmentCount = Number(row.installmentCount);
+
+    return (
+      row.isLoan &&
+      (!MONTH_PATTERN.test(row.startMonth.trim()) ||
+        !Number.isInteger(installmentCount) ||
+        installmentCount <= 0)
+    );
+  });
+
+  if (hasInvalidLoanRow) {
+    return "Completá fecha de inicio y cantidad total de cuotas en cada deuda antes de guardar.";
+  }
+
   return null;
 }
 
@@ -175,6 +257,17 @@ function toSaveMonthlyExpensesCommand(
       currency: row.currency,
       description: row.description.trim(),
       id: row.id,
+      ...(row.isLoan
+        ? {
+            loan: {
+              installmentCount: Number(row.installmentCount),
+              ...(row.lenderName.trim()
+                ? { lenderName: row.lenderName.trim() }
+                : {}),
+              startMonth: row.startMonth.trim(),
+            },
+          }
+        : {}),
       occurrencesPerMonth: Number(row.occurrencesPerMonth),
       subtotal: Number(row.subtotal),
     })),
@@ -243,6 +336,7 @@ export default function MonthlyExpensesPage({
       error: null,
       month: value,
       result: null,
+      rows: normalizeEditableRows(value, currentState.rows),
       successMessage: null,
     }));
   };
@@ -252,7 +346,10 @@ export default function MonthlyExpensesPage({
     fieldName:
       | "currency"
       | "description"
+      | "installmentCount"
+      | "lenderName"
       | "occurrencesPerMonth"
+      | "startMonth"
       | "subtotal",
     value: string,
   ) => {
@@ -261,6 +358,7 @@ export default function MonthlyExpensesPage({
       error: null,
       result: null,
       rows: normalizeEditableRows(
+        currentState.month,
         currentState.rows.map((row) =>
           row.id === expenseId
             ? {
@@ -270,6 +368,33 @@ export default function MonthlyExpensesPage({
                     ? (value as MonthlyExpenseCurrency)
                     : value,
               }
+            : row,
+        ),
+      ),
+      successMessage: null,
+    }));
+  };
+
+  const handleExpenseLoanToggle = (expenseId: string, checked: boolean) => {
+    updateFormState((currentState) => ({
+      ...currentState,
+      error: null,
+      result: null,
+      rows: normalizeEditableRows(
+        currentState.month,
+        currentState.rows.map((row) =>
+          row.id === expenseId
+            ? checked
+              ? { ...row, isLoan: true }
+              : {
+                  ...row,
+                  installmentCount: "",
+                  isLoan: false,
+                  lenderName: "",
+                  loanEndMonth: "",
+                  loanProgress: "",
+                  startMonth: "",
+                }
             : row,
         ),
       ),
@@ -294,6 +419,7 @@ export default function MonthlyExpensesPage({
       result: null,
       rows: ensureRows(
         normalizeEditableRows(
+          currentState.month,
           currentState.rows.filter((row) => row.id !== expenseId),
         ),
       ),
@@ -352,6 +478,7 @@ export default function MonthlyExpensesPage({
           month={formState.month}
           onAddExpense={handleAddExpense}
           onExpenseFieldChange={handleExpenseFieldChange}
+          onExpenseLoanToggle={handleExpenseLoanToggle}
           onMonthChange={handleMonthChange}
           onRemoveExpense={handleRemoveExpense}
           onSubmit={handleSubmit}

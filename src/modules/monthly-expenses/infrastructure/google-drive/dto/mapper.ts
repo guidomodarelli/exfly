@@ -11,6 +11,13 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
   currency: z.enum(["ARS", "USD"]),
   description: z.string().trim().min(1),
   id: z.string().trim().min(1),
+  loan: z
+    .object({
+      installmentCount: z.number().int().positive(),
+      lenderName: z.string().optional(),
+      startMonth: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    })
+    .optional(),
   occurrencesPerMonth: z.number().int().positive(),
   subtotal: z.number().positive(),
 });
@@ -37,10 +44,19 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
     content: JSON.stringify(
       {
         items: document.items.map(
-          ({ currency, description, id, occurrencesPerMonth, subtotal }) => ({
+          ({ currency, description, id, loan, occurrencesPerMonth, subtotal }) => ({
             currency,
             description,
             id,
+            ...(loan
+              ? {
+                  loan: {
+                    installmentCount: loan.installmentCount,
+                    ...(loan.lenderName ? { lenderName: loan.lenderName } : {}),
+                    startMonth: loan.startMonth,
+                  },
+                }
+              : {}),
             occurrencesPerMonth,
             subtotal,
           }),
