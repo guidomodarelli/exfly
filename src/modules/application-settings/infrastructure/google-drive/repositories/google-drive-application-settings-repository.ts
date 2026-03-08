@@ -1,11 +1,14 @@
 import type { drive_v3 } from "googleapis";
 
+import { mapGoogleDriveStorageError } from "@/server/storage/google-drive-storage-error";
+
 import type { ApplicationSettingsDocument } from "../../../domain/entities/application-settings-document";
 import type { StoredApplicationSettings } from "../../../domain/entities/stored-application-settings";
 import type { ApplicationSettingsRepository } from "../../../domain/repositories/application-settings-repository";
 import { mapGoogleDriveSettingsFileDtoToDomain } from "../dto/mapper";
 
 const DRIVE_FILE_FIELDS = "id,name,mimeType";
+const DRIVE_FILES_CREATE_ENDPOINT = "drive.files.create";
 
 export class GoogleDriveApplicationSettingsRepository
   implements ApplicationSettingsRepository
@@ -15,18 +18,25 @@ export class GoogleDriveApplicationSettingsRepository
   async save(
     document: ApplicationSettingsDocument,
   ): Promise<StoredApplicationSettings> {
-    const response = await this.driveClient.files.create({
-      fields: DRIVE_FILE_FIELDS,
-      media: {
-        body: document.content,
-        mimeType: document.mimeType,
-      },
-      requestBody: {
-        name: document.name,
-        parents: ["appDataFolder"],
-      },
-    });
+    try {
+      const response = await this.driveClient.files.create({
+        fields: DRIVE_FILE_FIELDS,
+        media: {
+          body: document.content,
+          mimeType: document.mimeType,
+        },
+        requestBody: {
+          name: document.name,
+          parents: ["appDataFolder"],
+        },
+      });
 
-    return mapGoogleDriveSettingsFileDtoToDomain(response.data);
+      return mapGoogleDriveSettingsFileDtoToDomain(response.data);
+    } catch (error) {
+      throw mapGoogleDriveStorageError(error, {
+        endpoint: DRIVE_FILES_CREATE_ENDPOINT,
+        operation: "google-drive-application-settings-repository:save",
+      });
+    }
   }
 }

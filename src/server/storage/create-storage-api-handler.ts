@@ -6,6 +6,7 @@ import {
   GoogleOAuthAuthenticationError,
   GoogleOAuthConfigurationError,
 } from "@/server/auth/google-oauth-token";
+import { GoogleDriveStorageError } from "@/server/storage/google-drive-storage-error";
 
 const storageRequestBodySchema = z.object({
   content: z.string().trim().min(1),
@@ -81,6 +82,33 @@ export function createStorageApiHandler<TResult>({
         return response.status(500).json({
           error: `Google OAuth server configuration is incomplete for ${operationLabel} Drive storage.`,
         });
+      }
+
+      if (error instanceof GoogleDriveStorageError) {
+        if (error.code === "api_disabled") {
+          return response.status(503).json({
+            error:
+              "Google Drive API is not enabled for this project yet. Enable drive.googleapis.com in Google Cloud and try again.",
+          });
+        }
+
+        if (error.code === "invalid_scope") {
+          return response.status(403).json({
+            error: `The current Google session is missing the Drive permissions required to save ${operationLabel}. Sign out, connect Google again, and approve Drive access.`,
+          });
+        }
+
+        if (error.code === "insufficient_permissions") {
+          return response.status(403).json({
+            error: `Google Drive denied permission to save ${operationLabel}. Verify the selected Google account can create Drive files and try again.`,
+          });
+        }
+
+        if (error.code === "invalid_payload") {
+          return response.status(400).json({
+            error: `Google Drive rejected the ${operationLabel} payload. Check the file name, MIME type, and content and try again.`,
+          });
+        }
       }
 
       return response.status(500).json({

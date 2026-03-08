@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StoragePlayground } from "@/components/storage-playground/storage-playground";
 import { cn } from "@/lib/utils";
 import type {
   StorageBootstrap,
@@ -142,6 +143,8 @@ export default function HomePage({
             );
           })}
         </section>
+
+        <StoragePlayground isOAuthConfigured={isOAuthConfigured} />
       </div>
     </main>
   );

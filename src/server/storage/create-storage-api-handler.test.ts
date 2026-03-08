@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { drive_v3 } from "googleapis";
 
 import { GoogleOAuthAuthenticationError } from "@/server/auth/google-oauth-token";
+import { GoogleDriveStorageError } from "@/server/storage/google-drive-storage-error";
 
 import { createStorageApiHandler } from "./create-storage-api-handler";
 
@@ -196,6 +197,114 @@ describe("createStorageApiHandler", () => {
     expect(response.body).toEqual({
       error:
         "We could not save application settings to Google Drive. Try again later.",
+    });
+  });
+
+  it("returns 503 when Google Drive API is disabled", async () => {
+    const handler = createStorageApiHandler({
+      getDriveClient: jest.fn().mockResolvedValue({} as drive_v3.Drive),
+      operationLabel: "user files",
+      save: jest.fn().mockRejectedValue(
+        new GoogleDriveStorageError(
+          "google-drive-user-files-repository:save failed while calling drive.files.create with httpStatus=403 and apiStatus=SERVICE_DISABLED.",
+          {
+            code: "api_disabled",
+            endpoint: "drive.files.create",
+            httpStatus: 403,
+            operation: "google-drive-user-files-repository:save",
+          },
+        ),
+      ),
+    });
+
+    const request = {
+      body: {
+        content: "date,amount\n2026-03-08,32.5",
+        mimeType: "text/csv",
+        name: "expenses.csv",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.body).toEqual({
+      error:
+        "Google Drive API is not enabled for this project yet. Enable drive.googleapis.com in Google Cloud and try again.",
+    });
+  });
+
+  it("returns 403 when the Google session is missing Drive scopes", async () => {
+    const handler = createStorageApiHandler({
+      getDriveClient: jest.fn().mockResolvedValue({} as drive_v3.Drive),
+      operationLabel: "user files",
+      save: jest.fn().mockRejectedValue(
+        new GoogleDriveStorageError(
+          "google-drive-user-files-repository:save failed while calling drive.files.create with httpStatus=403 and apiStatus=PERMISSION_DENIED.",
+          {
+            code: "invalid_scope",
+            endpoint: "drive.files.create",
+            httpStatus: 403,
+            operation: "google-drive-user-files-repository:save",
+          },
+        ),
+      ),
+    });
+
+    const request = {
+      body: {
+        content: "date,amount\n2026-03-08,32.5",
+        mimeType: "text/csv",
+        name: "expenses.csv",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      error:
+        "The current Google session is missing the Drive permissions required to save user files. Sign out, connect Google again, and approve Drive access.",
+    });
+  });
+
+  it("returns 400 when Google Drive rejects the payload", async () => {
+    const handler = createStorageApiHandler({
+      getDriveClient: jest.fn().mockResolvedValue({} as drive_v3.Drive),
+      operationLabel: "user files",
+      save: jest.fn().mockRejectedValue(
+        new GoogleDriveStorageError(
+          "google-drive-user-files-repository:save failed while calling drive.files.create with httpStatus=400 and apiStatus=INVALID_ARGUMENT.",
+          {
+            code: "invalid_payload",
+            endpoint: "drive.files.create",
+            httpStatus: 400,
+            operation: "google-drive-user-files-repository:save",
+          },
+        ),
+      ),
+    });
+
+    const request = {
+      body: {
+        content: "date,amount\n2026-03-08,32.5",
+        mimeType: "text/csv",
+        name: "expenses.csv",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({
+      error:
+        "Google Drive rejected the user files payload. Check the file name, MIME type, and content and try again.",
     });
   });
 });
