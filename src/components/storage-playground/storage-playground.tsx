@@ -75,7 +75,7 @@ function getFieldValidationMessage(
 export function StoragePlayground({
   isOAuthConfigured,
 }: StoragePlaygroundProps) {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [applicationSettingsForm, setApplicationSettingsForm] =
     useState<StorageFormState>(
       createStorageFormState(DEFAULT_APPLICATION_SETTINGS_VALUES),
@@ -86,6 +86,8 @@ export function StoragePlayground({
 
   const isAuthenticated = status === "authenticated";
   const isSessionLoading = status === "loading";
+  const sessionUserName = session?.user?.name?.trim() || "Nombre no disponible";
+  const sessionUserEmail = session?.user?.email?.trim() || "Email no disponible";
   const sessionMessage = !isOAuthConfigured
     ? "Completá la configuración OAuth del servidor para habilitar el storage."
     : isSessionLoading
@@ -240,6 +242,12 @@ export function StoragePlayground({
           >
             {sessionMessage}
           </p>
+          {isAuthenticated ? (
+            <div className={styles.sessionIdentity}>
+              <p className={styles.sessionIdentityLine}>Cuenta activa: {sessionUserName}</p>
+              <p className={styles.sessionIdentityLine}>Email: {sessionUserEmail}</p>
+            </div>
+          ) : null}
 
           <div className={styles.formsGrid}>
             <form className={styles.formCard} onSubmit={submitApplicationSettings}>

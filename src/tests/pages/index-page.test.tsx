@@ -47,33 +47,29 @@ describe("HomePage", () => {
     } as ReturnType<typeof useSession>);
   });
 
-  it("renders the Google Drive bootstrap overview", () => {
-    render(<HomePage bootstrap={bootstrap} hasBootstrapError={false} />);
+  it("renders the storage playground without the legacy hero card", () => {
+    render(<HomePage bootstrap={bootstrap} />);
 
-    expect(
-      screen.getByRole("heading", { name: "Mis Finanzas" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Archivos del usuario" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Metadatos de aplicación")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Conectar Google" }),
-    ).toHaveAttribute("href", "/auth/signin");
-    expect(
-      screen.getByText("https://www.googleapis.com/auth/drive.appdata"),
-    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Probar storage en Google Drive" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Mis Finanzas" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Pages Router + SSR + Hexagonal"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Conectate con Google para habilitar el guardado en Drive."),
+    ).toBeInTheDocument();
   });
 
-  it("renders a safe fallback message when bootstrap fails", () => {
-    render(<HomePage bootstrap={bootstrap} hasBootstrapError />);
+  it("renders the OAuth setup hint when bootstrap is pending", () => {
+    render(<HomePage bootstrap={{ ...bootstrap, authStatus: "pending" }} />);
 
     expect(
       screen.getByText(
-        "No pudimos preparar la configuración inicial de Google Drive. Reintentá más tarde.",
+        "Completá la configuración OAuth del servidor para habilitar el storage.",
       ),
     ).toBeInTheDocument();
   });

@@ -51,6 +51,16 @@ describe("StoragePlayground", () => {
     ).toBeDisabled();
   });
 
+  it("shows the active account personal details when session is authenticated", () => {
+    render(<StoragePlayground isOAuthConfigured />);
+
+    expect(
+      screen.getByText("Sesión Google activa. Ya podés guardar en Drive."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Cuenta activa: Gus")).toBeInTheDocument();
+    expect(screen.getByText("Email: gus@example.com")).toBeInTheDocument();
+  });
+
   it("saves application settings and shows the created file id", async () => {
     const user = userEvent.setup();
     const fetchMock = jest.fn().mockResolvedValue({

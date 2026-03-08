@@ -1,19 +1,9 @@
-import Link from "next/link";
 import type {
   GetServerSideProps,
   InferGetServerSidePropsType,
 } from "next";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import { StoragePlayground } from "@/components/storage-playground/storage-playground";
-import { cn } from "@/lib/utils";
 import type {
   StorageBootstrap,
 } from "@/server/storage/get-storage-bootstrap";
@@ -25,73 +15,16 @@ import styles from "./index.module.scss";
 
 type HomePageProps = {
   bootstrap: StorageBootstrap;
-  hasBootstrapError: boolean;
 };
 
 export default function HomePage({
   bootstrap,
-  hasBootstrapError,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const isOAuthConfigured = bootstrap.authStatus === "configured";
 
   return (
     <main className={styles.page}>
       <div className={styles.layout}>
-        <Card className={styles.heroCard}>
-          <CardHeader>
-            <p className={styles.eyebrow}>Pages Router + SSR + Hexagonal</p>
-            <h1 className={cn("leading-none font-semibold", styles.heroTitle)}>
-              Mis Finanzas
-            </h1>
-            <CardDescription>
-              Base inicial con arquitectura hexagonal, `shadcn/ui`, `SCSS` y
-              configuración segura para conectar Google OAuth y Google Drive.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className={styles.heroContent}>
-            <div className={styles.meta}>
-              <span
-                className={cn(
-                  styles.status,
-                  !isOAuthConfigured && styles.statusPending,
-                )}
-              >
-                OAuth {isOAuthConfigured ? "configurado" : "pendiente"}
-              </span>
-              <span className={styles.status}>
-                {bootstrap.architecture.routing}
-              </span>
-              <span className={styles.status}>
-                {bootstrap.architecture.dataStrategy}
-              </span>
-            </div>
-            {hasBootstrapError ? (
-              <p className={styles.error}>
-                No pudimos preparar la configuración inicial de Google Drive.
-                Reintentá más tarde.
-              </p>
-            ) : null}
-            <ul className={styles.scopeList}>
-              {bootstrap.requiredScopes.map((scope) => (
-                <li key={scope}>{scope}</li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter className={styles.actions}>
-            <Button asChild>
-              <Link href="/auth/signin">Conectar Google</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <a
-                href="https://developers.google.com/drive/api/guides/appdata"
-                rel="noreferrer"
-                target="_blank"
-              >
-                Ver referencia de Drive
-              </a>
-            </Button>
-          </CardFooter>
-        </Card>
         <StoragePlayground isOAuthConfigured={isOAuthConfigured} />
       </div>
     </main>
@@ -106,7 +39,6 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
           isGoogleOAuthConfigured: isGoogleOAuthConfigured(),
           requiredScopes: GOOGLE_OAUTH_SCOPES,
         }),
-        hasBootstrapError: false,
       },
     };
   } catch {
@@ -116,7 +48,6 @@ export const getServerSideProps: GetServerSideProps<HomePageProps> = async () =>
           isGoogleOAuthConfigured: false,
           requiredScopes: [],
         }),
-        hasBootstrapError: true,
       },
     };
   }

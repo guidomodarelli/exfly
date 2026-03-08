@@ -26,6 +26,19 @@
   color: var(--destructive);
 }
 
+.sessionIdentity {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: -0.25rem;
+  padding: 0 0.2rem;
+}
+
+.sessionIdentityLine {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
 .formsGrid {
   display: grid;
   gap: 1rem;
