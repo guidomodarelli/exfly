@@ -80,8 +80,7 @@ export function MonthlyExpensesLoansReport({
       <CardHeader>
         <CardTitle>Reporte de deudas</CardTitle>
         <CardDescription>
-          Consultá cuánto queda pendiente por prestador y qué gastos están
-          asociados.
+          Revisá cuánto debés por prestador y qué gastos están asociados.
         </CardDescription>
       </CardHeader>
       <CardContent className={styles.content}>
@@ -186,7 +185,7 @@ export function MonthlyExpensesLoansReport({
             ))
           ) : feedbackMessage ? null : (
             <p className={styles.feedback}>
-              No hay deudas registradas para los filtros seleccionados.
+              No hay deudas para los filtros seleccionados.
             </p>
           )}
         </div>

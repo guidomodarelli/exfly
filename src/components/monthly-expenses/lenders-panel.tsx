@@ -69,8 +69,7 @@ export function LendersPanel({
       <CardHeader>
         <CardTitle>Prestadores</CardTitle>
         <CardDescription>
-          Registrá familiares, amigos, bancos u otras personas para reutilizarlos
-          en las deudas.
+          Guardá prestadores para reutilizarlos en tus deudas.
         </CardDescription>
       </CardHeader>
       <CardContent className={styles.content}>
@@ -152,7 +151,7 @@ export function LendersPanel({
             ))
           ) : (
             <p className={styles.emptyState}>
-              Todavía no registraste prestadores.
+              Todavía no hay prestadores guardados.
             </p>
           )}
         </div>
