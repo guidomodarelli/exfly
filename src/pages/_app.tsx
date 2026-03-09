@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { AppProps } from "next/app";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
+import { useEffect } from "react";
 
 const geistSans = Geist({
   subsets: ["latin"],
@@ -25,6 +26,19 @@ export default function App({
   pageProps,
 }: AppProps<PagePropsWithSession>) {
   const { session, ...restPageProps } = pageProps;
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+
+    async function loadReactGrabCodexProvider() {
+      await import("react-grab");
+      await import("@react-grab/codex/client");
+    }
+
+    void loadReactGrabCodexProvider();
+  }, []);
 
   return (
     <SessionProvider session={session}>
