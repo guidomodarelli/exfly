@@ -4,7 +4,8 @@ import type {
   InferGetServerSidePropsType,
 } from "next";
 import type { FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 
 import {
@@ -17,6 +18,12 @@ import {
   type MonthlyExpensesEditableRow,
 } from "@/components/monthly-expenses/monthly-expenses-table";
 import type { ExpenseEditableFieldName } from "@/components/monthly-expenses/expense-sheet";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { isGoogleOAuthConfigured } from "@/modules/auth/infrastructure/oauth/google-oauth-config";
 import { GOOGLE_OAUTH_SCOPES } from "@/modules/auth/infrastructure/oauth/google-oauth-scopes";
 import {
@@ -65,6 +72,7 @@ import styles from "./monthly-expenses.module.scss";
 type MonthlyExpensesPageProps = {
   bootstrap: StorageBootstrapResult;
   initialDocument: MonthlyExpensesDocumentResult;
+  initialActiveTab: MonthlyExpensesTabKey;
   initialLendersCatalog: LendersCatalogDocumentResult;
   initialLoansReport: MonthlyExpensesLoansReportResult;
   lendersLoadError: string | null;
@@ -113,7 +121,16 @@ interface ExpenseSheetState {
 }
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const MONTHLY_EXPENSES_TAB_KEYS = ["expenses", "lenders", "debts"] as const;
+type MonthlyExpensesTabKey = (typeof MONTHLY_EXPENSES_TAB_KEYS)[number];
 type MonthlyExpenseCurrency = "ARS" | "USD";
+const DEFAULT_MONTHLY_EXPENSES_TAB: MonthlyExpensesTabKey = "expenses";
+
+function isMonthlyExpensesTabKey(
+  value: string,
+): value is MonthlyExpensesTabKey {
+  return MONTHLY_EXPENSES_TAB_KEYS.includes(value as MonthlyExpensesTabKey);
+}
 
 function getCurrentMonthIdentifier(date: Date = new Date()): string {
   const year = date.getFullYear();
@@ -438,6 +455,17 @@ function getRequestedMonth(queryValue: GetServerSidePropsContext["query"]["month
     : getCurrentMonthIdentifier();
 }
 
+export function getRequestedMonthlyExpensesTab(
+  queryValue: GetServerSidePropsContext["query"]["tab"],
+): MonthlyExpensesTabKey {
+  const tabValue = Array.isArray(queryValue) ? queryValue[0] : queryValue;
+  const normalizedTab = tabValue?.trim();
+
+  return normalizedTab && isMonthlyExpensesTabKey(normalizedTab)
+    ? normalizedTab
+    : DEFAULT_MONTHLY_EXPENSES_TAB;
+}
+
 function mapReportEntriesToCurrentLenders(
   entries: MonthlyExpensesLoansReportResult["entries"],
   lenders: LenderOption[],
@@ -497,14 +525,19 @@ export function getReportProviderFilterOptions(
 export default function MonthlyExpensesPage({
   bootstrap,
   initialDocument,
+  initialActiveTab,
   initialLendersCatalog,
   initialLoansReport,
   lendersLoadError,
   loadError,
   reportLoadError,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  const router = useRouter();
   const isOAuthConfigured = bootstrap.authStatus === "configured";
   const { status } = useSession();
+  const [activeTab, setActiveTab] = useState<MonthlyExpensesTabKey>(
+    initialActiveTab,
+  );
   const [formState, setFormState] = useState<MonthlyExpensesFormState>(
     createMonthlyExpensesFormState(initialDocument),
   );
@@ -545,6 +578,19 @@ export default function MonthlyExpensesPage({
     reportState.entries,
     lendersState.lenders,
   );
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    if (typeof router.query.tab === "undefined") {
+      setActiveTab(initialActiveTab);
+      return;
+    }
+
+    setActiveTab(getRequestedMonthlyExpensesTab(router.query.tab));
+  }, [initialActiveTab, router.isReady, router.query.tab]);
 
   const feedbackMessage =
     formState.error ??
@@ -991,65 +1037,114 @@ export default function MonthlyExpensesPage({
     }));
   };
 
+  const handleTabChange = (nextTab: string) => {
+    if (!isMonthlyExpensesTabKey(nextTab) || nextTab === activeTab) {
+      return;
+    }
+
+    setActiveTab(nextTab);
+
+    void router.replace(
+      {
+        pathname: router.pathname,
+        query: {
+          ...router.query,
+          tab: nextTab,
+        },
+      },
+      undefined,
+      {
+        scroll: false,
+        shallow: true,
+      },
+    );
+  };
+
   return (
     <main className={styles.page}>
       <div className={styles.layout}>
-        <MonthlyExpensesTable
-          actionDisabled={actionDisabled}
-          changedFields={changedExpenseFields}
-          draft={expenseSheetState.draft}
-          feedbackMessage={feedbackMessage}
-          feedbackTone={feedbackTone}
-          isAuthenticated={isAuthenticated}
-          isExpenseSheetOpen={expenseSheetState.isOpen}
-          isSessionLoading={isSessionLoading}
-          isSubmitting={formState.isSubmitting}
-          lenders={lendersState.lenders}
-          loadError={loadError}
-          month={formState.month}
-          onAddExpense={handleAddExpense}
-          onDeleteExpense={handleRemoveExpense}
-          onEditExpense={handleEditExpense}
-          onExpenseFieldChange={handleExpenseFieldChange}
-          onExpenseLenderSelect={handleExpenseLenderSelect}
-          onExpenseLoanToggle={handleExpenseLoanToggle}
-          onMonthChange={handleMonthChange}
-          onRequestCloseExpenseSheet={handleRequestCloseExpenseSheet}
-          onSaveExpense={handleSaveExpense}
-          onSaveUnsavedChanges={handleSaveUnsavedChanges}
-          onUnsavedChangesDiscard={handleUnsavedChangesDiscard}
-          result={formState.result}
-          rows={formState.rows}
-          sessionMessage={sessionMessage}
-          sheetMode={expenseSheetState.mode}
-          showUnsavedChangesDialog={expenseSheetState.showUnsavedChangesDialog}
-          validationMessage={expenseValidationMessage}
-        />
-        <LendersPanel
-          feedbackMessage={lendersFeedbackMessage}
-          feedbackTone={lendersFeedbackTone}
-          formValues={{
-            name: lendersState.name,
-            notes: lendersState.notes,
-            type: lendersState.type,
-          }}
-          isSubmitting={lendersState.isSubmitting}
-          lenders={lendersState.lenders}
-          onDelete={handleDeleteLender}
-          onFieldChange={handleLenderFieldChange}
-          onSubmit={handleLendersSubmit}
-        />
-        <MonthlyExpensesLoansReport
-          entries={filteredReportEntries}
-          feedbackMessage={reportState.error}
-          providerFilterOptions={reportProviderFilterOptions}
-          selectedLenderFilter={reportState.lenderFilter}
-          selectedTypeFilter={reportState.typeFilter}
-          summary={reportState.summary}
-          onLenderFilterChange={handleReportLenderFilterChange}
-          onResetFilters={handleReportFiltersReset}
-          onTypeFilterChange={handleReportTypeFilterChange}
-        />
+        <Tabs
+          className={styles.tabsRoot}
+          onValueChange={handleTabChange}
+          value={activeTab}
+        >
+          <TabsList className={styles.tabsList} variant="line">
+            <TabsTrigger className={styles.tabsTrigger} value="expenses">
+              Gastos del mes
+            </TabsTrigger>
+            <TabsTrigger className={styles.tabsTrigger} value="lenders">
+              Prestadores
+            </TabsTrigger>
+            <TabsTrigger className={styles.tabsTrigger} value="debts">
+              Reporte de deudas
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="expenses">
+            <MonthlyExpensesTable
+              actionDisabled={actionDisabled}
+              changedFields={changedExpenseFields}
+              draft={expenseSheetState.draft}
+              feedbackMessage={feedbackMessage}
+              feedbackTone={feedbackTone}
+              isAuthenticated={isAuthenticated}
+              isExpenseSheetOpen={expenseSheetState.isOpen}
+              isSessionLoading={isSessionLoading}
+              isSubmitting={formState.isSubmitting}
+              lenders={lendersState.lenders}
+              loadError={loadError}
+              month={formState.month}
+              onAddExpense={handleAddExpense}
+              onDeleteExpense={handleRemoveExpense}
+              onEditExpense={handleEditExpense}
+              onExpenseFieldChange={handleExpenseFieldChange}
+              onExpenseLenderSelect={handleExpenseLenderSelect}
+              onExpenseLoanToggle={handleExpenseLoanToggle}
+              onMonthChange={handleMonthChange}
+              onRequestCloseExpenseSheet={handleRequestCloseExpenseSheet}
+              onSaveExpense={handleSaveExpense}
+              onSaveUnsavedChanges={handleSaveUnsavedChanges}
+              onUnsavedChangesDiscard={handleUnsavedChangesDiscard}
+              result={formState.result}
+              rows={formState.rows}
+              sessionMessage={sessionMessage}
+              sheetMode={expenseSheetState.mode}
+              showUnsavedChangesDialog={expenseSheetState.showUnsavedChangesDialog}
+              validationMessage={expenseValidationMessage}
+            />
+          </TabsContent>
+
+          <TabsContent value="lenders">
+            <LendersPanel
+              feedbackMessage={lendersFeedbackMessage}
+              feedbackTone={lendersFeedbackTone}
+              formValues={{
+                name: lendersState.name,
+                notes: lendersState.notes,
+                type: lendersState.type,
+              }}
+              isSubmitting={lendersState.isSubmitting}
+              lenders={lendersState.lenders}
+              onDelete={handleDeleteLender}
+              onFieldChange={handleLenderFieldChange}
+              onSubmit={handleLendersSubmit}
+            />
+          </TabsContent>
+
+          <TabsContent value="debts">
+            <MonthlyExpensesLoansReport
+              entries={filteredReportEntries}
+              feedbackMessage={reportState.error}
+              providerFilterOptions={reportProviderFilterOptions}
+              selectedLenderFilter={reportState.lenderFilter}
+              selectedTypeFilter={reportState.typeFilter}
+              summary={reportState.summary}
+              onLenderFilterChange={handleReportLenderFilterChange}
+              onResetFilters={handleReportFiltersReset}
+              onTypeFilterChange={handleReportTypeFilterChange}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   );
@@ -1057,6 +1152,7 @@ export default function MonthlyExpensesPage({
 
 export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
   async (context) => {
+    const initialActiveTab = getRequestedMonthlyExpensesTab(context.query.tab);
     const selectedMonth = getRequestedMonth(context.query.month);
     const bootstrap = getStorageBootstrap({
       isGoogleOAuthConfigured: isGoogleOAuthConfigured(),
@@ -1067,6 +1163,7 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
       return {
         props: {
           bootstrap,
+          initialActiveTab,
           initialDocument: createEmptyMonthlyExpensesDocumentResult(
             selectedMonth,
           ),
@@ -1117,6 +1214,7 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
       return {
         props: {
           bootstrap,
+          initialActiveTab,
           initialDocument:
             documentResult.status === "fulfilled"
               ? documentResult.value
@@ -1147,6 +1245,7 @@ export const getServerSideProps: GetServerSideProps<MonthlyExpensesPageProps> =
       return {
         props: {
           bootstrap,
+          initialActiveTab,
           initialDocument: createEmptyMonthlyExpensesDocumentResult(
             selectedMonth,
           ),

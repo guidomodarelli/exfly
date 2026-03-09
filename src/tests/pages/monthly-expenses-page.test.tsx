@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 
 import {
@@ -10,13 +11,19 @@ import {
 import type { StorageBootstrapResult } from "@/modules/storage/application/results/storage-bootstrap";
 import { VISIBLE_DRIVE_FOLDER_NAME } from "@/modules/storage/shared/visible-drive-folder-name";
 import MonthlyExpensesPage, {
+  getRequestedMonthlyExpensesTab,
   getReportProviderFilterOptions,
 } from "@/pages/monthly-expenses";
+
+jest.mock("next/router", () => ({
+  useRouter: jest.fn(),
+}));
 
 jest.mock("next-auth/react", () => ({
   useSession: jest.fn(),
 }));
 
+const mockedUseRouter = jest.mocked(useRouter);
 const mockedUseSession = jest.mocked(useSession);
 const originalFetch = global.fetch;
 
@@ -64,8 +71,26 @@ const basePageProps = {
   },
   lendersLoadError: null,
   loadError: null,
+  initialActiveTab: "expenses" as const,
   reportLoadError: null,
 };
+
+function createMockRouter(
+  overrides?: Partial<{
+    isReady: boolean;
+    pathname: string;
+    query: Record<string, string | string[] | undefined>;
+    replace: jest.Mock;
+  }>,
+) {
+  return {
+    isReady: true,
+    pathname: "/monthly-expenses",
+    query: {},
+    replace: jest.fn().mockResolvedValue(true),
+    ...overrides,
+  };
+}
 
 function createMonthlyExpensesFetchMock(overrides?: {
   monthlyExpensesViewUrl?: string | null;
@@ -130,6 +155,9 @@ function getMonthlyExpensesSavePayload(fetchMock: jest.Mock) {
 
 describe("MonthlyExpensesPage", () => {
   beforeEach(() => {
+    mockedUseRouter.mockReturnValue(
+      createMockRouter() as unknown as ReturnType<typeof useRouter>,
+    );
     mockedUseSession.mockReturnValue({
       data: null,
       status: "unauthenticated",
@@ -176,6 +204,75 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.queryByRole("button", { name: "Guardar gastos" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("falls back to the expenses tab for invalid query values", () => {
+    expect(getRequestedMonthlyExpensesTab(undefined)).toBe("expenses");
+    expect(getRequestedMonthlyExpensesTab("unknown")).toBe("expenses");
+    expect(getRequestedMonthlyExpensesTab(["debts"])).toBe("debts");
+  });
+
+  it("renders the lenders tab when it arrives from the URL state", () => {
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialActiveTab="lenders"
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("tabpanel", { name: "Prestadores" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Gastos del mes" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("updates the URL query when switching tabs and preserves the month", async () => {
+    const user = userEvent.setup();
+    const router = createMockRouter({
+      query: {
+        month: "2026-03",
+      },
+    });
+
+    mockedUseRouter.mockReturnValue(
+      router as unknown as ReturnType<typeof useRouter>,
+    );
+
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Prestadores" }));
+
+    expect(
+      screen.getByRole("tabpanel", { name: "Prestadores" }),
+    ).toBeInTheDocument();
+    expect(router.replace).toHaveBeenCalledWith(
+      {
+        pathname: "/monthly-expenses",
+        query: {
+          month: "2026-03",
+          tab: "lenders",
+        },
+      },
+      undefined,
+      {
+        scroll: false,
+        shallow: true,
+      },
+    );
   });
 
   it("opens a sheet to create a new expense and only saves on explicit confirmation", async () => {
@@ -1073,6 +1170,7 @@ describe("MonthlyExpensesPage", () => {
     render(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialActiveTab="lenders"
         initialDocument={{
           items: [],
           month: "2026-03",
@@ -1153,6 +1251,7 @@ describe("MonthlyExpensesPage", () => {
     render(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialActiveTab="lenders"
         initialDocument={{
           items: [],
           month: "2026-03",
@@ -1364,6 +1463,7 @@ describe("MonthlyExpensesPage", () => {
     render(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialActiveTab="debts"
         initialDocument={{
           items: [],
           month: "2026-03",
@@ -1468,6 +1568,7 @@ describe("MonthlyExpensesPage", () => {
     render(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialActiveTab="lenders"
         initialDocument={{
           items: [],
           month: "2026-03",

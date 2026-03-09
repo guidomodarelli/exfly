@@ -9,3 +9,22 @@
   display: grid;
   gap: 1.5rem;
 }
+
+.tabsRoot {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.tabsList {
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.35rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  justify-self: start;
+}
+
+.tabsTrigger {
+  flex: 0 1 auto;
+  padding-inline: 0.9rem;
+}
