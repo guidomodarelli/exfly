@@ -191,9 +191,6 @@ describe("MonthlyExpensesPage", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Gastos del mes" }),
-    ).toBeInTheDocument();
-    expect(
       screen.getByRole("heading", { name: "Detalle del mes" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-03");

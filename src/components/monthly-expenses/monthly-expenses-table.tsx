@@ -221,16 +221,10 @@ export function MonthlyExpensesTable({
   );
 
   return (
-    <section
-      aria-labelledby="monthly-expenses-title"
-      className={styles.section}
-    >
+    <section className={styles.section}>
       <div className={styles.content}>
         <div className={styles.headerTopRow}>
           <div className={styles.header}>
-            <h1 className={styles.pageTitle} id="monthly-expenses-title">
-              Gastos del mes
-            </h1>
             <p className={styles.pageDescription}>
               Cargá, editá y guardá tus gastos mensuales en Google Drive dentro de
               la carpeta `{VISIBLE_DRIVE_FOLDER_NAME}`.
