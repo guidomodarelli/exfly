@@ -29,9 +29,33 @@ const googleDriveMonthlyExpensesDocumentSchema = z.object({
 });
 
 const MONTHLY_EXPENSES_MIME_TYPE = "application/json";
+const SPANISH_MONTH_NAMES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+] as const;
 
 export function createMonthlyExpensesFileName(month: string): string {
-  return `monthly-expenses-${month}.json`;
+  const [yearValue, monthValue] = month.split("-");
+  const monthIndex = Number(monthValue) - 1;
+  const monthName = SPANISH_MONTH_NAMES[monthIndex];
+
+  if (!yearValue || !monthName) {
+    throw new Error(
+      `Cannot create a monthly expenses Drive file name from invalid month "${month}".`,
+    );
+  }
+
+  return `gastos-mensuales-${yearValue}-${monthName}.json`;
 }
 
 export function mapMonthlyExpensesDocumentToGoogleDriveFile(

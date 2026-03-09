@@ -77,7 +77,7 @@ function createMonthlyExpensesFetchMock(overrides?: {
           data: {
             id: "monthly-expenses-file-id",
             month: "2026-03",
-            name: "monthly-expenses-2026-03.json",
+            name: "gastos-mensuales-2026-marzo.json",
             viewUrl: overrides?.monthlyExpensesViewUrl ?? null,
           },
         }),
@@ -1188,7 +1188,7 @@ describe("MonthlyExpensesPage", () => {
             data: {
               id: "monthly-expenses-file-id",
               month: "2026-03",
-              name: "monthly-expenses-2026-03.json",
+              name: "gastos-mensuales-2026-marzo.json",
               viewUrl: null,
             },
           }),

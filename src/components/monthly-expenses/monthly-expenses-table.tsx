@@ -17,6 +17,9 @@ import { cn } from "@/lib/utils";
 import type { LenderOption } from "./lender-picker";
 import styles from "./monthly-expenses-table.module.scss";
 
+const VISIBLE_DRIVE_FOLDER_LABEL =
+  "Mis finanzas (no borrar: pertenece a la app)";
+
 type MonthlyExpenseCurrency = "ARS" | "USD";
 
 interface StoredMonthlyExpensesDocumentView {
@@ -232,7 +235,8 @@ export function MonthlyExpensesTable({
             </h1>
             <p className={styles.pageDescription}>
               Organizá servicios, alquileres, expensas y cualquier gasto
-              recurrente en una tabla mensual con guardado en Google Drive.
+              recurrente en una tabla mensual con guardado en Google Drive dentro
+              de la carpeta `{VISIBLE_DRIVE_FOLDER_LABEL}`.
             </p>
           </div>
           <Badge
@@ -329,6 +333,9 @@ export function MonthlyExpensesTable({
           {result ? (
             <div className={styles.result}>
               <p className={styles.resultLine}>Archivo: {result.name}</p>
+              <p className={styles.resultLine}>
+                Carpeta en Drive: {VISIBLE_DRIVE_FOLDER_LABEL}
+              </p>
               <p className={styles.resultLine}>Mes: {result.month}</p>
               <p className={styles.resultLine}>Id: {result.id}</p>
               {result.viewUrl ? (

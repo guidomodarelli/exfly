@@ -12,6 +12,9 @@ import {
 
 import styles from "./storage-playground.module.scss";
 
+const VISIBLE_DRIVE_FOLDER_LABEL =
+  "Mis finanzas (no borrar: pertenece a la app)";
+
 export interface StoragePlaygroundFormValues {
   content: string;
   mimeType: string;
@@ -226,8 +229,9 @@ export function StoragePlayground({
               <div className={styles.formHeader}>
                 <h3 className={styles.formTitle}>Guardar archivo del usuario</h3>
                 <p className={styles.formDescription}>
-                  Este formulario crea un archivo visible en My Drive con el
-                  alcance mínimo `drive.file`.
+                  Este formulario crea un archivo visible en My Drive dentro de la
+                  carpeta `{VISIBLE_DRIVE_FOLDER_LABEL}` con el alcance mínimo
+                  `drive.file`.
                 </p>
               </div>
 
@@ -306,6 +310,9 @@ export function StoragePlayground({
                 <div className={styles.result}>
                   <p className={styles.resultLine}>
                     Nombre: {userFilesForm.result.name}
+                  </p>
+                  <p className={styles.resultLine}>
+                    Carpeta en Drive: {VISIBLE_DRIVE_FOLDER_LABEL}
                   </p>
                   <p className={styles.resultLine}>
                     MIME type: {userFilesForm.result.mimeType}

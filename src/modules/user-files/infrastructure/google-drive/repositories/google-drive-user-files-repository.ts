@@ -1,6 +1,7 @@
 import type { drive_v3 } from "googleapis";
 
 import { mapGoogleDriveStorageError } from "@/modules/storage/infrastructure/google-drive/google-drive-storage-error";
+import { getOrCreateVisibleDriveFolder } from "@/modules/storage/infrastructure/google-drive/visible-drive-folder";
 
 import type { StoredUserFile } from "../../../domain/entities/stored-user-file";
 import type { UserFilesRepository } from "../../../domain/repositories/user-files-repository";
@@ -14,6 +15,11 @@ export class GoogleDriveUserFilesRepository implements UserFilesRepository {
   constructor(private readonly driveClient: drive_v3.Drive) {}
 
   async save(file: UserFileUpload): Promise<StoredUserFile> {
+    const visibleDriveFolder = await getOrCreateVisibleDriveFolder({
+      driveClient: this.driveClient,
+      operation: "google-drive-user-files-repository:save:getFolder",
+    });
+
     try {
       const response = await this.driveClient.files.create({
         fields: DRIVE_FILE_FIELDS,
@@ -23,6 +29,7 @@ export class GoogleDriveUserFilesRepository implements UserFilesRepository {
         },
         requestBody: {
           name: file.name,
+          parents: [visibleDriveFolder.id],
         },
       });
 
