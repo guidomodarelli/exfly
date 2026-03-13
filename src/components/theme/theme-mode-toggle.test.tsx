@@ -35,6 +35,11 @@ function renderThemeModeToggle() {
 }
 
 describe("ThemeModeToggle", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    document.documentElement.removeAttribute("transition-style");
+  });
+
   it("switches from light to dark mode", async () => {
     const user = userEvent.setup();
     const setTheme = jest.fn();
@@ -46,6 +51,10 @@ describe("ThemeModeToggle", () => {
     await user.click(screen.getByRole("button", { name: "Alternar tema" }));
 
     expect(setTheme).toHaveBeenCalledWith("dark");
+    expect(document.documentElement).toHaveAttribute(
+      "transition-style",
+      "in:circle:center",
+    );
   });
 
   it("switches from dark to light mode", async () => {
@@ -73,5 +82,27 @@ describe("ThemeModeToggle", () => {
     expect(
       await screen.findByRole("tooltip", { name: "Cambiar a modo oscuro" }),
     ).toBeInTheDocument();
+  });
+
+  it("clears transition attribute after animation duration", async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({
+      advanceTimers: jest.advanceTimersByTime,
+    });
+
+    mockedUseTheme.mockReturnValue(createThemeMock("light"));
+
+    renderThemeModeToggle();
+
+    await user.click(screen.getByRole("button", { name: "Alternar tema" }));
+
+    expect(document.documentElement).toHaveAttribute(
+      "transition-style",
+      "in:circle:center",
+    );
+
+    jest.advanceTimersByTime(1500);
+
+    expect(document.documentElement).not.toHaveAttribute("transition-style");
   });
 });

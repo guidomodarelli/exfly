@@ -6,6 +6,8 @@
 
 :root {
   color-scheme: light;
+  --transition__duration: 0.75s;
+  --transition__easing: ease-in-out;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0.008 326);
   --radius: 0.45rem;
@@ -86,6 +88,45 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
+}
+
+@keyframes circle-in-center {
+  from {
+    clip-path: circle(0%);
+  }
+  to {
+    clip-path: circle(125%);
+  }
+}
+
+[transition-style="in:circle:center"] {
+  animation: var(--transition__duration) var(--transition__easing)
+    circle-in-center both;
+}
+
+[transition-style="in:circle:center"]::view-transition-old(root),
+[transition-style="in:circle:center"]::view-transition-new(root) {
+  animation-duration: var(--transition__duration);
+}
+
+[transition-style="in:circle:center"]::view-transition-old(root) {
+  animation-name: none;
+}
+
+[transition-style="in:circle:center"]::view-transition-new(root) {
+  animation: var(--transition__duration) var(--transition__easing)
+    circle-in-center both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [transition-style="in:circle:center"] {
+    animation: none;
+  }
+
+  [transition-style="in:circle:center"]::view-transition-old(root),
+  [transition-style="in:circle:center"]::view-transition-new(root) {
+    animation: none;
+  }
 }
 
 .dark {
