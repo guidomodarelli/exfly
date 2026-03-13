@@ -105,6 +105,9 @@ describe("HomePage", () => {
     expect(
       screen.getByRole("heading", { name: "Detalle del mes" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Alternar tema" }),
+    ).toBeInTheDocument();
   });
 
   it("starts Google sign in when the disconnected avatar is clicked", async () => {

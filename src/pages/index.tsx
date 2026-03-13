@@ -10,6 +10,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { GoogleAccountAvatar } from "@/components/auth/google-account-avatar";
+import { ThemeModeToggle } from "@/components/theme/theme-mode-toggle";
 import {
   type LenderOption,
 } from "@/components/monthly-expenses/lender-picker";
@@ -1133,6 +1134,7 @@ export default function MonthlyExpensesPage({
     <main className={styles.page}>
       <div className={styles.layout}>
         <div className={styles.topBar}>
+          <ThemeModeToggle />
           <GoogleAccountAvatar
             onConnect={handleGoogleAccountConnect}
             onDisconnect={handleGoogleAccountDisconnect}
