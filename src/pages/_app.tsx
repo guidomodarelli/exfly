@@ -55,7 +55,7 @@ export default function App({
         <TooltipProvider>
           <div className={`${interSans.className} ${interSans.variable} ${geistMono.variable}`}>
             <Component {...restPageProps} />
-            <Toaster closeButton position="top-right" richColors />
+            <Toaster closeButton position="top-center" richColors />
           </div>
         </TooltipProvider>
       </ThemeProvider>
