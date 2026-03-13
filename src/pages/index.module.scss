@@ -10,6 +10,11 @@
   gap: 1.5rem;
 }
 
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .heroCard {
   overflow: hidden;
 }

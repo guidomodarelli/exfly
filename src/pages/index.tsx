@@ -3,9 +3,10 @@ import type {
   InferGetServerSidePropsType,
 } from "next";
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+import { GoogleAccountAvatar } from "@/components/auth/google-account-avatar";
 import { isGoogleOAuthConfigured } from "@/modules/auth/infrastructure/oauth/google-oauth-config";
 import { GOOGLE_OAUTH_SCOPES } from "@/modules/auth/infrastructure/oauth/google-oauth-scopes";
 import {
@@ -95,6 +96,7 @@ export default function HomePage({
   const isSessionLoading = status === "loading";
   const sessionUserName = session?.user?.name?.trim() || null;
   const sessionUserEmail = session?.user?.email?.trim() || null;
+  const sessionUserImage = session?.user?.image?.trim() || null;
   const sessionMessage = !isOAuthConfigured
     ? "Completá la configuración OAuth del servidor para habilitar el storage."
     : isSessionLoading
@@ -102,6 +104,22 @@ export default function HomePage({
       : isAuthenticated
         ? "Sesión Google activa. Ya podés guardar datos internos en la base y adjuntos en Drive."
         : "Conectate con Google para habilitar el guardado.";
+
+  const handleGoogleAccountConnect = () => {
+    if (!isOAuthConfigured) {
+      return;
+    }
+
+    void signIn("google", {
+      callbackUrl: "/",
+    });
+  };
+
+  const handleGoogleAccountDisconnect = () => {
+    void signOut({
+      callbackUrl: "/",
+    });
+  };
 
   const applicationSettingsValidationMessage = getFieldValidationMessage(
     applicationSettingsForm.values,
@@ -257,6 +275,16 @@ export default function HomePage({
   return (
     <main className={styles.page}>
       <div className={styles.layout}>
+        <div className={styles.topBar}>
+          <GoogleAccountAvatar
+            onConnect={handleGoogleAccountConnect}
+            onDisconnect={handleGoogleAccountDisconnect}
+            status={status}
+            userImage={sessionUserImage}
+            userName={sessionUserName}
+          />
+        </div>
+
         <StoragePlayground
           applicationSettingsActionDisabled={
             !isOAuthConfigured ||

@@ -1,16 +1,20 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 import type { StorageBootstrapResult } from "@/modules/storage/application/results/storage-bootstrap";
 import { VISIBLE_DRIVE_FOLDER_NAME } from "@/modules/storage/shared/visible-drive-folder-name";
 import HomePage from "@/pages/index";
 
 jest.mock("next-auth/react", () => ({
+  signIn: jest.fn(),
+  signOut: jest.fn(),
   useSession: jest.fn(),
 }));
 
 const mockedUseSession = jest.mocked(useSession);
+const mockedSignIn = jest.mocked(signIn);
+const mockedSignOut = jest.mocked(signOut);
 const originalFetch = global.fetch;
 
 const bootstrap: StorageBootstrapResult = {
@@ -37,6 +41,8 @@ const bootstrap: StorageBootstrapResult = {
 
 describe("HomePage", () => {
   beforeEach(() => {
+    mockedSignIn.mockReset();
+    mockedSignOut.mockReset();
     mockedUseSession.mockReturnValue({
       data: null,
       status: "unauthenticated",
@@ -64,6 +70,50 @@ describe("HomePage", () => {
     expect(
       screen.getByText("Conectate con Google para habilitar el guardado."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Conectar cuenta de Google" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts Google sign in when the disconnected avatar is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(<HomePage bootstrap={bootstrap} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Conectar cuenta de Google" }),
+    );
+
+    expect(mockedSignIn).toHaveBeenCalledWith("google", {
+      callbackUrl: "/",
+    });
+  });
+
+  it("allows disconnecting from the connected avatar menu", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    render(<HomePage bootstrap={bootstrap} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Cuenta de Google conectada" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Desconectar Google" }));
+
+    expect(mockedSignOut).toHaveBeenCalledWith({
+      callbackUrl: "/",
+    });
   });
 
   it("renders the OAuth setup hint when bootstrap is pending", () => {

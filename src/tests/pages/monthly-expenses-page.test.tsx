@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/router";
-import { useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 import {
   getSafeLendersErrorMessage,
@@ -19,11 +19,15 @@ jest.mock("next/router", () => ({
 }));
 
 jest.mock("next-auth/react", () => ({
+  signIn: jest.fn(),
+  signOut: jest.fn(),
   useSession: jest.fn(),
 }));
 
 const mockedUseRouter = jest.mocked(useRouter);
 const mockedUseSession = jest.mocked(useSession);
+const mockedSignIn = jest.mocked(signIn);
+const mockedSignOut = jest.mocked(signOut);
 const originalFetch = global.fetch;
 
 const bootstrap: StorageBootstrapResult = {
@@ -140,6 +144,8 @@ function getMonthlyExpensesSavePayload(fetchMock: jest.Mock) {
 
 describe("MonthlyExpensesPage", () => {
   beforeEach(() => {
+    mockedSignIn.mockReset();
+    mockedSignOut.mockReset();
     mockedUseRouter.mockReturnValue(
       createMockRouter() as unknown as ReturnType<typeof useRouter>,
     );
@@ -421,6 +427,63 @@ describe("MonthlyExpensesPage", () => {
     );
 
     expect(screen.getByText("Google desconectado - Inactivo")).toBeInTheDocument();
+  });
+
+  it("starts Google sign in when the disconnected avatar is clicked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Conectar cuenta de Google" }),
+    );
+
+    expect(mockedSignIn).toHaveBeenCalledWith("google", {
+      callbackUrl: "/monthly-expenses",
+    });
+  });
+
+  it("allows disconnecting from the connected avatar menu", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    render(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Cuenta de Google conectada" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Desconectar Google" }));
+
+    expect(mockedSignOut).toHaveBeenCalledWith({
+      callbackUrl: "/monthly-expenses",
+    });
   });
 
   it("opens the sheet preloaded for editing and marks pending field changes", async () => {

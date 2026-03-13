@@ -6,9 +6,10 @@ import type {
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+import { GoogleAccountAvatar } from "@/components/auth/google-account-avatar";
 import {
   type LenderOption,
 } from "@/components/monthly-expenses/lender-picker";
@@ -525,7 +526,7 @@ export default function MonthlyExpensesPage({
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const router = useRouter();
   const isOAuthConfigured = bootstrap.authStatus === "configured";
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState<MonthlyExpensesTabKey>(
     initialActiveTab,
   );
@@ -544,6 +545,8 @@ export default function MonthlyExpensesPage({
 
   const isAuthenticated = status === "authenticated";
   const isSessionLoading = status === "loading";
+  const sessionUserImage = session?.user?.image?.trim() || null;
+  const sessionUserName = session?.user?.name?.trim() || null;
   const sessionMessage = !isOAuthConfigured
     ? "Completá la configuración OAuth del servidor para habilitar el guardado mensual."
     : isSessionLoading
@@ -551,6 +554,22 @@ export default function MonthlyExpensesPage({
       : isAuthenticated
         ? "Sesión Google activa. Ya podés guardar tus gastos mensuales en la base de datos."
         : "Conectate con Google para cargar y guardar tus gastos mensuales.";
+
+  const handleGoogleAccountConnect = () => {
+    if (!isOAuthConfigured) {
+      return;
+    }
+
+    void signIn("google", {
+      callbackUrl: "/monthly-expenses",
+    });
+  };
+
+  const handleGoogleAccountDisconnect = () => {
+    void signOut({
+      callbackUrl: "/monthly-expenses",
+    });
+  };
   const expenseValidationMessage = getExpenseValidationMessage(
     formState.month,
     expenseSheetState.draft,
@@ -1121,6 +1140,16 @@ export default function MonthlyExpensesPage({
   return (
     <main className={styles.page}>
       <div className={styles.layout}>
+        <div className={styles.topBar}>
+          <GoogleAccountAvatar
+            onConnect={handleGoogleAccountConnect}
+            onDisconnect={handleGoogleAccountDisconnect}
+            status={status}
+            userImage={sessionUserImage}
+            userName={sessionUserName}
+          />
+        </div>
+
         <Tabs
           className={styles.tabsRoot}
           onValueChange={handleTabChange}
