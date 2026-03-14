@@ -11,11 +11,11 @@ repos:
 
   - repo: local
     hooks:
-      # - id: eslint-staged
-      #   name: eslint (staged js/ts)
-      #   entry: npx eslint --max-warnings=0
-      #   language: system
-      #   types_or: [javascript, jsx, ts, tsx]
+      - id: eslint-staged
+        name: eslint (staged js/ts)
+        entry: npx eslint --max-warnings=0
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
 
       - id: typecheck
         name: typecheck (pre-push)
