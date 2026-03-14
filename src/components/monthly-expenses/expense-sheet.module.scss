@@ -9,7 +9,7 @@
 }
 
 .header {
-  padding: 1.25rem 1.25rem 0;
+  padding: 1.25rem 1.25rem;
 }
 
 .headerTopRow {
@@ -42,6 +42,7 @@
 
 .grid {
   display: grid;
+  align-items: flex-start;
   gap: 1rem;
 }
 
@@ -51,10 +52,6 @@
 
 .amountGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.amountGrid .fieldGroup {
-  grid-template-rows: minmax(2.75rem, auto) auto;
 }
 
 .amountGrid .fieldGroup > label {
@@ -74,6 +71,8 @@
 
 .fieldControlWrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .fieldLabelRow {
@@ -223,6 +222,7 @@
   justify-content: flex-end;
   gap: 0.75rem;
   width: 100%;
+  padding: 1rem;
 }
 
 .changesLegend {
