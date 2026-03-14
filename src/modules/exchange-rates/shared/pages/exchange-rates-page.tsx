@@ -176,14 +176,14 @@ export default function ExchangeRatesPage({
               <Input
                 id="exchange-rates-month"
                 max={currentResult.maxSelectableMonth}
-                min={currentResult.minSelectableMonth}
                 onChange={(event) => handleMonthChange(event.target.value)}
                 type="month"
                 value={currentResult.selectedMonth}
               />
               <p className={styles.helperText}>
-                Podés consultar desde {currentResult.minSelectableMonth} hasta{" "}
-                {currentResult.maxSelectableMonth}.
+                Podés consultar cualquier mes anterior hasta{" "}
+                {currentResult.maxSelectableMonth}. No se permiten meses
+                futuros.
               </p>
             </div>
           </CardContent>
