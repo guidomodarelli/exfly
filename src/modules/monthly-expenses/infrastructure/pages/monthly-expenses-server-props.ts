@@ -34,6 +34,7 @@ import type {
 } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const SIDEBAR_STATE_COOKIE_NAME = "mis-finanzas.sidebar.open";
 
 function getCurrentMonthIdentifier(date: Date = new Date()): string {
   const year = date.getFullYear();
@@ -51,11 +52,26 @@ function getRequestedMonth(queryValue: GetServerSidePropsContext["query"]["month
     : getCurrentMonthIdentifier();
 }
 
+function getRequestedSidebarOpen(cookieValue: string | undefined): boolean {
+  if (cookieValue === "false") {
+    return false;
+  }
+
+  if (cookieValue === "true") {
+    return true;
+  }
+
+  return true;
+}
+
 export async function getMonthlyExpensesServerSidePropsForTab(
   context: GetServerSidePropsContext,
   initialActiveTab: MonthlyExpensesTabKey,
 ): Promise<{ props: MonthlyExpensesPageProps }> {
   const selectedMonth = getRequestedMonth(context.query.month);
+  const initialSidebarOpen = getRequestedSidebarOpen(
+    context.req.cookies?.[SIDEBAR_STATE_COOKIE_NAME],
+  );
   const bootstrap = getStorageBootstrap({
     isGoogleOAuthConfigured: isGoogleOAuthConfigured(),
     requiredScopes: GOOGLE_OAUTH_SCOPES,
@@ -65,6 +81,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     return {
       props: {
         bootstrap,
+        initialSidebarOpen,
         initialCopyableMonths:
           createEmptyMonthlyExpensesCopyableMonthsResult(selectedMonth),
         initialActiveTab,
@@ -137,6 +154,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     return {
       props: {
         bootstrap,
+        initialSidebarOpen,
         initialCopyableMonths:
           copyableMonthsResult.status === "fulfilled"
             ? copyableMonthsResult.value
@@ -172,6 +190,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     return {
       props: {
         bootstrap,
+        initialSidebarOpen,
         initialCopyableMonths:
           createEmptyMonthlyExpensesCopyableMonthsResult(selectedMonth),
         initialActiveTab,

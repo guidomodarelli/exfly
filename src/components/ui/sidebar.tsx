@@ -27,6 +27,8 @@ import { IconLayoutSidebar } from "@tabler/icons-react"
 const SIDEBAR_STORAGE_KEY = "mis-finanzas.sidebar.open"
 const SIDEBAR_STORAGE_VALUE_OPEN = "true"
 const SIDEBAR_STORAGE_VALUE_COLLAPSED = "false"
+const SIDEBAR_COOKIE_NAME = SIDEBAR_STORAGE_KEY
+const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
@@ -58,15 +60,20 @@ function persistSidebarState(openState: boolean) {
     return
   }
 
+  const storageValue = openState
+    ? SIDEBAR_STORAGE_VALUE_OPEN
+    : SIDEBAR_STORAGE_VALUE_COLLAPSED
+
   try {
-    window.localStorage.setItem(
-      SIDEBAR_STORAGE_KEY,
-      openState
-        ? SIDEBAR_STORAGE_VALUE_OPEN
-        : SIDEBAR_STORAGE_VALUE_COLLAPSED
-    )
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, storageValue)
   } catch {
     // Ignore storage failures (private mode, disabled storage, etc.)
+  }
+
+  try {
+    document.cookie = `${SIDEBAR_COOKIE_NAME}=${storageValue}; Path=/; Max-Age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`
+  } catch {
+    // Ignore cookie write failures.
   }
 }
 
@@ -109,21 +116,11 @@ function SidebarProvider({
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen)
-  const open = openProp ?? _open
-
-  React.useEffect(() => {
-    if (openProp !== undefined) {
-      return
-    }
-
+  const [_open, _setOpen] = React.useState(() => {
     const persistedState = getPersistedSidebarState()
-    if (persistedState === null) {
-      return
-    }
-
-    _setOpen(persistedState)
-  }, [openProp])
+    return persistedState ?? defaultOpen
+  })
+  const open = openProp ?? _open
 
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {

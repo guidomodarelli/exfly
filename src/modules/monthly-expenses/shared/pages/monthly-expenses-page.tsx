@@ -73,6 +73,7 @@ import styles from "./monthly-expenses-page.module.scss";
 
 export type MonthlyExpensesPageProps = {
   bootstrap: StorageBootstrapResult;
+  initialSidebarOpen?: boolean;
   initialCopyableMonths: MonthlyExpensesCopyableMonthsResult;
   initialDocument: MonthlyExpensesDocumentResult;
   initialActiveTab: MonthlyExpensesTabKey;
@@ -502,6 +503,7 @@ export function getReportProviderFilterOptions(
 
 export default function MonthlyExpensesPage({
   bootstrap,
+  initialSidebarOpen = true,
   initialCopyableMonths,
   initialDocument,
   initialActiveTab,
@@ -1162,7 +1164,7 @@ export default function MonthlyExpensesPage({
   };
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={initialSidebarOpen}>
       <Sidebar className={styles.sidebarShell} collapsible="icon" variant="inset">
         <SidebarHeader
           className={`${styles.sidebarHeader} group-data-[collapsible=icon]:hidden`}
