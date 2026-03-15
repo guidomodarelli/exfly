@@ -233,6 +233,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -268,6 +277,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -313,6 +331,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -353,6 +380,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -2133,6 +2169,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -2162,6 +2207,8 @@ describe("MonthlyExpensesPage", () => {
     await user.selectOptions(monthSelect, "0");
     await user.selectOptions(yearSelect, "2026");
     await user.click(screen.getByRole("button", { name: /Usar enero de 2026/i }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: /Banco Ciudad/i }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {
@@ -2182,6 +2229,8 @@ describe("MonthlyExpensesPage", () => {
             id: "expense-1",
             loan: {
               installmentCount: 7,
+              lenderId: "lender-1",
+              lenderName: "Banco Ciudad",
               startMonth: "2026-01",
             },
             occurrencesPerMonth: 1,
@@ -2257,7 +2306,7 @@ describe("MonthlyExpensesPage", () => {
     );
   });
 
-  it("saves loan metadata from the sheet and keeps lender optional", async () => {
+  it("requires lender selection before saving loan metadata from the sheet", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
 
@@ -2277,6 +2326,15 @@ describe("MonthlyExpensesPage", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
+        initialLendersCatalog={{
+          lenders: [
+            {
+              id: "lender-1",
+              name: "Banco Ciudad",
+              type: "bank",
+            },
+          ],
+        }}
         initialDocument={{
           items: [
             {
@@ -2303,6 +2361,16 @@ describe("MonthlyExpensesPage", () => {
       screen.getByRole("button", { name: "Abrir acciones para Prestamo tarjeta" }),
     );
     await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(screen.getByText("Seleccioná un prestador.")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => url === "/api/storage/monthly-expenses"),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: /Banco Ciudad/i }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {
@@ -2314,6 +2382,8 @@ describe("MonthlyExpensesPage", () => {
             id: "expense-1",
             loan: {
               installmentCount: 12,
+              lenderId: "lender-1",
+              lenderName: "Banco Ciudad",
               startMonth: "2026-01",
             },
             occurrencesPerMonth: 1,

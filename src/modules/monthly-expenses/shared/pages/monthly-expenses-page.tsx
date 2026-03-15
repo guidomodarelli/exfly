@@ -374,7 +374,8 @@ function getExpenseValidationMessage(
 
   if (
     row.isLoan &&
-    (!MONTH_PATTERN.test(row.startMonth.trim()) ||
+    (!row.lenderId.trim() ||
+      !MONTH_PATTERN.test(row.startMonth.trim()) ||
       !Number.isInteger(installmentCount) ||
       installmentCount <= 0)
   ) {

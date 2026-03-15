@@ -24,15 +24,6 @@
   box-shadow: 0 16px 40px color-mix(in srgb, var(--foreground) 12%, transparent);
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-
-  > button {
-    width: stretch;
-  }
-}
-
 .options {
   display: grid;
   gap: 0.5rem;

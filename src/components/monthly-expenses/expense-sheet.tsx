@@ -319,9 +319,14 @@ function ExpenseSheetContent({
     values: getExpenseSheetFormValues(draft),
   });
   const fieldErrors = useMemo(() => getFieldErrors(draft), [draft]);
-  const hasFieldErrors = Object.keys(fieldErrors).length > 0;
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const shouldShowValidation = hasAttemptedSave;
+  const lenderIsMissing = draft.isLoan && !draft.lenderId.trim();
+  const lenderFieldError =
+    shouldShowValidation && lenderIsMissing
+      ? "Seleccioná un prestador."
+      : null;
+  const hasFieldErrors = Object.keys(fieldErrors).length > 0 || lenderIsMissing;
   const shouldShowGlobalValidation =
     shouldShowValidation && Boolean(validationMessage) && !hasFieldErrors;
   const [isStartMonthPickerOpen, setIsStartMonthPickerOpen] = useState(false);
@@ -658,15 +663,19 @@ function ExpenseSheetContent({
                   <>
                     <div className={styles.fieldGroup}>
                       <Label>
-                        {getFieldLabel("Prestador (opcional)", changedFields.has("lender"))}
+                        {getFieldLabel("Prestador", changedFields.has("lender"))}
                       </Label>
                       <div className={styles.fieldControlWrapper}>
                         <LenderPicker
+                          hasError={Boolean(lenderFieldError)}
                           onSelect={onLenderSelect}
                           options={lenders}
                           selectedLenderId={draft.lenderId}
                           selectedLenderName={draft.lenderName}
                         />
+                        {lenderFieldError ? (
+                          <p className={styles.fieldErrorText}>{lenderFieldError}</p>
+                        ) : null}
                       </div>
                     </div>
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ export interface LenderOption {
 interface LenderPickerProps {
   className?: string;
   emptyMessage?: string;
+  hasError?: boolean;
   onSelect: (lenderId: string | null) => void;
   options: LenderOption[];
   placeholder?: string;
@@ -39,6 +40,7 @@ function getLenderTypeLabel(type: LenderOption["type"]): string {
 export function LenderPicker({
   className,
   emptyMessage = "No hay prestadores registrados todavía.",
+  hasError = false,
   onSelect,
   options,
   placeholder = "Seleccioná un prestador",
@@ -47,6 +49,7 @@ export function LenderPicker({
 }: LenderPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const selectedOption = options.find((option) => option.id === selectedLenderId);
   const filteredOptions = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLocaleLowerCase();
@@ -62,9 +65,37 @@ export function LenderPicker({
     );
   }, [options, searchValue]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      const target = event.target;
+
+      if (!rootRef.current || !(target instanceof Node)) {
+        return;
+      }
+
+      if (rootRef.current.contains(target)) {
+        return;
+      }
+
+      setIsOpen(false);
+      setSearchValue("");
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+    };
+  }, [isOpen]);
+
   return (
-    <div className={cn(styles.root, className)}>
+    <div className={cn(styles.root, className)} ref={rootRef}>
       <Button
+        aria-invalid={hasError ? "true" : undefined}
         aria-expanded={isOpen}
         className={styles.trigger}
         onClick={() => setIsOpen((currentValue) => !currentValue)}
@@ -83,21 +114,6 @@ export function LenderPicker({
             type="text"
             value={searchValue}
           />
-
-          <div className={styles.actions}>
-            <Button
-              onClick={() => {
-                onSelect(null);
-                setIsOpen(false);
-                setSearchValue("");
-              }}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              Sin prestador
-            </Button>
-          </div>
 
           <div className={styles.options}>
             {filteredOptions.length > 0 ? (
