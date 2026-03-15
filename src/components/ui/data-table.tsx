@@ -165,12 +165,12 @@ export function DataTable<TData, TValue>({
   return (
     <div className="grid gap-4">
       {shouldShowToolbar ? (
-        <div className="flex flex-wrap items-center gap-3">
-          {filterColumnId ? (
-            <div className="grid w-full max-w-sm gap-2">
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {filterColumnId ? (
               <Input
                 aria-label={filterLabel}
-                className="w-full"
+                className="w-full max-w-sm"
                 onChange={(event) =>
                   table.getColumn(filterColumnId)?.setFilterValue(event.target.value)
                 }
@@ -178,111 +178,111 @@ export function DataTable<TData, TValue>({
                 type="text"
                 value={String(table.getColumn(filterColumnId)?.getFilterValue() ?? "")}
               />
+            ) : null}
 
-              {shouldShowResetSortingBelowFilter ? (
-                <Button
-                  className="justify-self-start"
-                  onClick={handleResetSorting}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {resetSortingButtonLabel}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+            {shouldShowRightToolbarActions ? (
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                {shouldShowResetSortingInActions ? (
+                  <Button
+                    onClick={handleResetSorting}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {resetSortingButtonLabel}
+                  </Button>
+                ) : null}
 
-          {shouldShowRightToolbarActions ? (
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              {shouldShowResetSortingInActions ? (
-                <Button
-                  onClick={handleResetSorting}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {resetSortingButtonLabel}
-                </Button>
-              ) : null}
+                {shouldShowColumnVisibilityToggle ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        aria-label={columnVisibilityButtonLabel}
+                        className="relative"
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {columnVisibilityButtonLabel}
+                        <ChevronDown aria-hidden="true" />
+                        {hasModifiedColumnVisibility ? (
+                          <>
+                            <span
+                              aria-hidden="true"
+                              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-destructive ring-2 ring-background"
+                            />
+                            <span className="sr-only">Columnas modificadas</span>
+                          </>
+                        ) : null}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={areAllHideableColumnsVisible}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          hideableColumns.forEach((column) => {
+                            column.toggleVisibility(true);
+                          });
+                        }}
+                      >
+                        {selectAllColumnsLabel}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!areSomeHideableColumnsVisible}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          hideableColumns.forEach((column) => {
+                            column.toggleVisibility(false);
+                          });
+                        }}
+                      >
+                        {deselectAllColumnsLabel}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {hideableColumns.map((column) => {
+                        const columnMeta = column.columnDef.meta as
+                          | { label?: string }
+                          | undefined;
+                        const label =
+                          columnMeta?.label ??
+                          (typeof column.columnDef.header === "string"
+                            ? column.columnDef.header
+                            : column.id);
 
-              {shouldShowColumnVisibilityToggle ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      aria-label={columnVisibilityButtonLabel}
-                      className="relative"
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {columnVisibilityButtonLabel}
-                      <ChevronDown aria-hidden="true" />
-                      {hasModifiedColumnVisibility ? (
-                        <>
-                          <span
-                            aria-hidden="true"
-                            className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-destructive ring-2 ring-background"
-                          />
-                          <span className="sr-only">Columnas modificadas</span>
-                        </>
-                      ) : null}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      disabled={areAllHideableColumnsVisible}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        hideableColumns.forEach((column) => {
-                          column.toggleVisibility(true);
-                        });
-                      }}
-                    >
-                      {selectAllColumnsLabel}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={!areSomeHideableColumnsVisible}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        hideableColumns.forEach((column) => {
-                          column.toggleVisibility(false);
-                        });
-                      }}
-                    >
-                      {deselectAllColumnsLabel}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {hideableColumns.map((column) => {
-                      const columnMeta = column.columnDef.meta as
-                        | { label?: string }
-                        | undefined;
-                      const label =
-                        columnMeta?.label ??
-                        (typeof column.columnDef.header === "string"
-                          ? column.columnDef.header
-                          : column.id);
+                        return (
+                          <DropdownMenuCheckboxItem
+                            checked={column.getIsVisible()}
+                            key={column.id}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                            }}
+                            onCheckedChange={(nextVisible) => {
+                              column.toggleVisibility(Boolean(nextVisible));
+                            }}
+                          >
+                            {label}
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
-                      return (
-                        <DropdownMenuCheckboxItem
-                          checked={column.getIsVisible()}
-                          key={column.id}
-                          onSelect={(event) => {
-                            event.preventDefault();
-                          }}
-                          onCheckedChange={(nextVisible) => {
-                            column.toggleVisibility(Boolean(nextVisible));
-                          }}
-                        >
-                          {label}
-                        </DropdownMenuCheckboxItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-            </div>
+          {shouldShowResetSortingBelowFilter ? (
+            <Button
+              className="justify-self-start"
+              onClick={handleResetSorting}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {resetSortingButtonLabel}
+            </Button>
           ) : null}
         </div>
       ) : null}
