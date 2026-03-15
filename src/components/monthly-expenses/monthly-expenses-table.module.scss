@@ -203,9 +203,14 @@
 
 .descriptionHighlight {
   color: inherit;
-  background: color-mix(in srgb, var(--primary) 24%, transparent);
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
   border-radius: 0.2rem;
   padding: 0 0.08rem;
+}
+
+:global(html.dark) .descriptionHighlight {
+  background: color-mix(in srgb, var(--primary) 52%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 70%, transparent);
 }
 
 .currencyField {
