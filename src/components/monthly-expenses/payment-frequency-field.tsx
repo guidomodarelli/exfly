@@ -119,7 +119,8 @@ export function PaymentFrequencyField({
           </div>
           <p className={styles.optionDescription}>
             Ejemplos: clases de ingles, psicologa o empleada domestica. Si
-            trabaja 2 veces por semana, podes cargar 8 por mes.
+            trabaja 2 veces por semana, en 4 semanas son 8 pagos
+            (2 x 4 = 8).
           </p>
         </div>
       </RadioGroup>
