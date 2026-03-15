@@ -765,8 +765,8 @@ function ExpenseSheetContent({
                                     onMonthChange={setStartMonthCalendarMonth}
                                     selected={selectedStartMonthDate}
                                     showOutsideDays={false}
-                                    startMonth={new Date(2020, 0, 1)}
-                                    endMonth={new Date(2040, 11, 1)}
+                                    startMonth={new Date(2000, 0, 1)}
+                                    endMonth={new Date(2100, 11, 1)}
                                   />
                                   <div className={styles.datePickerActions}>
                                     <Button

@@ -2306,6 +2306,59 @@ describe("MonthlyExpensesPage", () => {
     );
   });
 
+  it("shows year options from 2000 to 2100 in debt start month picker", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Prestamo tarjeta",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 50000,
+              total: 50000,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Prestamo tarjeta" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+    await user.click(screen.getByLabelText("Es deuda/préstamo"));
+    await user.click(screen.getByLabelText("Inicio de la deuda"));
+
+    const yearSelect = screen.getByRole("combobox", {
+      name: /choose the year/i,
+    });
+
+    expect(
+      within(yearSelect).getByRole("option", { name: "2000" }),
+    ).toBeInTheDocument();
+    expect(
+      within(yearSelect).getByRole("option", { name: "2100" }),
+    ).toBeInTheDocument();
+  });
+
   it("requires lender selection before saving loan metadata from the sheet", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
