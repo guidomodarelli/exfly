@@ -135,6 +135,17 @@ function normalizeCurrencyInput(value: string): string {
 }
 
 function formatCurrencyDisplay(value: string): string {
+  return formatCurrencyDisplayWithOptions(value);
+}
+
+function formatCurrencyDisplayWithOptions(
+  value: string,
+  options?: {
+    preserveExplicitFractionDigits?: boolean;
+  },
+): string {
+  const preserveExplicitFractionDigits =
+    options?.preserveExplicitFractionDigits ?? false;
   const normalizedValue = /^-?\d+\.(\d{1,2})?$/.test(value)
     ? value
     : normalizeCurrencyInput(value);
@@ -158,7 +169,9 @@ function formatCurrencyDisplay(value: string): string {
   const [, decimalPart = ""] = normalizedValue.split(".");
   const normalizedDecimalPart = decimalPart.slice(0, 2);
   const minimumFractionDigits =
-    normalizedDecimalPart.length === 0 || /^0+$/.test(normalizedDecimalPart)
+    preserveExplicitFractionDigits
+      ? normalizedDecimalPart.length
+      : normalizedDecimalPart.length === 0 || /^0+$/.test(normalizedDecimalPart)
       ? 0
       : normalizedDecimalPart.length;
 
@@ -532,7 +545,12 @@ function ExpenseSheetContent({
                                 )
                               }
                               type="text"
-                              value={formatCurrencyDisplay(draft.subtotal)}
+                              value={formatCurrencyDisplayWithOptions(
+                                draft.subtotal,
+                                {
+                                  preserveExplicitFractionDigits: true,
+                                },
+                              )}
                             />
                           </FormControl>
                         </InputGroup>

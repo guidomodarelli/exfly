@@ -1573,6 +1573,46 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByLabelText("Total")).toHaveValue("1.234,50");
   });
 
+  it("keeps a leading zero when typing decimal subtotal digits", async () => {
+    const user = userEvent.setup();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
+
+    const subtotalInput = screen.getByLabelText("Subtotal");
+
+    await user.type(subtotalInput, "55032");
+    expect(subtotalInput).toHaveValue("55.032");
+
+    await user.type(subtotalInput, ",0");
+    expect(subtotalInput).toHaveValue("55.032,0");
+
+    await user.type(subtotalInput, "7");
+    expect(subtotalInput).toHaveValue("55.032,07");
+    expect(screen.getByLabelText("Total")).toHaveValue("55.032,07");
+  });
+
   it("blocks sheet close on outside click when there are unsaved changes and can save from the warning dialog", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
