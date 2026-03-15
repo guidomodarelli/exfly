@@ -148,8 +148,6 @@ export function LenderPicker({
             className={styles.addLenderButton}
             onClick={() => {
               onAddLender();
-              setIsOpen(false);
-              setSearchValue("");
             }}
             size="sm"
             type="button"

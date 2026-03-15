@@ -60,7 +60,7 @@ describe("LenderPicker", () => {
     await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
 
     expect(onAddLender).toHaveBeenCalledTimes(1);
-    expect(screen.queryByLabelText("Buscar prestador")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Buscar prestador")).toBeInTheDocument();
   });
 
   it("keeps the add lender action visible when there are lender options", async () => {

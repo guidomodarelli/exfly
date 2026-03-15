@@ -1,7 +1,7 @@
 import type {
   GetServerSidePropsContext,
 } from "next";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -604,6 +604,7 @@ export default function MonthlyExpensesPage({
     createClosedExpenseSheetState(),
   );
   const [isLenderCreateModalOpen, setIsLenderCreateModalOpen] = useState(false);
+  const shouldIgnoreNextExpenseSheetCloseRef = useRef(false);
 
   const isAuthenticated = status === "authenticated";
   const isSessionLoading = status === "loading";
@@ -636,6 +637,12 @@ export default function MonthlyExpensesPage({
     initialCopyableMonths.sourceMonths,
     initialDocument,
   ]);
+
+  useEffect(() => {
+    if (isLenderCreateModalOpen) {
+      shouldIgnoreNextExpenseSheetCloseRef.current = false;
+    }
+  }, [isLenderCreateModalOpen]);
 
   const feedbackMessage =
     formState.error ??
@@ -939,6 +946,14 @@ export default function MonthlyExpensesPage({
   };
 
   const handleRequestCloseExpenseSheet = () => {
+    if (
+      shouldIgnoreNextExpenseSheetCloseRef.current ||
+      isLenderCreateModalOpen
+    ) {
+      shouldIgnoreNextExpenseSheetCloseRef.current = false;
+      return;
+    }
+
     if (isExpenseSheetDirty) {
       updateExpenseSheetState((currentState) => ({
         ...currentState,
@@ -948,6 +963,11 @@ export default function MonthlyExpensesPage({
     }
 
     setExpenseSheetState(createClosedExpenseSheetState());
+  };
+
+  const handleOpenLenderCreateFromExpenseSheet = () => {
+    shouldIgnoreNextExpenseSheetCloseRef.current = true;
+    setIsLenderCreateModalOpen(true);
   };
 
   const handleUnsavedChangesDiscard = () => {
@@ -1258,7 +1278,7 @@ export default function MonthlyExpensesPage({
                 loadError={loadError}
                 month={formState.month}
                 onAddExpense={handleAddExpense}
-                onAddLender={() => setIsLenderCreateModalOpen(true)}
+                onAddLender={handleOpenLenderCreateFromExpenseSheet}
                 onCopyFromMonth={handleCopyFromMonth}
                 onCopySourceMonthChange={handleCopySourceMonthChange}
                 onDeleteExpense={handleRemoveExpense}
