@@ -978,7 +978,7 @@ describe("MonthlyExpensesPage", () => {
       screen.getByRole("radio", { name: "Se paga varias veces en el mes" }),
     );
 
-    expect(screen.getByLabelText("Veces al mes")).toHaveValue(1);
+    expect(screen.getByLabelText("Veces al mes")).toHaveValue(2);
 
     await user.click(screen.getByRole("radio", { name: "Un único pago al mes" }));
 

@@ -615,12 +615,17 @@ function ExpenseSheetContent({
                       al mes)
                     </span>
                   </Label>
-                  <InputGroup>
-                    <InputGroupAddon align="inline-start" aria-hidden="true">
+                  <InputGroup className={styles.readOnlyInputGroup}>
+                    <InputGroupAddon
+                      align="inline-start"
+                      aria-hidden="true"
+                      className={cn(styles.readOnlyField, styles.readOnlyAddon)}
+                    >
                       {currencyPrefix}
                     </InputGroupAddon>
                     <InputGroupInput
                       aria-label="Total"
+                      className={styles.readOnlyField}
                       id="expense-total"
                       readOnly
                       type="text"

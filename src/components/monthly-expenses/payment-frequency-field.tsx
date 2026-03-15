@@ -31,7 +31,7 @@ function getInitialMultipleOccurrences(occurrencesPerMonth: string): string {
     return String(Number(occurrencesPerMonth));
   }
 
-  return "1";
+  return "2";
 }
 
 export function PaymentFrequencyField({
@@ -75,9 +75,33 @@ export function PaymentFrequencyField({
 
     onOccurrencesPerMonthChange(nextValue);
 
-    if (isPositiveInteger(nextValue)) {
+    if (isPositiveInteger(nextValue) && Number(nextValue) > 1) {
       setLastMultipleOccurrences(String(Number(nextValue)));
     }
+  };
+
+  const handleOccurrencesBlur = () => {
+    const normalizedValue = occurrencesPerMonth.trim();
+
+    if (!normalizedValue) {
+      return;
+    }
+
+    const parsedValue = Number(normalizedValue);
+
+    if (!Number.isInteger(parsedValue) || parsedValue < 2) {
+      onOccurrencesPerMonthChange("2");
+      setLastMultipleOccurrences("2");
+      return;
+    }
+
+    const normalizedMultipleValue = String(parsedValue);
+
+    if (normalizedMultipleValue !== occurrencesPerMonth) {
+      onOccurrencesPerMonthChange(normalizedMultipleValue);
+    }
+
+    setLastMultipleOccurrences(normalizedMultipleValue);
   };
 
   return (
@@ -134,7 +158,8 @@ export function PaymentFrequencyField({
             data-changed={isChanged ? "true" : "false"}
             id={occurrencesInputId}
             inputMode="numeric"
-            min="0"
+            min="2"
+            onBlur={handleOccurrencesBlur}
             onChange={handleOccurrencesChange}
             placeholder="Ej: 8"
             step="1"

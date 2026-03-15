@@ -164,6 +164,16 @@
   color: var(--muted-foreground);
 }
 
+.readOnlyInputGroup {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.readOnlyAddon {
+  cursor: default;
+  pointer-events: none;
+}
+
 .datePickerTrigger {
   width: 100%;
   justify-content: space-between;
