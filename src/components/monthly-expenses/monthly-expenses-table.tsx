@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import type { ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, ExternalLink } from "lucide-react";
 import { z } from "zod";
@@ -35,6 +36,7 @@ const PAYMENT_LINK_URL_SCHEMA = z.url({
   protocol: /^https?$/,
   hostname: z.regexes.domain,
 });
+const DIACRITICS_PATTERN = /[\u0300-\u036f]/g;
 
 export interface MonthlyExpensesEditableRow {
   currency: MonthlyExpenseCurrency;
@@ -217,6 +219,125 @@ function getValidPaymentLink(value: string): string | null {
   }
 }
 
+function normalizeSearchValue(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(DIACRITICS_PATTERN, "")
+    .toLocaleLowerCase();
+}
+
+function getSearchCharsWithSourceIndices(
+  value: string,
+): Array<{ char: string; sourceIndex: number }> {
+  const chars: Array<{ char: string; sourceIndex: number }> = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    const normalizedChar = normalizeSearchValue(value[index]);
+
+    if (!normalizedChar) {
+      continue;
+    }
+
+    for (const char of normalizedChar) {
+      chars.push({
+        char,
+        sourceIndex: index,
+      });
+    }
+  }
+
+  return chars;
+}
+
+function getFuzzyMatchIndices(value: string, query: string): number[] | null {
+  const normalizedQuery = normalizeSearchValue(query).trim();
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const valueChars = getSearchCharsWithSourceIndices(value);
+  const queryChars = Array.from(normalizedQuery);
+  const matchedIndices: number[] = [];
+  let valueCursor = 0;
+
+  for (const queryChar of queryChars) {
+    let foundAt = -1;
+
+    for (let index = valueCursor; index < valueChars.length; index += 1) {
+      if (valueChars[index].char === queryChar) {
+        foundAt = index;
+        break;
+      }
+    }
+
+    if (foundAt === -1) {
+      return null;
+    }
+
+    matchedIndices.push(valueChars[foundAt].sourceIndex);
+    valueCursor = foundAt + 1;
+  }
+
+  return Array.from(new Set(matchedIndices));
+}
+
+function renderHighlightedDescription(
+  description: string,
+  matchedIndices: number[],
+) {
+  if (matchedIndices.length === 0) {
+    return description;
+  }
+
+  const matchedIndexSet = new Set(matchedIndices);
+  const highlightedParts: ReactNode[] = [];
+  let currentStart = 0;
+  let partIndex = 0;
+
+  for (let index = 0; index < description.length; index += 1) {
+    if (!matchedIndexSet.has(index)) {
+      continue;
+    }
+
+    if (currentStart < index) {
+      highlightedParts.push(
+        <span key={`description-text-${partIndex}`}>
+          {description.slice(currentStart, index)}
+        </span>,
+      );
+      partIndex += 1;
+    }
+
+    let matchEnd = index + 1;
+    while (matchEnd < description.length && matchedIndexSet.has(matchEnd)) {
+      matchEnd += 1;
+    }
+
+    highlightedParts.push(
+      <mark
+        className={styles.descriptionHighlight}
+        key={`description-match-${partIndex}`}
+      >
+        {description.slice(index, matchEnd)}
+      </mark>,
+    );
+    partIndex += 1;
+    currentStart = matchEnd;
+    index = matchEnd - 1;
+  }
+
+  if (currentStart < description.length) {
+    highlightedParts.push(
+      <span key={`description-text-${partIndex}`}>
+        {description.slice(currentStart)}
+      </span>,
+    );
+  }
+
+  return highlightedParts;
+}
+
 export function MonthlyExpensesTable({
   actionDisabled,
   changedFields,
@@ -257,8 +378,31 @@ export function MonthlyExpensesTable({
     () => [
       {
         accessorKey: "description",
-        cell: ({ row }) => row.original.description || "Sin descripción",
+        cell: ({ row, table }) => {
+          const description = row.original.description;
+
+          if (!description) {
+            return "Sin descripción";
+          }
+
+          const filterValue = String(
+            table.getColumn("description")?.getFilterValue() ?? "",
+          );
+          const matchIndices = getFuzzyMatchIndices(description, filterValue);
+
+          if (!matchIndices || matchIndices.length === 0) {
+            return description;
+          }
+
+          return renderHighlightedDescription(description, matchIndices);
+        },
         enableHiding: false,
+        filterFn: (row, columnId, filterValue) => {
+          const description = String(row.getValue(columnId) ?? "");
+          const query = String(filterValue ?? "");
+
+          return getFuzzyMatchIndices(description, query) !== null;
+        },
         header: getSortableHeader("Descripción"),
         meta: { label: "Descripción" },
       },

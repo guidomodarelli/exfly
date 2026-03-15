@@ -146,6 +146,13 @@
   min-width: 15rem;
 }
 
+.descriptionHighlight {
+  color: inherit;
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+  border-radius: 0.2rem;
+  padding: 0 0.08rem;
+}
+
 .currencyField {
   min-width: 7rem;
 }

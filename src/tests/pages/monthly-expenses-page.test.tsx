@@ -1947,7 +1947,7 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByLabelText("Descripción")).toBeInTheDocument();
   });
 
-  it("filters expenses from the data table by description", async () => {
+  it("filters expenses by description with fuzzy, accent-insensitive matching and highlights matches", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -1957,7 +1957,7 @@ describe("MonthlyExpensesPage", () => {
           items: [
             {
               currency: "ARS",
-              description: "Prestamo tarjeta",
+              description: "Préstamo tarjeta",
               id: "expense-1",
               occurrencesPerMonth: 1,
               subtotal: 50000,
@@ -1977,10 +1977,28 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Filtrar gastos" }), "agua");
+    await user.type(screen.getByRole("textbox", { name: "Filtrar gastos" }), "PRESTJ");
 
-    expect(screen.getByText("Agua")).toBeInTheDocument();
-    expect(screen.queryByText("Prestamo tarjeta")).not.toBeInTheDocument();
+    const matchingDescription = screen.getByText(
+      (_, element) => element?.textContent === "Préstamo tarjeta",
+    );
+    const matchingRow = matchingDescription.closest("tr");
+
+    expect(matchingRow).not.toBeNull();
+
+    if (matchingRow === null) {
+      throw new Error("Expected a table row for the matching description");
+    }
+
+    const descriptionCell = within(matchingRow).getAllByRole("cell")[0];
+    const highlightedText = Array.from(
+      descriptionCell.querySelectorAll("mark"),
+      (element) => element.textContent ?? "",
+    ).join("");
+
+    expect(matchingDescription).toBeInTheDocument();
+    expect(screen.queryByText("Agua")).not.toBeInTheDocument();
+    expect(highlightedText).toBe("Préstj");
   });
 
   it("shows validation when a debt is missing start month or installments", async () => {
