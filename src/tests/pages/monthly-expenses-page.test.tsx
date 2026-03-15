@@ -301,6 +301,42 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
   });
 
+  it("allows selecting and deselecting all hideable columns from the selector", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("menuitem", { name: "Deseleccionar todas" }));
+
+    expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Moneda" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Link" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("menuitem", { name: "Seleccionar todas" }));
+
+    expect(screen.getByRole("columnheader", { name: "Moneda" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Link" })).toBeInTheDocument();
+  });
+
   it("sorts subtotal numerically in ascending and descending order", async () => {
     const user = userEvent.setup();
 
@@ -2767,6 +2803,47 @@ describe("MonthlyExpensesPage", () => {
     await user.hover(paymentLink);
 
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
+  });
+
+  it("sorts Link by rows with and without payment links", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Con link",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              paymentLink: "pagos.empresa.com",
+              subtotal: 100,
+              total: 100,
+            },
+            {
+              currency: "ARS",
+              description: "Sin link",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              paymentLink: "",
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Link" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Sin link", "Con link"]);
+
+    await user.click(screen.getByRole("button", { name: "Link" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Con link", "Sin link"]);
   });
 
   it("renders an empty actions header immediately to the right of Deuda / cuotas", () => {

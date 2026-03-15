@@ -376,9 +376,16 @@ export function MonthlyExpensesTable({
             </Tooltip>
           );
         },
-        enableSorting: false,
-        header: "Link",
+        header: getSortableHeader("Link"),
         meta: { label: "Link" },
+        sortingFn: (rowA, rowB) => {
+          const leftHasPaymentLink =
+            getValidPaymentLink(rowA.original.paymentLink) != null ? 1 : 0;
+          const rightHasPaymentLink =
+            getValidPaymentLink(rowB.original.paymentLink) != null ? 1 : 0;
+
+          return leftHasPaymentLink - rightHasPaymentLink;
+        },
       },
       {
         accessorKey: "loanProgress",

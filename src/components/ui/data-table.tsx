@@ -21,7 +21,9 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,8 @@ interface DataTableProps<TData, TValue> {
   showColumnVisibilityToggle?: boolean;
   columnVisibilityButtonLabel?: string;
   columnVisibilityMenuLabel?: string;
+  selectAllColumnsLabel?: string;
+  deselectAllColumnsLabel?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -56,6 +60,8 @@ export function DataTable<TData, TValue>({
   showColumnVisibilityToggle = false,
   columnVisibilityButtonLabel = "Columnas",
   columnVisibilityMenuLabel = "Mostrar columnas",
+  selectAllColumnsLabel = "Seleccionar todas",
+  deselectAllColumnsLabel = "Deseleccionar todas",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -81,6 +87,12 @@ export function DataTable<TData, TValue>({
   const hideableColumns = table
     .getAllLeafColumns()
     .filter((column) => column.getCanHide());
+  const areAllHideableColumnsVisible = hideableColumns.every((column) =>
+    column.getIsVisible(),
+  );
+  const areSomeHideableColumnsVisible = hideableColumns.some((column) =>
+    column.getIsVisible(),
+  );
   const shouldShowColumnVisibilityToggle =
     showColumnVisibilityToggle && hideableColumns.length > 0;
   const shouldShowToolbar = Boolean(filterColumnId) || shouldShowColumnVisibilityToggle;
@@ -118,6 +130,27 @@ export function DataTable<TData, TValue>({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
+                <DropdownMenuItem
+                  disabled={areAllHideableColumnsVisible}
+                  onSelect={() => {
+                    hideableColumns.forEach((column) => {
+                      column.toggleVisibility(true);
+                    });
+                  }}
+                >
+                  {selectAllColumnsLabel}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!areSomeHideableColumnsVisible}
+                  onSelect={() => {
+                    hideableColumns.forEach((column) => {
+                      column.toggleVisibility(false);
+                    });
+                  }}
+                >
+                  {deselectAllColumnsLabel}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 {hideableColumns.map((column) => {
                   const columnMeta = column.columnDef.meta as
                     | { label?: string }
