@@ -468,7 +468,10 @@ function ExpenseSheetContent({
                   render={() => (
                     <FormItem className={cn(styles.fieldGroup, styles.fullWidthField)}>
                       <FormLabel>
-                        {getFieldLabel("Link de pago", changedFields.has("paymentLink"))}
+                        {getFieldLabel(
+                          "Link de pago (Opcional)",
+                          changedFields.has("paymentLink"),
+                        )}
                       </FormLabel>
                       <div className={styles.fieldControlWrapper}>
                         <InputGroup
