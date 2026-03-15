@@ -270,6 +270,7 @@ interface MonthlyExpensesTableProps {
   loadError: string | null;
   month: string;
   onAddExpense: () => void;
+  onAddLender: () => void;
   onCopyFromMonth: () => void;
   onCopySourceMonthChange: (value: string) => void;
   onDeleteExpense: (expenseId: string) => void;
@@ -600,6 +601,7 @@ export function MonthlyExpensesTable({
   loadError,
   month,
   onAddExpense,
+  onAddLender,
   onCopyFromMonth,
   onCopySourceMonthChange,
   onDeleteExpense,
@@ -1062,6 +1064,7 @@ export function MonthlyExpensesTable({
           isSubmitting={isSubmitting}
           lenders={lenders}
           mode={sheetMode}
+          onAddLender={onAddLender}
           onFieldChange={onExpenseFieldChange}
           onLenderSelect={onExpenseLenderSelect}
           onLoanToggle={onExpenseLoanToggle}

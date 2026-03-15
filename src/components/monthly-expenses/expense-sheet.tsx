@@ -66,6 +66,7 @@ interface ExpenseSheetProps {
   isSubmitting: boolean;
   lenders: LenderOption[];
   mode: "create" | "edit";
+  onAddLender: () => void;
   onFieldChange: (fieldName: ExpenseEditableFieldName, value: string) => void;
   onLenderSelect: (lenderId: string | null) => void;
   onLoanToggle: (checked: boolean) => void;
@@ -254,6 +255,7 @@ function ExpenseSheetContent({
   isSubmitting,
   lenders,
   mode,
+  onAddLender,
   onFieldChange,
   onLenderSelect,
   onLoanToggle,
@@ -628,6 +630,7 @@ function ExpenseSheetContent({
                       <div className={styles.fieldControlWrapper}>
                         <LenderPicker
                           hasError={Boolean(lenderFieldError)}
+                          onAddLender={onAddLender}
                           onSelect={onLenderSelect}
                           options={lenders}
                           selectedLenderId={draft.lenderId}

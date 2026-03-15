@@ -17,6 +17,7 @@ interface LenderPickerProps {
   className?: string;
   emptyMessage?: string;
   hasError?: boolean;
+  onAddLender: () => void;
   onSelect: (lenderId: string | null) => void;
   options: LenderOption[];
   placeholder?: string;
@@ -41,6 +42,7 @@ export function LenderPicker({
   className,
   emptyMessage = "No hay prestadores registrados todavía.",
   hasError = false,
+  onAddLender,
   onSelect,
   options,
   placeholder = "Seleccioná un prestador",
@@ -141,6 +143,20 @@ export function LenderPicker({
               <p className={styles.emptyMessage}>{emptyMessage}</p>
             )}
           </div>
+
+          <Button
+            className={styles.addLenderButton}
+            onClick={() => {
+              onAddLender();
+              setIsOpen(false);
+              setSearchValue("");
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            Agregar prestador
+          </Button>
         </div>
       ) : null}
     </div>

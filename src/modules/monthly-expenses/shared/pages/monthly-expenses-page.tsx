@@ -11,6 +11,7 @@ import { FinanceAppShell } from "@/components/finance-app-shell/finance-app-shel
 import {
   type LenderOption,
 } from "@/components/monthly-expenses/lender-picker";
+import { LenderCreateDialog } from "@/components/monthly-expenses/lender-create-dialog";
 import { LendersPanel } from "@/components/monthly-expenses/lenders-panel";
 import { MonthlyExpensesLoansReport } from "@/components/monthly-expenses/monthly-expenses-loans-report";
 import {
@@ -602,6 +603,7 @@ export default function MonthlyExpensesPage({
   const [expenseSheetState, setExpenseSheetState] = useState<ExpenseSheetState>(
     createClosedExpenseSheetState(),
   );
+  const [isLenderCreateModalOpen, setIsLenderCreateModalOpen] = useState(false);
 
   const isAuthenticated = status === "authenticated";
   const isSessionLoading = status === "loading";
@@ -1256,6 +1258,7 @@ export default function MonthlyExpensesPage({
                 loadError={loadError}
                 month={formState.month}
                 onAddExpense={handleAddExpense}
+                onAddLender={() => setIsLenderCreateModalOpen(true)}
                 onCopyFromMonth={handleCopyFromMonth}
                 onCopySourceMonthChange={handleCopySourceMonthChange}
                 onDeleteExpense={handleRemoveExpense}
@@ -1281,17 +1284,10 @@ export default function MonthlyExpensesPage({
               <LendersPanel
                 feedbackMessage={lendersFeedbackMessage}
                 feedbackTone={lendersFeedbackTone}
-                formValues={{
-                  name: lendersState.name,
-                  notes: lendersState.notes,
-                  type: lendersState.type,
-                }}
-                isSubmitting={lendersState.isSubmitting}
+                isCreateModalOpen={isLenderCreateModalOpen}
                 lenders={lendersState.lenders}
-                onDiscardUnsavedChanges={handleDiscardUnsavedLendersChanges}
                 onDelete={handleDeleteLender}
-                onFieldChange={handleLenderFieldChange}
-                onSubmit={handleLendersSubmit}
+                onOpenCreateModal={() => setIsLenderCreateModalOpen(true)}
               />
       ) : null}
 
@@ -1308,6 +1304,22 @@ export default function MonthlyExpensesPage({
                 onTypeFilterChange={handleReportTypeFilterChange}
               />
       ) : null}
+
+      <LenderCreateDialog
+        feedbackMessage={lendersFeedbackMessage}
+        feedbackTone={lendersFeedbackTone}
+        formValues={{
+          name: lendersState.name,
+          notes: lendersState.notes,
+          type: lendersState.type,
+        }}
+        isOpen={isLenderCreateModalOpen}
+        isSubmitting={lendersState.isSubmitting}
+        onDiscardUnsavedChanges={handleDiscardUnsavedLendersChanges}
+        onFieldChange={handleLenderFieldChange}
+        onOpenChange={setIsLenderCreateModalOpen}
+        onSubmit={handleLendersSubmit}
+      />
     </FinanceAppShell>
   );
 }
