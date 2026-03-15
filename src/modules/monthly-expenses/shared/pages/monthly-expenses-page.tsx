@@ -333,6 +333,9 @@ function createClosedExpenseSheetState(): ExpenseSheetState {
   };
 }
 
+const GENERIC_EXPENSE_VALIDATION_MESSAGE =
+  "Corregí los errores antes de continuar.";
+
 function getExpenseValidationMessage(
   month: string,
   row: MonthlyExpensesEditableRow | null,
@@ -342,7 +345,7 @@ function getExpenseValidationMessage(
   }
 
   if (!MONTH_PATTERN.test(month.trim())) {
-    return "Seleccioná un mes válido antes de guardar.";
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
   }
 
   const subtotal = Number(row.subtotal);
@@ -355,7 +358,7 @@ function getExpenseValidationMessage(
     !Number.isInteger(occurrencesPerMonth) ||
     occurrencesPerMonth <= 0
   ) {
-    return "Completá descripción, subtotal y veces al mes antes de guardar.";
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
   }
 
   const normalizedPaymentLink = row.paymentLink.trim();
@@ -364,7 +367,7 @@ function getExpenseValidationMessage(
     normalizedPaymentLink.length > 0 &&
     !isValidHttpPaymentLink(normalizedPaymentLink)
   ) {
-    return "Ingresá un link válido con dominio (por ejemplo, ejemplo.com).";
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
   }
 
   const installmentCount = Number(row.installmentCount);
@@ -375,7 +378,7 @@ function getExpenseValidationMessage(
       !Number.isInteger(installmentCount) ||
       installmentCount <= 0)
   ) {
-    return "Completá fecha de inicio y cantidad total de cuotas antes de guardar.";
+    return GENERIC_EXPENSE_VALIDATION_MESSAGE;
   }
 
   return null;

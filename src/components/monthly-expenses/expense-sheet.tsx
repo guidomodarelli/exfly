@@ -316,15 +316,26 @@ function ExpenseSheetContent({
   });
   const fieldErrors = useMemo(() => getFieldErrors(draft), [draft]);
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
+  const shouldShowValidation = hasAttemptedSave;
   const shouldShowGlobalValidation =
-    Boolean(validationMessage) && !hasFieldErrors;
+    shouldShowValidation && Boolean(validationMessage) && !hasFieldErrors;
   const [isStartMonthPickerOpen, setIsStartMonthPickerOpen] = useState(false);
   const [startMonthCalendarMonth, setStartMonthCalendarMonth] = useState<Date>(
     selectedStartMonthDate ?? new Date(),
   );
 
+  const handleSaveAttempt = () => {
+    setHasAttemptedSave(true);
+    onSave();
+  };
+
   useEffect(() => {
     form.clearErrors();
+
+    if (!shouldShowValidation) {
+      return;
+    }
 
     (Object.entries(fieldErrors) as [ExpenseEditableFieldName, string][]).forEach(
       ([fieldName, message]) => {
@@ -334,7 +345,7 @@ function ExpenseSheetContent({
         });
       },
     );
-  }, [fieldErrors, form]);
+  }, [fieldErrors, form, shouldShowValidation]);
 
   return (
     <>
@@ -382,7 +393,7 @@ function ExpenseSheetContent({
               className={styles.form}
               onSubmit={(event) => {
                 event.preventDefault();
-                onSave();
+                handleSaveAttempt();
               }}
             >
               {shouldShowGlobalValidation ? (
@@ -405,7 +416,9 @@ function ExpenseSheetContent({
                           <Input
                             aria-label="Descripción"
                             className={cn(
-                              fieldErrors.description && styles.invalidField,
+                              shouldShowValidation &&
+                                fieldErrors.description &&
+                                styles.invalidField,
                               changedFields.has("description") && styles.changedField,
                             )}
                             data-changed={
@@ -476,7 +489,9 @@ function ExpenseSheetContent({
                       <div className={styles.fieldControlWrapper}>
                         <InputGroup
                           className={cn(
-                            fieldErrors.paymentLink && styles.invalidField,
+                            shouldShowValidation &&
+                              fieldErrors.paymentLink &&
+                              styles.invalidField,
                             changedFields.has("paymentLink") && styles.changedField,
                           )}
                           data-changed={
@@ -520,7 +535,9 @@ function ExpenseSheetContent({
                       <div className={styles.fieldControlWrapper}>
                         <InputGroup
                           className={cn(
-                            fieldErrors.subtotal && styles.invalidField,
+                            shouldShowValidation &&
+                              fieldErrors.subtotal &&
+                              styles.invalidField,
                             changedFields.has("subtotal") && styles.changedField,
                           )}
                           data-changed={
@@ -569,7 +586,10 @@ function ExpenseSheetContent({
                         <FormControl>
                           <PaymentFrequencyField
                             key={draft.id}
-                            hasError={Boolean(fieldErrors.occurrencesPerMonth)}
+                            hasError={
+                              shouldShowValidation &&
+                              Boolean(fieldErrors.occurrencesPerMonth)
+                            }
                             isChanged={changedFields.has("occurrencesPerMonth")}
                             occurrencesPerMonth={draft.occurrencesPerMonth}
                             onOccurrencesPerMonthChange={(value) =>
@@ -668,7 +688,9 @@ function ExpenseSheetContent({
                                         styles.datePickerTrigger,
                                         !selectedStartMonthDate &&
                                           styles.datePickerPlaceholder,
-                                        fieldErrors.startMonth && styles.invalidField,
+                                        shouldShowValidation &&
+                                          fieldErrors.startMonth &&
+                                          styles.invalidField,
                                         changedFields.has("startMonth") &&
                                           styles.changedField,
                                       )}
@@ -763,7 +785,8 @@ function ExpenseSheetContent({
                                 <Input
                                   aria-label="Cantidad total de cuotas"
                                   className={cn(
-                                    fieldErrors.installmentCount &&
+                                    shouldShowValidation &&
+                                      fieldErrors.installmentCount &&
                                       styles.invalidField,
                                     changedFields.has("installmentCount") &&
                                       styles.changedField,
@@ -854,8 +877,8 @@ function ExpenseSheetContent({
                 Cancelar
               </Button>
               <Button
-                disabled={actionDisabled || Boolean(validationMessage)}
-                onClick={onSave}
+                disabled={actionDisabled}
+                onClick={handleSaveAttempt}
                 type="button"
               >
                 {isSubmitting ? "Guardando..." : "Guardar"}

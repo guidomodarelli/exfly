@@ -1671,7 +1671,7 @@ describe("MonthlyExpensesPage", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("shows validation inside the sheet and blocks save when an expense is incomplete", async () => {
+  it("shows validation inside the sheet only after trying to save an incomplete expense", async () => {
     const user = userEvent.setup();
 
     mockedUseSession.mockReturnValue({
@@ -1697,9 +1697,16 @@ describe("MonthlyExpensesPage", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
-    await user.type(screen.getByLabelText("Subtotal"), "1000");
+    expect(screen.queryByText("Completá la descripción.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Ingresá un subtotal mayor a 0."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(screen.getByText("Completá la descripción.")).toBeInTheDocument();
+    expect(screen.getByText("Ingresá un subtotal mayor a 0.")).toBeInTheDocument();
     expect(screen.getByLabelText("Descripción")).toHaveAttribute(
       "aria-invalid",
       "true",
@@ -1708,10 +1715,9 @@ describe("MonthlyExpensesPage", () => {
       screen.getByRole("radio", { name: "Un único pago al mes" }),
     ).toBeChecked();
     expect(screen.queryByLabelText("Veces al mes")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
   });
 
-  it("validates payment link immediately and blocks save when URL is invalid", async () => {
+  it("validates payment link after save attempt and keeps save enabled", async () => {
     const user = userEvent.setup();
 
     mockedUseSession.mockReturnValue({
@@ -1742,6 +1748,14 @@ describe("MonthlyExpensesPage", () => {
     await user.type(screen.getByLabelText("Link de pago"), "asdads");
 
     expect(
+      screen.queryByText(
+        "Ingresá un link válido con dominio (por ejemplo, ejemplo.com).",
+      ),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(
       screen.getByText(
         "Ingresá un link válido con dominio (por ejemplo, ejemplo.com).",
       ),
@@ -1750,7 +1764,6 @@ describe("MonthlyExpensesPage", () => {
       "aria-invalid",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
     await user.clear(screen.getByLabelText("Link de pago"));
 
@@ -1759,6 +1772,10 @@ describe("MonthlyExpensesPage", () => {
         "Ingresá un link válido con dominio (por ejemplo, ejemplo.com).",
       ),
     ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Link de pago")).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
     expect(screen.getByRole("button", { name: "Guardar" })).toBeEnabled();
   });
 
@@ -1970,6 +1987,13 @@ describe("MonthlyExpensesPage", () => {
     await user.click(screen.getByRole("menuitem", { name: "Editar" }));
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
 
+    expect(screen.queryByText("Completá la fecha de inicio.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Completá la cantidad total de cuotas."),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
     expect(screen.getByText("Completá la fecha de inicio.")).toBeInTheDocument();
     expect(
       screen.getByText("Completá la cantidad total de cuotas."),
@@ -1982,7 +2006,6 @@ describe("MonthlyExpensesPage", () => {
       "aria-invalid",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
   });
 
   it("shows installment quick buttons, updates input on click, and allows custom input", async () => {
@@ -2220,13 +2243,18 @@ describe("MonthlyExpensesPage", () => {
     await user.click(screen.getByRole("button", { name: /Usar enero de 2026/i }));
 
     expect(
+      screen.queryByText("Completá la cantidad total de cuotas."),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(
       screen.getByText("Completá la cantidad total de cuotas."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Cantidad total de cuotas")).toHaveAttribute(
       "aria-invalid",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
   });
 
   it("saves loan metadata from the sheet and keeps lender optional", async () => {
