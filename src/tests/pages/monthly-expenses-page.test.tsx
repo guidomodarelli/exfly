@@ -3805,7 +3805,271 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
   });
 
-  it("renders Comprobantes, Carpeta del mes actual, and Carpeta de comprobantes columns after Link", () => {
+  it("renders Se pagó column immediately before Comprobantes", () => {
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent?.trim() ?? "");
+    const paidHeaderIndex = headers.indexOf("Se pagó");
+    const receiptHeaderIndex = headers.indexOf("Comprobantes");
+
+    expect(receiptHeaderIndex).toBeGreaterThanOrEqual(0);
+    expect(paidHeaderIndex).toBe(receiptHeaderIndex - 1);
+  });
+
+  it("allows toggling Se pagó when no receipts exist and persists immediately", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const paidCheckbox = screen.getByRole("checkbox", {
+      name: "Se pagó: Agua",
+    });
+
+    expect(paidCheckbox).not.toBeChecked();
+    expect(paidCheckbox).toBeEnabled();
+
+    await user.click(paidCheckbox);
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(payload.items[0]).toEqual(
+        expect.objectContaining({
+          id: "expense-1",
+          isPaid: true,
+        }),
+      );
+    });
+  });
+
+  it("forces Se pagó to checked and disabled when the expense has receipts", () => {
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              isPaid: false,
+              occurrencesPerMonth: 1,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  fileId: "receipt-file-id",
+                  fileName: "comprobante.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const paidCheckbox = screen.getByRole("checkbox", {
+      name: "Se pagó: Internet",
+    });
+
+    expect(paidCheckbox).toBeChecked();
+    expect(paidCheckbox).toBeDisabled();
+  });
+
+  it("asks how to keep Se pagó when deleting the last receipt", async () => {
+    const user = userEvent.setup();
+    const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      if (input === "/api/storage/monthly-expenses") {
+        return {
+          ok: true,
+          status: 204,
+        };
+      }
+
+      if (
+        typeof input === "string" &&
+        input.startsWith("/api/storage/monthly-expenses?")
+      ) {
+        return {
+          json: async () => ({
+            data: {
+              items: [],
+              month: "2026-03",
+            },
+          }),
+          ok: true,
+        };
+      }
+
+      if (
+        typeof input === "string" &&
+        input.startsWith("/api/storage/monthly-expenses-receipts?")
+      ) {
+        return {
+          ok: true,
+          status: 204,
+        };
+      }
+
+      if (input === "/api/storage/monthly-expenses-report") {
+        return {
+          json: async () => ({
+            data: {
+              entries: [],
+              summary: {
+                activeLoanCount: 0,
+                lenderCount: 0,
+                remainingAmount: 0,
+                trackedLoanCount: 0,
+              },
+            },
+          }),
+          ok: true,
+        };
+      }
+
+      throw new Error(`Unexpected fetch input: ${String(input)}`);
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(false);
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              receipts: [
+                {
+                  allReceiptsFolderId: "receipt-folder-id",
+                  allReceiptsFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-folder-id",
+                  fileId: "receipt-file-id",
+                  fileName: "comprobante.pdf",
+                  fileViewUrl:
+                    "https://drive.google.com/file/d/receipt-file-id/view",
+                  monthlyFolderId: "receipt-month-folder-id",
+                  monthlyFolderViewUrl:
+                    "https://drive.google.com/drive/folders/receipt-month-folder-id",
+                },
+              ],
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Eliminar comprobante comprobante.pdf",
+      }),
+    );
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      expect.stringContaining("último comprobante"),
+    );
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(payload.items[0]).not.toHaveProperty("isPaid");
+    });
+
+    confirmSpy.mockRestore();
+  });
+
+  it("renders Se pagó, Comprobantes, Carpeta del mes actual, and Carpeta de comprobantes columns after Link", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -3837,6 +4101,7 @@ describe("MonthlyExpensesPage", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
     const linkHeaderIndex = headers.indexOf("Link");
+    const paidHeaderIndex = headers.indexOf("Se pagó");
     const receiptHeaderIndex = headers.indexOf("Comprobantes");
     const monthlyReceiptFolderHeaderIndex = headers.indexOf(
       "Carpeta del mes actual",
@@ -3844,7 +4109,8 @@ describe("MonthlyExpensesPage", () => {
     const allReceiptsFolderHeaderIndex = headers.indexOf("Carpeta de comprobantes");
 
     expect(linkHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(receiptHeaderIndex).toBe(linkHeaderIndex + 1);
+    expect(paidHeaderIndex).toBe(linkHeaderIndex + 1);
+    expect(receiptHeaderIndex).toBe(paidHeaderIndex + 1);
     expect(monthlyReceiptFolderHeaderIndex).toBe(receiptHeaderIndex + 1);
     expect(allReceiptsFolderHeaderIndex).toBe(monthlyReceiptFolderHeaderIndex + 1);
     expect(

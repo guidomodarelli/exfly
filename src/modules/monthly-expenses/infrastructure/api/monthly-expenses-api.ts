@@ -83,6 +83,7 @@ const monthlyExpenseItemSchema = z.object({
   description: z.string().trim().min(1),
   folders: monthlyExpenseFoldersSchema.nullable().optional(),
   id: z.string().trim().min(1),
+  isPaid: z.boolean().optional(),
   loan: z
     .object({
       installmentCount: z.number().int().positive(),
@@ -130,6 +131,7 @@ const monthlyExpensesDocumentEnvelopeSchema = z.object({
         description: z.string().trim().min(1),
         folders: monthlyExpenseFoldersResponseSchema.nullable().optional(),
         id: z.string().trim().min(1),
+        isPaid: z.boolean().optional(),
         loan: z
           .object({
             endMonth: z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/),

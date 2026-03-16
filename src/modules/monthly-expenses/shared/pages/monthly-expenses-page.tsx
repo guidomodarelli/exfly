@@ -247,6 +247,7 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     description: "",
     id: createExpenseRowId(),
     installmentCount: "",
+    isPaid: false,
     isLoan: false,
     lenderId: "",
     lenderName: "",
@@ -316,6 +317,9 @@ function toEditableRows(
     currency: item.currency,
     description: item.description,
     id: item.id,
+    isPaid: item.receipts && item.receipts.length > 0
+      ? true
+      : item.isPaid === true,
     installmentCount: item.loan
       ? formatEditableNumber(item.loan.installmentCount)
       : "",
@@ -339,6 +343,10 @@ function toEditableRows(
     subtotal: formatEditableNumber(item.subtotal),
     total: item.total.toFixed(2),
   }));
+}
+
+function getEffectivePaidState(row: Pick<MonthlyExpensesEditableRow, "isPaid" | "receipts">): boolean {
+  return row.receipts.length > 0 || row.isPaid;
 }
 
 function createMonthlyExpensesFormState(
@@ -620,6 +628,7 @@ function toSaveMonthlyExpensesCommand(
       currency: row.currency,
       description: row.description.trim(),
       id: row.id,
+      ...(getEffectivePaidState(row) ? { isPaid: true } : {}),
       ...(row.isLoan
         ? {
             loan: {
@@ -1178,6 +1187,7 @@ export default function MonthlyExpensesPage({
               monthlyFolderId: receiptUpload.monthlyFolderId,
               monthlyFolderStatus: undefined,
               monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
+              isPaid: true,
               receipts: [
                 ...row.receipts,
                 {
@@ -1244,6 +1254,14 @@ export default function MonthlyExpensesPage({
       return;
     }
 
+    const isDeletingLastReceipt = expenseRow.receipts.length === 1;
+    const keepPaidAfterRemovingLastReceipt =
+      isDeletingLastReceipt
+        ? window.confirm(
+            "Estás eliminando el último comprobante. ¿Querés mantener marcado \"Se pagó\"?\n\nAceptar: mantener \"Se pagó\"\nCancelar: marcar como no pagado",
+          )
+        : false;
+
     try {
       if (receipt.fileStatus !== "missing") {
         await deleteMonthlyExpenseReceiptViaApi({
@@ -1252,12 +1270,21 @@ export default function MonthlyExpensesPage({
       }
 
       const nextRows = formState.rows.map((row) =>
-        row.id === expenseId
-          ? {
-              ...row,
-              receipts: row.receipts.filter((item) => item.fileId !== receiptFileId),
-            }
-          : row,
+        row.id !== expenseId
+          ? row
+          : (() => {
+              const remainingReceipts = row.receipts.filter(
+                (item) => item.fileId !== receiptFileId,
+              );
+
+              return {
+                ...row,
+                isPaid: remainingReceipts.length > 0
+                  ? true
+                  : keepPaidAfterRemovingLastReceipt,
+                receipts: remainingReceipts,
+              };
+            })(),
       );
       await persistMonthlyExpensesRows(nextRows, {
         loading: "Eliminando comprobante...",
@@ -1420,6 +1447,47 @@ export default function MonthlyExpensesPage({
 
   const handleSaveUnsavedChanges = async () => {
     await handleSaveExpense();
+  };
+
+  const handleToggleExpensePaid = async ({
+    checked,
+    expenseId,
+  }: {
+    checked: boolean;
+    expenseId: string;
+  }) => {
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    if (expenseRow.receipts.length > 0) {
+      return;
+    }
+
+    const nextRows = formState.rows.map((row) =>
+      row.id === expenseId
+        ? {
+            ...row,
+            isPaid: checked,
+          }
+        : row,
+    );
+
+    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
+      loading: checked
+        ? "Marcando gasto como pagado..."
+        : "Marcando gasto como no pagado...",
+      success: checked
+        ? "Gasto marcado como pagado."
+        : "Gasto marcado como no pagado.",
+    });
+
+    if (!wasSaved) {
+      toast.error("No pudimos actualizar el estado de pago del gasto.");
+    }
   };
 
   const handleRemoveExpense = async (expenseId: string) => {
@@ -1699,6 +1767,7 @@ export default function MonthlyExpensesPage({
                 onRequestCloseExpenseSheet={handleRequestCloseExpenseSheet}
                 onSaveExpense={handleSaveExpense}
                 onSaveUnsavedChanges={handleSaveUnsavedChanges}
+                onToggleExpensePaid={handleToggleExpensePaid}
                 onUploadReceipt={handleOpenReceiptUpload}
                 onUnsavedChangesClose={handleUnsavedChangesClose}
                 onUnsavedChangesDiscard={handleUnsavedChangesDiscard}

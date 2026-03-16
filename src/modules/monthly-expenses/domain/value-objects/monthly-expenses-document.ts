@@ -54,6 +54,7 @@ export interface MonthlyExpenseItemInput {
   description: string;
   folders?: MonthlyExpenseFoldersInput | null;
   id: string;
+  isPaid?: boolean;
   loan?: MonthlyExpenseLoanInput;
   occurrencesPerMonth: number;
   paymentLink?: string | null;
@@ -364,7 +365,7 @@ function validateItem(
   operationName: string,
   targetMonth: string,
 ): MonthlyExpenseItem {
-  const { folders, loan, paymentLink, receipts, ...rawItem } = item;
+  const { folders, isPaid, loan, paymentLink, receipts, ...rawItem } = item;
   const normalizedItem = {
     ...rawItem,
     description: item.description.trim(),
@@ -398,9 +399,18 @@ function validateItem(
     );
   }
 
+  if (isPaid !== undefined && typeof isPaid !== "boolean") {
+    throw new Error(
+      `${operationName} requires every paid flag to be a boolean when provided.`,
+    );
+  }
+
+  const normalizedIsPaid = normalizedReceipts.length > 0 || isPaid === true;
+
   return {
     ...normalizedItem,
     ...(normalizedFolders ? { folders: normalizedFolders } : {}),
+    ...(normalizedIsPaid ? { isPaid: true } : {}),
     ...(loan ? { loan: validateLoan(loan, operationName, targetMonth) } : {}),
     paymentLink: normalizedPaymentLink,
     receipts: normalizedReceipts,
@@ -506,6 +516,7 @@ export function toMonthlyExpensesDocumentInput(
           }
         : {}),
       id: item.id,
+      ...(item.isPaid === true ? { isPaid: true } : {}),
       ...(item.loan
         ? {
             loan: {

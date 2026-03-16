@@ -35,6 +35,7 @@ export interface MonthlyExpenseItemResult {
   description: string;
   folders?: MonthlyExpenseFoldersResult;
   id: string;
+  isPaid?: boolean;
   loan?: MonthlyExpenseLoan;
   occurrencesPerMonth: number;
   paymentLink?: string | null;

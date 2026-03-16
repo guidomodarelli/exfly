@@ -227,6 +227,34 @@ describe("monthlyExpensesGoogleDriveMapper", () => {
     expect(parsed.items[0]?.paymentLink).toBe("https://pagos.empresa-energia.com");
   });
 
+  it("serializes and parses isPaid when enabled", () => {
+    const serialized = mapMonthlyExpensesDocumentToGoogleDriveFile({
+      items: [
+        {
+          currency: "ARS",
+          description: "Internet",
+          id: "expense-1",
+          isPaid: true,
+          occurrencesPerMonth: 1,
+          paymentLink: null,
+          receipts: [],
+          subtotal: 100,
+          total: 100,
+        },
+      ],
+      month: "2026-03",
+    });
+
+    expect(serialized.content).toContain('"isPaid": true');
+
+    const parsed = parseGoogleDriveMonthlyExpensesContent(
+      serialized.content,
+      "Loading monthly expenses",
+    );
+
+    expect(parsed.items[0]?.isPaid).toBe(true);
+  });
+
   it("throws when parsing an invalid paymentLink", () => {
     expect(() =>
       parseGoogleDriveMonthlyExpensesContent(

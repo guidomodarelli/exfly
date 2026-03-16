@@ -70,6 +70,7 @@ const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
   "mis-finanzas.monthly-expenses.table-preferences";
 const SORTABLE_COLUMN_IDS = new Set([
   "description",
+  "isPaid",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -86,6 +87,7 @@ const SORTABLE_COLUMN_IDS = new Set([
   LOAN_INSTALLMENT_END_COLUMN_ID,
 ]);
 const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
+  "isPaid",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -419,6 +421,7 @@ export interface MonthlyExpensesEditableRow {
   description: string;
   id: string;
   installmentCount: string;
+  isPaid: boolean;
   isLoan: boolean;
   lenderId: string;
   lenderName: string;
@@ -495,6 +498,7 @@ interface MonthlyExpensesTableProps {
   onExpenseLenderSelect: (lenderId: string | null) => void;
   onExpenseLoanToggle: (checked: boolean) => void;
   onMonthChange: (value: string) => void;
+  onToggleExpensePaid: (args: { checked: boolean; expenseId: string }) => void;
   onDeleteReceipt: (args: {
     expenseId: string;
     receiptFileId: string;
@@ -867,6 +871,7 @@ export function MonthlyExpensesTable({
   onExpenseLoanToggle,
   onDeleteReceipt,
   onMonthChange,
+  onToggleExpensePaid,
   onUploadReceipt,
   onRequestCloseExpenseSheet,
   onSaveExpense,
@@ -1141,6 +1146,43 @@ export function MonthlyExpensesTable({
             getValidPaymentLink(rowB.original.paymentLink) != null ? 1 : 0;
 
           return leftHasPaymentLink - rightHasPaymentLink;
+        },
+      },
+      {
+        accessorKey: "isPaid",
+        cell: ({ row }) => {
+          const hasReceipts = row.original.receipts.length > 0;
+          const effectiveIsPaid = hasReceipts || row.original.isPaid;
+          const checkboxLabel = row.original.description.trim().length > 0
+            ? `Se pagó: ${row.original.description}`
+            : "Se pagó";
+
+          return (
+            <div className={styles.paidCell}>
+              <input
+                aria-label={checkboxLabel}
+                checked={effectiveIsPaid}
+                className={styles.paidToggle}
+                disabled={actionDisabled || hasReceipts}
+                onChange={(event) =>
+                  onToggleExpensePaid({
+                    checked: event.target.checked,
+                    expenseId: row.original.id,
+                  })}
+                type="checkbox"
+              />
+            </div>
+          );
+        },
+        header: getSortableHeader("Se pagó"),
+        meta: { label: "Se pagó" },
+        sortingFn: (rowA, rowB) => {
+          const leftValue =
+            rowA.original.receipts.length > 0 || rowA.original.isPaid ? 1 : 0;
+          const rightValue =
+            rowB.original.receipts.length > 0 || rowB.original.isPaid ? 1 : 0;
+
+          return leftValue - rightValue;
         },
       },
       {
@@ -1677,6 +1719,7 @@ export function MonthlyExpensesTable({
       onDeleteMonthlyFolderReference,
       onDeleteReceipt,
       onEditExpense,
+      onToggleExpensePaid,
       onUploadReceipt,
     ],
   );

@@ -84,6 +84,7 @@ const monthlyExpenseItemSchema = z.object({
   description: z.string().trim().min(1),
   folders: monthlyExpenseFoldersSchema.nullable().optional(),
   id: z.string().trim().min(1),
+  isPaid: z.boolean().optional(),
   loan: z
     .object({
       installmentCount: z.number().int().positive(),

@@ -88,6 +88,7 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
   description: z.string().trim().min(1),
   folders: monthlyExpenseFoldersSchema.nullable().optional(),
   id: z.string().trim().min(1),
+  isPaid: z.boolean().optional(),
   loan: z
     .object({
       installmentCount: z.number().int().positive(),
@@ -178,6 +179,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             description,
             folders,
             id,
+            isPaid,
             loan,
             occurrencesPerMonth,
             paymentLink,
@@ -207,6 +209,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
                   },
                 }
               : {}),
+            ...(isPaid === true ? { isPaid: true } : {}),
             occurrencesPerMonth,
             paymentLink,
             ...(receipts.length > 0
@@ -297,6 +300,7 @@ export function parseGoogleDriveMonthlyExpensesContent(
           description: item.description,
           ...(normalizedFolders ? { folders: normalizedFolders } : {}),
           id: item.id,
+          ...(item.isPaid === true ? { isPaid: true } : {}),
           ...(item.loan ? { loan: item.loan } : {}),
           occurrencesPerMonth: item.occurrencesPerMonth,
           ...(item.paymentLink !== undefined

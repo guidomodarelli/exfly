@@ -177,6 +177,62 @@ describe("monthlyExpensesDocument", () => {
     });
   });
 
+  it("keeps isPaid when explicitly enabled for an expense without receipts", () => {
+    const result = createMonthlyExpensesDocument(
+      {
+        items: [
+          {
+            currency: "ARS",
+            description: "Internet",
+            id: "expense-1",
+            isPaid: true,
+            occurrencesPerMonth: 1,
+            subtotal: 100,
+          },
+        ],
+        month: "2026-03",
+      },
+      "Saving monthly expenses",
+    );
+
+    expect(result.items[0]?.isPaid).toBe(true);
+  });
+
+  it("forces isPaid to true when receipts exist", () => {
+    const result = createMonthlyExpensesDocument(
+      {
+        items: [
+          {
+            currency: "ARS",
+            description: "Internet",
+            id: "expense-1",
+            isPaid: false,
+            occurrencesPerMonth: 1,
+            receipts: [
+              {
+                allReceiptsFolderId: "receipt-folder-id",
+                allReceiptsFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-folder-id",
+                fileId: "receipt-file-id",
+                fileName: "comprobante.pdf",
+                fileViewUrl:
+                  "https://drive.google.com/file/d/receipt-file-id/view",
+                monthlyFolderId: "receipt-month-folder-id",
+                monthlyFolderViewUrl:
+                  "https://drive.google.com/drive/folders/receipt-month-folder-id",
+              },
+            ],
+            subtotal: 100,
+          },
+        ],
+        month: "2026-03",
+      },
+      "Saving monthly expenses",
+    );
+
+    expect(result.items[0]?.isPaid).toBe(true);
+  });
+
   it("normalizes payment links and adds https protocol when omitted", () => {
     const result = createMonthlyExpensesDocument(
       {
