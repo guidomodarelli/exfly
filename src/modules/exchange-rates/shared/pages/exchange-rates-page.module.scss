@@ -16,12 +16,6 @@
   text-transform: uppercase;
 }
 
-.title {
-  font-size: clamp(1.8rem, 3vw, 2.5rem);
-  font-weight: 700;
-  line-height: 1.1;
-}
-
 .description {
   color: var(--muted-foreground);
   max-width: 42rem;
