@@ -328,7 +328,7 @@ function ExpenseSheetContent({
   const lenderIsMissing = draft.isLoan && !draft.lenderId.trim();
   const lenderFieldError =
     shouldShowValidation && lenderIsMissing
-      ? "Seleccioná un prestador."
+      ? "Seleccioná un prestamista."
       : null;
   const hasFieldErrors = Object.keys(fieldErrors).length > 0 || lenderIsMissing;
   const shouldShowGlobalValidation =
@@ -680,7 +680,7 @@ function ExpenseSheetContent({
                   <>
                     <div className={styles.fieldGroup}>
                       <Label>
-                        {getFieldLabel("Prestador", changedFields.has("lender"))}
+                        {getFieldLabel("Prestamista", changedFields.has("lender"))}
                       </Label>
                       <div className={styles.fieldControlWrapper}>
                         <LenderPicker

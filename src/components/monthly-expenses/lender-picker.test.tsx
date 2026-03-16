@@ -22,21 +22,21 @@ describe("LenderPicker", () => {
       </div>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
 
-    expect(screen.getByLabelText("Buscar prestador")).toBeInTheDocument();
+    expect(screen.getByLabelText("Buscar prestamista")).toBeInTheDocument();
     expect(
-      screen.getByText("No hay prestadores registrados todavía."),
+      screen.getByText("No hay prestamistas registrados todavía."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Agregar prestador" }),
+      screen.getByRole("button", { name: "Agregar prestamista" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Fuera" }));
 
-    expect(screen.queryByLabelText("Buscar prestador")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Buscar prestamista")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("No hay prestadores registrados todavía."),
+      screen.queryByText("No hay prestamistas registrados todavía."),
     ).not.toBeInTheDocument();
     expect(onAddLender).not.toHaveBeenCalled();
     expect(onSelect).not.toHaveBeenCalled();
@@ -56,11 +56,11 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
 
     expect(onAddLender).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText("Buscar prestador")).toBeInTheDocument();
+    expect(screen.getByLabelText("Buscar prestamista")).toBeInTheDocument();
   });
 
   it("keeps the add lender action visible when there are lender options", async () => {
@@ -82,11 +82,11 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
 
     expect(screen.getByRole("button", { name: /Banco Ciudad/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Agregar prestador" }),
+      screen.getByRole("button", { name: "Agregar prestamista" }),
     ).toBeInTheDocument();
   });
 
@@ -119,8 +119,8 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.type(screen.getByLabelText("Buscar prestador"), "BNCN");
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "BNCN");
 
     expect(
       screen.getAllByText((_, element) => element?.textContent === "Banco Nación"),
@@ -129,8 +129,8 @@ describe("LenderPicker", () => {
       screen.queryByText((_, element) => element?.textContent === "Árbol Finanzas"),
     ).not.toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText("Buscar prestador"));
-    await user.type(screen.getByLabelText("Buscar prestador"), "NACION");
+    await user.clear(screen.getByLabelText("Buscar prestamista"));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "NACION");
 
     expect(
       screen.getAllByText((_, element) => element?.textContent === "Banco Nación"),
@@ -156,8 +156,8 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.type(screen.getByLabelText("Buscar prestador"), "NACION");
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "NACION");
 
     const lenderOption = screen.getByRole("button", {
       name: /Nación\s*Banco/i,
@@ -191,7 +191,7 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
 
     expect(
       screen.getByText((_, element) => element?.textContent === "Tío de la familia"),
@@ -224,8 +224,8 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.type(screen.getByLabelText("Buscar prestador"), "AGIL");
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "AGIL");
 
     const lenderOption = screen.getByRole("button", {
       name: /Adrián Saúl Modarelli/i,
@@ -269,8 +269,8 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.type(screen.getByLabelText("Buscar prestador"), "FMLR");
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "FMLR");
 
     const lenderOption = screen.getByRole("button", {
       name: /Lucía Pérez/i,
@@ -323,8 +323,8 @@ describe("LenderPicker", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
-    await user.type(screen.getByLabelText("Buscar prestador"), "ipe");
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
+    await user.type(screen.getByLabelText("Buscar prestamista"), "ipe");
 
     const getOptionButtonByName = (name: string) => {
       const normalizedName = name.toLowerCase().replace(/\s+/g, "");

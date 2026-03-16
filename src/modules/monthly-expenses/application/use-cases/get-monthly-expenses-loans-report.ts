@@ -86,7 +86,7 @@ function resolveLender(
 
   return {
     lenderId: null,
-    lenderName: "Sin prestador",
+    lenderName: "Sin prestamista",
     lenderType: "unassigned",
   };
 }

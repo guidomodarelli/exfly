@@ -120,9 +120,9 @@ export function LenderCreateDialog({
       <Dialog onOpenChange={handleCreateModalOpenChange} open={isOpen}>
         <DialogContent className={styles.dialogContent}>
           <DialogHeader>
-            <DialogTitle>Nuevo prestador</DialogTitle>
+            <DialogTitle>Nuevo prestamista</DialogTitle>
             <DialogDescription>
-              Completá y guardá este prestador para reutilizarlo en tus deudas.
+              Completá y guardá este prestamista para reutilizarlo en tus deudas.
             </DialogDescription>
           </DialogHeader>
 
@@ -145,7 +145,7 @@ export function LenderCreateDialog({
               />
               {hasRequiredNameError ? (
                 <p className={cn(styles.feedback, styles.errorText)} role="alert">
-                  Completá el nombre del prestador antes de guardarlo.
+                  Completá el nombre del prestamista antes de guardarlo.
                 </p>
               ) : null}
             </div>
@@ -156,8 +156,8 @@ export function LenderCreateDialog({
                 onValueChange={(value) => onFieldChange("type", value)}
                 value={formValues.type}
               >
-                <SelectTrigger aria-label="Tipo de prestador" id="lender-type">
-                  <SelectValue placeholder="Tipo de prestador" />
+                <SelectTrigger aria-label="Tipo de prestamista" id="lender-type">
+                  <SelectValue placeholder="Tipo de prestamista" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="bank">Banco</SelectItem>
@@ -189,7 +189,7 @@ export function LenderCreateDialog({
                 Cancelar
               </Button>
               <Button disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Guardando prestador..." : "Guardar prestador"}
+                {isSubmitting ? "Guardando prestamista..." : "Guardar prestamista"}
               </Button>
             </DialogFooter>
           </form>
@@ -220,7 +220,7 @@ export function LenderCreateDialog({
               </Button>
             </div>
             <DialogDescription>
-              Tenés cambios sin guardar en este prestador.
+              Tenés cambios sin guardar en este prestamista.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className={styles.unsavedChangesFooter}>

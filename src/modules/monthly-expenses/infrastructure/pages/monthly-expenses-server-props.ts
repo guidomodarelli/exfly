@@ -262,7 +262,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
             : createEmptyMonthlyExpensesLoansReportResult(),
         lendersLoadError:
           lendersResult.status === "rejected"
-            ? "No pudimos cargar el catálogo de prestadores desde la base de datos."
+            ? "No pudimos cargar el catálogo de prestamistas desde la base de datos."
             : null,
         loadError:
           documentResult.status === "rejected"

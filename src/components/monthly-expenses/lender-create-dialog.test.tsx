@@ -16,7 +16,7 @@ describe("LenderCreateDialog", () => {
         notes: string;
         type: LenderOption["type"];
       }>({
-        name: "Prestador temporal",
+        name: "Prestamista temporal",
         notes: "",
         type: "family",
       });
@@ -46,11 +46,11 @@ describe("LenderCreateDialog", () => {
 
     render(<LenderCreateDialogHarness />);
 
-    await user.click(screen.getByRole("button", { name: "Guardar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Guardar prestamista" }));
 
     await waitFor(() => {
       expect(
-        screen.queryByText("Completá el nombre del prestador antes de guardarlo."),
+        screen.queryByText("Completá el nombre del prestamista antes de guardarlo."),
       ).not.toBeInTheDocument();
       expect(screen.getByLabelText("Nombre")).not.toHaveAttribute(
         "aria-invalid",

@@ -145,11 +145,11 @@ export function FinanceAppShell({
                 <SidebarMenuButton
                   asChild
                   isActive={activeSection === "lenders"}
-                  tooltip="Prestadores"
+                  tooltip="Prestamistas"
                 >
-                  <Link href="/prestadores">
+                  <Link href="/prestamistas">
                     <IconBuildingBank />
-                    <span>Prestadores</span>
+                    <span>Prestamistas</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -85,7 +85,7 @@ export function getSafeMonthlyExpensesErrorMessage(error: unknown): string {
 
 export function getSafeLendersErrorMessage(error: unknown): string {
   const fallbackMessage =
-    "No pudimos actualizar el catálogo de prestadores en este momento. Volvé a intentarlo más tarde.";
+    "No pudimos actualizar el catálogo de prestamistas en este momento. Volvé a intentarlo más tarde.";
 
   if (!(error instanceof Error) && typeof error !== "string") {
     return fallbackMessage;
@@ -94,11 +94,11 @@ export function getSafeLendersErrorMessage(error: unknown): string {
   const message = typeof error === "string" ? error : error.message;
 
   if (message.includes("Google authentication is required")) {
-    return "Conectate con Google para gestionar el catálogo de prestadores.";
+    return "Conectate con Google para gestionar el catálogo de prestamistas.";
   }
 
   if (message.includes("missing the Drive permissions required")) {
-    return "Tu sesión actual no tiene permisos suficientes para gestionar prestadores en Drive.";
+    return "Tu sesión actual no tiene permisos suficientes para gestionar prestamistas en Drive.";
   }
 
   return fallbackMessage;

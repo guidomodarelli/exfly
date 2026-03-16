@@ -85,12 +85,12 @@ function getBestFuzzyRank(
 
 export function LenderPicker({
   className,
-  emptyMessage = "No hay prestadores registrados todavía.",
+  emptyMessage = "No hay prestamistas registrados todavía.",
   hasError = false,
   onAddLender,
   onSelect,
   options,
-  placeholder = "Seleccioná un prestador",
+  placeholder = "Seleccioná un prestamista",
   selectedLenderId,
   selectedLenderName,
 }: LenderPickerProps) {
@@ -209,7 +209,7 @@ export function LenderPicker({
       {isOpen ? (
         <div className={styles.panel}>
           <Input
-            aria-label="Buscar prestador"
+            aria-label="Buscar prestamista"
             onChange={(event) => setSearchValue(event.target.value)}
             placeholder="Buscar por nombre, tipo o notas"
             type="text"
@@ -291,7 +291,7 @@ export function LenderPicker({
             type="button"
             variant="outline"
           >
-            Agregar prestador
+            Agregar prestamista
           </Button>
         </div>
       ) : null}

@@ -29,7 +29,7 @@ type PagePropsWithSession = {
 };
 
 const APP_NAME = "Mis Finanzas";
-const APP_DESCRIPTION = "Gestiona tus gastos, prestadores y reportes mensuales.";
+const APP_DESCRIPTION = "Gestiona tus gastos, prestamistas y reportes mensuales.";
 const APP_THEME_COLOR = "#121826";
 const PAGE_TITLE_BY_PATHNAME: Record<string, string> = {
   "/": "Inicio",
@@ -37,7 +37,7 @@ const PAGE_TITLE_BY_PATHNAME: Record<string, string> = {
   "/auth/signin": "Conectar Google",
   "/cotizaciones": "Cotizaciones del dolar",
   "/gastos": "Gastos del mes",
-  "/prestadores": "Prestadores",
+  "/prestamistas": "Prestamistas",
   "/reportes/deudas": "Reporte de deudas",
 };
 

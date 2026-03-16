@@ -276,7 +276,7 @@ function getPageHeadingByTab(tab: MonthlyExpensesTabKey): string {
     case "expenses":
       return "Gastos del mes";
     case "lenders":
-      return "Prestadores";
+      return "Prestamistas";
     case "debts":
       return "Reporte de deudas";
   }
@@ -1961,16 +1961,16 @@ export default function MonthlyExpensesPage({
     const newLenderId = createLenderId();
 
     if (!isOAuthConfigured || !isAuthenticated) {
-      toast.warning("Conectate con Google para guardar prestadores.");
+      toast.warning("Conectate con Google para guardar prestamistas.");
       return false;
     }
 
     if (!lenderName) {
       updateLendersState((currentState) => ({
         ...currentState,
-        error: "Completá el nombre del prestador antes de guardarlo.",
+        error: "Completá el nombre del prestamista antes de guardarlo.",
       }));
-      toast.warning("Completá el nombre del prestador antes de guardarlo.");
+      toast.warning("Completá el nombre del prestamista antes de guardarlo.");
       return false;
     }
 
@@ -1982,9 +1982,9 @@ export default function MonthlyExpensesPage({
     ) {
       updateLendersState((currentState) => ({
         ...currentState,
-        error: "Ya existe un prestador con ese nombre.",
+        error: "Ya existe un prestamista con ese nombre.",
       }));
-      toast.warning("Ya existe un prestador con ese nombre.");
+      toast.warning("Ya existe un prestamista con ese nombre.");
       return false;
     }
 
@@ -2018,9 +2018,9 @@ export default function MonthlyExpensesPage({
       void toast.promise(
         savePromise,
         {
-          error: "No pudimos guardar el prestador.",
-          loading: "Guardando prestador...",
-          success: "Prestador guardado correctamente.",
+          error: "No pudimos guardar el prestamista.",
+          loading: "Guardando prestamista...",
+          success: "Prestamista guardado correctamente.",
         },
       );
       await savePromise;
@@ -2031,7 +2031,7 @@ export default function MonthlyExpensesPage({
         lenders: nextLenders,
         name: "",
         notes: "",
-        successMessage: "Prestador guardado correctamente.",
+        successMessage: "Prestamista guardado correctamente.",
         type: "family",
       }));
       await refreshLoansReport(nextLenders);
@@ -2048,7 +2048,7 @@ export default function MonthlyExpensesPage({
 
   const handleDeleteLender = async (lenderId: string) => {
     if (!isOAuthConfigured || !isAuthenticated) {
-      toast.warning("Conectate con Google para eliminar prestadores.");
+      toast.warning("Conectate con Google para eliminar prestamistas.");
       return;
     }
 
@@ -2074,9 +2074,9 @@ export default function MonthlyExpensesPage({
       void toast.promise(
         savePromise,
         {
-          error: "No pudimos eliminar el prestador.",
-          loading: "Eliminando prestador...",
-          success: "Prestador eliminado del catálogo.",
+          error: "No pudimos eliminar el prestamista.",
+          loading: "Eliminando prestamista...",
+          success: "Prestamista eliminado del catálogo.",
         },
       );
       await savePromise;
@@ -2102,7 +2102,7 @@ export default function MonthlyExpensesPage({
         ...currentState,
         isSubmitting: false,
         lenders: nextLenders,
-        successMessage: "Prestador eliminado del catálogo.",
+        successMessage: "Prestamista eliminado del catálogo.",
       }));
       await refreshLoansReport(nextLenders);
     } catch (error) {

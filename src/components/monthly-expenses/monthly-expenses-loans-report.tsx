@@ -58,7 +58,7 @@ function getTypeLabel(type: MonthlyExpensesLoanReportView["lenderType"]): string
     case "other":
       return "Otro";
     case "unassigned":
-      return "Sin prestador";
+      return "Sin prestamista";
   }
 }
 
@@ -84,12 +84,12 @@ export function MonthlyExpensesLoansReport({
   return (
     <section className={styles.content}>
       <p className={styles.description}>
-        Revisá cuánto debés por prestador y qué gastos están asociados.
+        Revisá cuánto debés por prestamista y qué gastos están asociados.
       </p>
 
       <div className={styles.summaryGrid}>
         <div className={styles.summaryCard}>
-          <p className={styles.summaryLabel}>Prestadores con deuda</p>
+          <p className={styles.summaryLabel}>Prestamistas con deuda</p>
           <p className={styles.summaryValue}>{summary.lenderCount}</p>
         </div>
         <div className={styles.summaryCard}>
@@ -118,25 +118,25 @@ export function MonthlyExpensesLoansReport({
               <SelectItem value="family">Familiares</SelectItem>
               <SelectItem value="friend">Amigos</SelectItem>
               <SelectItem value="other">Otros</SelectItem>
-              <SelectItem value="unassigned">Sin prestador</SelectItem>
+              <SelectItem value="unassigned">Sin prestamista</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className={styles.filterField}>
-          <Label htmlFor="loan-report-lender-filter">Prestador</Label>
+          <Label htmlFor="loan-report-lender-filter">Prestamista</Label>
           <Select
             onValueChange={onLenderFilterChange}
             value={selectedLenderFilter}
           >
             <SelectTrigger
-              aria-label="Filtrar por prestador"
+              aria-label="Filtrar por prestamista"
               id="loan-report-lender-filter"
             >
-              <SelectValue placeholder="Todos los prestadores" />
+              <SelectValue placeholder="Todos los prestamistas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los prestadores</SelectItem>
+              <SelectItem value="all">Todos los prestamistas</SelectItem>
               {providerFilterOptions.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
                   {option.label}

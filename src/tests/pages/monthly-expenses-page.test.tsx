@@ -1015,7 +1015,7 @@ describe("MonthlyExpensesPage", () => {
     );
 
     expect(
-      screen.getByText("Guardá prestadores para reutilizarlos en tus deudas."),
+      screen.getByText("Guardá prestamistas para reutilizarlos en tus deudas."),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Gastos del mes" }),
@@ -1066,8 +1066,8 @@ describe("MonthlyExpensesPage", () => {
       screen.getByRole("link", { name: "Cotizaciones del dólar" }),
     ).toHaveAttribute("href", "/cotizaciones");
     expect(
-      screen.getByRole("link", { name: "Prestadores" }),
-    ).toHaveAttribute("href", "/prestadores");
+      screen.getByRole("link", { name: "Prestamistas" }),
+    ).toHaveAttribute("href", "/prestamistas");
     expect(
       screen.getByRole("link", { name: "Reporte de deudas" }),
     ).toHaveAttribute("href", "/reportes/deudas");
@@ -2343,11 +2343,11 @@ describe("MonthlyExpensesPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
 
-    expect(screen.queryByText("Seleccioná un prestador")).not.toBeInTheDocument();
+    expect(screen.queryByText("Seleccioná un prestamista")).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
 
-    expect(screen.getByText("Seleccioná un prestador")).toBeInTheDocument();
+    expect(screen.getByText("Seleccioná un prestamista")).toBeInTheDocument();
     expect(screen.getByLabelText("Inicio de la deuda")).toBeInTheDocument();
     expect(
       screen.getByLabelText("Cantidad total de cuotas"),
@@ -2361,7 +2361,7 @@ describe("MonthlyExpensesPage", () => {
 
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
 
-    expect(screen.queryByText("Seleccioná un prestador")).not.toBeInTheDocument();
+    expect(screen.queryByText("Seleccioná un prestamista")).not.toBeInTheDocument();
   });
 
   it("shows the debt info tooltip and closes it from the close button, outside click, or Escape", async () => {
@@ -2856,7 +2856,7 @@ describe("MonthlyExpensesPage", () => {
     fireEvent.change(screen.getByLabelText("Inicio de la deuda"), {
       target: { value: "2026-01" },
     });
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
     await user.click(screen.getByRole("button", { name: /Banco Ciudad/i }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -3056,12 +3056,12 @@ describe("MonthlyExpensesPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
-    expect(screen.getByText("Seleccioná un prestador.")).toBeInTheDocument();
+    expect(screen.getByText("Seleccioná un prestamista.")).toBeInTheDocument();
     expect(
       fetchMock.mock.calls.some(([url]) => url === "/api/storage/monthly-expenses"),
     ).toBe(false);
 
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
     await user.click(screen.getByRole("button", { name: /Banco Ciudad/i }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
@@ -3127,15 +3127,15 @@ describe("MonthlyExpensesPage", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "Editar" }));
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
 
     expect(
-      screen.getByText("No hay prestadores registrados todavía."),
+      screen.getByText("No hay prestamistas registrados todavía."),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
 
-    expect(screen.getByRole("heading", { name: "Nuevo prestador" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Nuevo prestamista" })).toBeInTheDocument();
     expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
   });
 
@@ -3271,9 +3271,9 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
     await user.type(screen.getByLabelText("Nombre"), "Papa");
-    await user.click(screen.getByRole("button", { name: "Guardar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Guardar prestamista" }));
 
     await waitFor(() => {
       const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -3299,7 +3299,7 @@ describe("MonthlyExpensesPage", () => {
 
     expect(screen.getAllByText("Papa")[0]).toBeInTheDocument();
     expect(
-      screen.queryByText("Prestador guardado correctamente."),
+      screen.queryByText("Prestamista guardado correctamente."),
     ).not.toBeInTheDocument();
   });
 
@@ -3317,12 +3317,12 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
-    await user.type(screen.getByLabelText("Nombre"), "Prestador temporal");
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
+    await user.type(screen.getByLabelText("Nombre"), "Prestamista temporal");
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(
-      screen.getByText("Tenés cambios sin guardar en este prestador."),
+      screen.getByText("Tenés cambios sin guardar en este prestamista."),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Descartar los cambios" }));
@@ -3331,7 +3331,7 @@ describe("MonthlyExpensesPage", () => {
       "Se descartaron los cambios sin guardar.",
     );
 
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
 
     expect(screen.getByLabelText("Nombre")).toHaveValue("");
   });
@@ -3485,7 +3485,7 @@ describe("MonthlyExpensesPage", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "Editar" }));
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
-    await user.click(screen.getByRole("button", { name: "Seleccioná un prestador" }));
+    await user.click(screen.getByRole("button", { name: "Seleccioná un prestamista" }));
     await user.click(screen.getByRole("button", { name: "Papa Familiar" }));
     await user.type(screen.getByLabelText("Cantidad total de cuotas"), "12");
     fireEvent.change(screen.getByLabelText("Inicio de la deuda"), {
@@ -3525,7 +3525,7 @@ describe("MonthlyExpensesPage", () => {
             expenseDescriptions: ["Tarjeta"],
             firstDebtMonth: "2026-01",
             lenderId: null,
-            lenderName: "Prestador manual",
+            lenderName: "Prestamista manual",
             lenderType: "other",
             latestRecordedMonth: "2026-03",
             remainingAmount: 1000,
@@ -3570,7 +3570,7 @@ describe("MonthlyExpensesPage", () => {
         "The current Google session is missing the Drive permissions required to manage lenders.",
       ),
     ).toBe(
-      "Tu sesión actual no tiene permisos suficientes para gestionar prestadores en Drive.",
+      "Tu sesión actual no tiene permisos suficientes para gestionar prestamistas en Drive.",
     );
   });
 
@@ -3691,13 +3691,13 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Agregar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Agregar prestamista" }));
     await user.type(screen.getByLabelText("Nombre"), "Papa");
-    await user.click(screen.getByRole("button", { name: "Guardar prestador" }));
+    await user.click(screen.getByRole("button", { name: "Guardar prestamista" }));
 
     expect(
       await screen.findByText(
-        "Tu sesión actual no tiene permisos suficientes para gestionar prestadores en Drive.",
+        "Tu sesión actual no tiene permisos suficientes para gestionar prestamistas en Drive.",
       ),
     ).toBeInTheDocument();
     expect(

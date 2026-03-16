@@ -1,7 +1,7 @@
 {
   "name": "Mis Finanzas",
   "short_name": "Mis Finanzas",
-  "description": "Gestiona tus gastos, prestadores y reportes mensuales.",
+  "description": "Gestiona tus gastos, prestamistas y reportes mensuales.",
   "lang": "es-AR",
   "start_url": "/",
   "scope": "/",

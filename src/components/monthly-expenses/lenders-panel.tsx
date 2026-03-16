@@ -45,12 +45,12 @@ export function LendersPanel({
   return (
     <section className={styles.content}>
       <p className={styles.description}>
-        Guardá prestadores para reutilizarlos en tus deudas.
+        Guardá prestamistas para reutilizarlos en tus deudas.
       </p>
 
       <div className={styles.formActions}>
         <Button onClick={onOpenCreateModal} type="button" variant="outline">
-          Agregar prestador
+          Agregar prestamista
         </Button>
       </div>
 
@@ -93,7 +93,7 @@ export function LendersPanel({
           })
         ) : (
           <p className={styles.emptyState}>
-            Todavía no hay prestadores guardados.
+            Todavía no hay prestamistas guardados.
           </p>
         )}
       </div>

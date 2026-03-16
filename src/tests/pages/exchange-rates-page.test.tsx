@@ -140,7 +140,7 @@ describe("ExchangeRatesPage", () => {
     expect(sidebarLabels).toEqual([
       "Gastos del mes",
       "Cotizaciones del dólar",
-      "Prestadores",
+      "Prestamistas",
       "Reporte de deudas",
     ]);
   });
