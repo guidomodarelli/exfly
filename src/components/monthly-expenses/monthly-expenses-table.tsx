@@ -7,11 +7,13 @@ import type {
 import {
   AlertTriangle,
   ArrowUpDown,
+  Check,
   CircleX,
   ExternalLink,
   Paperclip,
   Pencil,
   Trash2,
+  X,
 } from "lucide-react";
 import { z } from "zod";
 
@@ -806,6 +808,24 @@ function parsePositiveInteger(value: string): number {
   return numericValue;
 }
 
+function clampManualCoveredPaymentsValue({
+  fallbackValue,
+  maxManualCoveredPayments,
+  value,
+}: {
+  fallbackValue: number;
+  maxManualCoveredPayments: number;
+  value: string;
+}): number {
+  const parsedValue = Number(value.replace(/[^\d]/g, ""));
+
+  if (!Number.isInteger(parsedValue)) {
+    return fallbackValue;
+  }
+
+  return Math.min(Math.max(parsedValue, 0), maxManualCoveredPayments);
+}
+
 function getCoveredPaymentsByReceipts(receipts: MonthlyExpensesEditableReceipt[]): number {
   return receipts.reduce(
     (coveredPayments, receipt) => coveredPayments + receipt.coveredPayments,
@@ -896,6 +916,108 @@ function DriveStatusBadge({
       </TooltipTrigger>
       <TooltipContent>{message}</TooltipContent>
     </Tooltip>
+  );
+}
+
+function ManualCoveredPaymentsCell({
+  actionDisabled,
+  expenseDescription,
+  expenseId,
+  maxManualCoveredPayments,
+  normalizedManualCoveredPayments,
+  onUpdateManualCoveredPayments,
+}: {
+  actionDisabled: boolean;
+  expenseDescription: string;
+  expenseId: string;
+  maxManualCoveredPayments: number;
+  normalizedManualCoveredPayments: number;
+  onUpdateManualCoveredPayments: (args: {
+    expenseId: string;
+    manualCoveredPayments: number;
+  }) => void;
+}) {
+  const [draftManualCoveredPayments, setDraftManualCoveredPayments] =
+    useState(String(normalizedManualCoveredPayments));
+  const manualPaymentsHintId = `manual-covered-payments-hint-${expenseId}`;
+  const clampedDraftManualCoveredPayments = clampManualCoveredPaymentsValue({
+    fallbackValue: normalizedManualCoveredPayments,
+    maxManualCoveredPayments,
+    value: draftManualCoveredPayments,
+  });
+  const hasDraftChanges =
+    clampedDraftManualCoveredPayments !== normalizedManualCoveredPayments;
+
+  const handleConfirmChanges = () => {
+    setDraftManualCoveredPayments(String(clampedDraftManualCoveredPayments));
+
+    if (!hasDraftChanges || actionDisabled) {
+      return;
+    }
+
+    onUpdateManualCoveredPayments({
+      expenseId,
+      manualCoveredPayments: clampedDraftManualCoveredPayments,
+    });
+  };
+
+  return (
+    <div className={styles.manualPaymentsCell}>
+      <div className={styles.manualPaymentsControls}>
+        <Input
+          aria-describedby={manualPaymentsHintId}
+          aria-label={`Pagos sin comprobante de ${expenseDescription}`}
+          className={styles.manualPaymentsInput}
+          disabled={actionDisabled}
+          inputMode="numeric"
+          max={maxManualCoveredPayments}
+          min={0}
+          onBlur={() => {
+            setDraftManualCoveredPayments(String(clampedDraftManualCoveredPayments));
+          }}
+          onChange={(event) => {
+            setDraftManualCoveredPayments(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") {
+              return;
+            }
+
+            event.preventDefault();
+            handleConfirmChanges();
+          }}
+          type="number"
+          value={draftManualCoveredPayments}
+        />
+        <div className={styles.manualPaymentsActions}>
+          <Button
+            aria-label={`Descartar cambios de pagos sin comprobante de ${expenseDescription}`}
+            disabled={actionDisabled || !hasDraftChanges}
+            onClick={() => {
+              setDraftManualCoveredPayments(String(normalizedManualCoveredPayments));
+            }}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <X aria-hidden="true" />
+          </Button>
+          <Button
+            aria-label={`Confirmar pagos sin comprobante de ${expenseDescription}`}
+            disabled={actionDisabled || !hasDraftChanges}
+            onClick={handleConfirmChanges}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <Check aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+      <span className={styles.manualPaymentsHint} id={manualPaymentsHintId}>
+        0 a {maxManualCoveredPayments}
+      </span>
+    </div>
   );
 }
 
@@ -1299,56 +1421,17 @@ export function MonthlyExpensesTable({
             maxManualCoveredPayments,
           );
           const expenseDescription = row.original.description.trim() || "gasto";
-          const manualPaymentsHintId =
-            `manual-covered-payments-hint-${row.original.id}`;
 
           return (
-            <div className={styles.manualPaymentsCell}>
-              <Input
-                aria-describedby={manualPaymentsHintId}
-                aria-label={`Pagos sin comprobante de ${expenseDescription}`}
-                className={styles.manualPaymentsInput}
-                defaultValue={String(normalizedManualCoveredPayments)}
-                disabled={actionDisabled}
-                inputMode="numeric"
-                key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
-                max={maxManualCoveredPayments}
-                min={0}
-                onBlur={(event) => {
-                  const nextManualCoveredPayments = Number(
-                    event.target.value.replace(/[^\d]/g, ""),
-                  );
-                  const clampedManualCoveredPayments = Number.isInteger(
-                    nextManualCoveredPayments,
-                  )
-                    ? Math.min(
-                        Math.max(nextManualCoveredPayments, 0),
-                        maxManualCoveredPayments,
-                      )
-                    : normalizedManualCoveredPayments;
-
-                  event.target.value = String(clampedManualCoveredPayments);
-
-                  if (clampedManualCoveredPayments === normalizedManualCoveredPayments) {
-                    return;
-                  }
-
-                  onUpdateManualCoveredPayments({
-                    expenseId: row.original.id,
-                    manualCoveredPayments: clampedManualCoveredPayments,
-                  });
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.currentTarget.blur();
-                  }
-                }}
-                type="number"
-              />
-              <span className={styles.manualPaymentsHint} id={manualPaymentsHintId}>
-                0 a {maxManualCoveredPayments}
-              </span>
-            </div>
+            <ManualCoveredPaymentsCell
+              actionDisabled={actionDisabled}
+              expenseDescription={expenseDescription}
+              expenseId={row.original.id}
+              key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
+              maxManualCoveredPayments={maxManualCoveredPayments}
+              normalizedManualCoveredPayments={normalizedManualCoveredPayments}
+              onUpdateManualCoveredPayments={onUpdateManualCoveredPayments}
+            />
           );
         },
         header: getSortableHeader("Pagos sin comprobante"),

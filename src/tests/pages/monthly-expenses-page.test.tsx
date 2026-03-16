@@ -3996,14 +3996,71 @@ describe("MonthlyExpensesPage", () => {
     });
 
     await user.clear(manualPaymentsInput);
-    await user.type(manualPaymentsInput, "5");
-    fireEvent.blur(manualPaymentsInput);
+    await user.type(manualPaymentsInput, "5{enter}");
 
     await waitFor(() => {
       const payload = getMonthlyExpensesSavePayload(fetchMock);
 
       expect(payload.items[0]?.manualCoveredPayments).toBe(5);
     });
+  });
+
+  it("discards manual covered payments draft changes from the table input column", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 0,
+              occurrencesPerMonth: 8,
+              subtotal: 100,
+              total: 800,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    const manualPaymentsInput = screen.getByRole("spinbutton", {
+      name: "Pagos sin comprobante de Internet",
+    });
+
+    await user.clear(manualPaymentsInput);
+    await user.type(manualPaymentsInput, "5");
+
+    const discardButton = screen.getByRole("button", {
+      name: "Descartar cambios de pagos sin comprobante de Internet",
+    });
+
+    await user.click(discardButton);
+
+    expect(manualPaymentsInput).toHaveValue(0);
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => url === "/api/storage/monthly-expenses",
+      ),
+    ).toBe(false);
   });
 
   it("recalculates progress when deleting the last receipt without legacy confirmation", async () => {
