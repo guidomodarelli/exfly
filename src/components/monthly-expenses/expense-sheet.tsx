@@ -84,8 +84,12 @@ type ExpenseSheetContentProps = Omit<ExpenseSheetProps, "draft"> & {
   draft: MonthlyExpensesEditableRow;
 };
 
-type ExpenseFieldErrorMap = Partial<Record<ExpenseEditableFieldName, string>>;
-type ExpenseSheetFormValues = Record<ExpenseEditableFieldName, string>;
+type ExpenseSheetFormFieldName = Exclude<
+  ExpenseEditableFieldName,
+  "manualCoveredPayments"
+>;
+type ExpenseFieldErrorMap = Partial<Record<ExpenseSheetFormFieldName, string>>;
+type ExpenseSheetFormValues = Record<ExpenseSheetFormFieldName, string>;
 
 const INSTALLMENT_COUNT_SUGGESTIONS = ["3", "6", "9", "12", "18", "24"];
 const PAYMENT_LINK_PROTOCOL_PATTERN = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
@@ -189,7 +193,6 @@ function getExpenseSheetFormValues(
     currency: draft.currency,
     description: draft.description,
     installmentCount: draft.installmentCount,
-    manualCoveredPayments: draft.manualCoveredPayments,
     occurrencesPerMonth: draft.occurrencesPerMonth,
     paymentLink: draft.paymentLink,
     startMonth: draft.startMonth,
@@ -217,7 +220,6 @@ function getFieldErrors(draft: MonthlyExpensesEditableRow): ExpenseFieldErrorMap
   const subtotal = Number(draft.subtotal);
   const occurrencesPerMonth = Number(draft.occurrencesPerMonth);
   const installmentCount = Number(draft.installmentCount);
-  const manualCoveredPayments = Number(draft.manualCoveredPayments);
 
   if (!draft.description.trim()) {
     fieldErrors.description = "Completá la descripción.";
@@ -229,10 +231,6 @@ function getFieldErrors(draft: MonthlyExpensesEditableRow): ExpenseFieldErrorMap
 
   if (!Number.isInteger(occurrencesPerMonth) || occurrencesPerMonth <= 0) {
     fieldErrors.occurrencesPerMonth = "Ingresá una cantidad mayor a 0.";
-  }
-
-  if (!Number.isInteger(manualCoveredPayments) || manualCoveredPayments < 0) {
-    fieldErrors.manualCoveredPayments = "Ingresá una cantidad igual o mayor a 0.";
   }
 
   const normalizedPaymentLink = draft.paymentLink.trim();
@@ -348,7 +346,7 @@ function ExpenseSheetContent({
       return;
     }
 
-    (Object.entries(fieldErrors) as [ExpenseEditableFieldName, string][]).forEach(
+    (Object.entries(fieldErrors) as [ExpenseSheetFormFieldName, string][]).forEach(
       ([fieldName, message]) => {
         form.setError(fieldName, {
           message,
@@ -623,50 +621,6 @@ function ExpenseSheetContent({
                             onOccurrencesPerMonthChange={(value) =>
                               onFieldChange("occurrencesPerMonth", value)
                             }
-                          />
-                        </FormControl>
-                        <FormMessage className={styles.fieldErrorText} />
-                      </div>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="manualCoveredPayments"
-                  render={() => (
-                    <FormItem className={styles.fieldGroup}>
-                      <FormLabel>
-                        {getFieldLabel(
-                          "Pagos manuales (sin comprobante)",
-                          changedFields.has("manualCoveredPayments"),
-                        )}
-                      </FormLabel>
-                      <div className={styles.fieldControlWrapper}>
-                        <FormControl>
-                          <Input
-                            aria-label="Pagos manuales"
-                            className={cn(
-                              shouldShowValidation &&
-                                fieldErrors.manualCoveredPayments &&
-                                styles.invalidField,
-                              changedFields.has("manualCoveredPayments") &&
-                                styles.changedField,
-                            )}
-                            data-changed={
-                              changedFields.has("manualCoveredPayments")
-                                ? "true"
-                                : "false"
-                            }
-                            inputMode="numeric"
-                            min={0}
-                            onChange={(event) =>
-                              onFieldChange(
-                                "manualCoveredPayments",
-                                event.target.value.replace(/[^\d]/g, ""),
-                              )}
-                            type="number"
-                            value={draft.manualCoveredPayments}
                           />
                         </FormControl>
                         <FormMessage className={styles.fieldErrorText} />
