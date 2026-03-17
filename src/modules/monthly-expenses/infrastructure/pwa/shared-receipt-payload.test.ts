@@ -171,4 +171,15 @@ describe("shared receipt payload cache", () => {
       }),
     ).resolves.toBeNull();
   });
+
+  it("stores and reads a manual-file-picker payload", async () => {
+    const { cacheStorage } = createCacheStorageMock();
+    const payload = createValidPayload({ source: "manual-file-picker" });
+
+    await saveSharedReceiptPayload(payload, { cacheStorage, locationRef });
+
+    await expect(
+      readSharedReceiptPayload({ cacheStorage, locationRef, now }),
+    ).resolves.toEqual(payload);
+  });
 });

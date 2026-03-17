@@ -1,4 +1,7 @@
-import { isIosShareTargetUnsupported } from "./receipt-share-target-support";
+import {
+  buildPayloadFromFile,
+  isIosShareTargetUnsupported,
+} from "./receipt-share-target-support";
 
 describe("receipt share target platform support", () => {
   it("returns true for iPhone user agents", () => {
@@ -35,5 +38,69 @@ describe("receipt share target platform support", () => {
 
   it("returns false when navigator is not available", () => {
     expect(isIosShareTargetUnsupported()).toBe(false);
+  });
+});
+
+describe("buildPayloadFromFile", () => {
+  function createTestFile(
+    content: string,
+    name: string,
+    type: string,
+  ): File {
+    return new File([content], name, { type });
+  }
+
+  it("builds a valid payload from a JPEG file", async () => {
+    const file = createTestFile("fake-jpeg-data", "comprobante.jpg", "image/jpeg");
+    const result = await buildPayloadFromFile(file);
+
+    expect(result.status).toBe("ok");
+
+    if (result.status !== "ok") {
+      return;
+    }
+
+    expect(result.payload.fileName).toBe("comprobante.jpg");
+    expect(result.payload.mimeType).toBe("image/jpeg");
+    expect(result.payload.source).toBe("manual-file-picker");
+    expect(result.payload.contentBase64.length).toBeGreaterThan(0);
+    expect(result.payload.sizeBytes).toBe(file.size);
+  });
+
+  it("rejects unsupported MIME types", async () => {
+    const file = createTestFile("text", "notes.txt", "text/plain");
+    const result = await buildPayloadFromFile(file);
+
+    expect(result.status).toBe("error");
+
+    if (result.status === "error") {
+      expect(result.message).toContain("PDF");
+    }
+  });
+
+  it("rejects files exceeding 5 MB", async () => {
+    const blob = new Blob([new ArrayBuffer(5 * 1024 * 1024 + 1)], {
+      type: "image/png",
+    });
+    const file = new File([blob], "big.png", { type: "image/png" });
+    const result = await buildPayloadFromFile(file);
+
+    expect(result.status).toBe("error");
+
+    if (result.status === "error") {
+      expect(result.message).toContain("5 MB");
+    }
+  });
+
+  it("sanitizes dangerous characters in file names", async () => {
+    const file = createTestFile("ok", "../../etc/passwd", "image/png");
+    const result = await buildPayloadFromFile(file);
+
+    expect(result.status).toBe("ok");
+
+    if (result.status === "ok") {
+      expect(result.payload.fileName).not.toContain("/");
+      expect(result.payload.fileName).not.toContain("\\");
+    }
   });
 });

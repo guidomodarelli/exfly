@@ -5,7 +5,7 @@ export const SHARED_RECEIPT_PAYLOAD_CACHE_PATH = "/__pwa/shared-receipt/payload"
 export const MAX_SHARED_RECEIPT_SIZE_BYTES = 5 * 1024 * 1024;
 export const DEFAULT_SHARED_RECEIPT_MAX_AGE_MS = 30 * 60 * 1000;
 
-const ALLOWED_SHARED_RECEIPT_MIME_TYPES = [
+export const ALLOWED_SHARED_RECEIPT_MIME_TYPES = [
   "application/pdf",
   "image/heic",
   "image/heif",
@@ -14,13 +14,17 @@ const ALLOWED_SHARED_RECEIPT_MIME_TYPES = [
   "image/webp",
 ] as const;
 
+export type AllowedSharedReceiptMimeType = (typeof ALLOWED_SHARED_RECEIPT_MIME_TYPES)[number];
+
+const SHARED_RECEIPT_SOURCE = ["web-share-target", "manual-file-picker"] as const;
+
 const sharedReceiptPayloadSchema = z.object({
   contentBase64: z.string().trim().min(1),
   fileName: z.string().trim().min(1).max(180),
   mimeType: z.enum(ALLOWED_SHARED_RECEIPT_MIME_TYPES),
   receivedAtIso: z.string().trim().datetime(),
   sizeBytes: z.number().int().positive().max(MAX_SHARED_RECEIPT_SIZE_BYTES),
-  source: z.literal("web-share-target"),
+  source: z.enum(SHARED_RECEIPT_SOURCE),
 }).strict();
 
 export type SharedReceiptPayload = z.infer<typeof sharedReceiptPayloadSchema>;

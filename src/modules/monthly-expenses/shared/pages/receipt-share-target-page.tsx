@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/router";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -38,7 +38,10 @@ import {
   getRemainingReceiptPayments,
   suggestExpenseIdForSharedReceipt,
 } from "./receipt-share-target-page-helpers";
-import { isIosShareTargetUnsupported } from "./receipt-share-target-support";
+import {
+  buildPayloadFromFile,
+  isIosShareTargetUnsupported,
+} from "./receipt-share-target-support";
 import styles from "./receipt-share-target-page.module.scss";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -188,8 +191,8 @@ export default function ReceiptShareTargetPage() {
   const [partialCoveredPayments, setPartialCoveredPayments] = useState("1");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isIosShareTargetUnsupportedForCurrentDevice, setIsIosShareTargetUnsupportedForCurrentDevice] =
-    useState(false);
+  const [isIosDevice, setIsIosDevice] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sharedReceiptPayload =
     loadSharedReceiptState.status === "ready"
@@ -248,9 +251,7 @@ export default function ReceiptShareTargetPage() {
   }, [coverageMode, partialCoveredPayments, remainingReceiptPayments]);
 
   useEffect(() => {
-    setIsIosShareTargetUnsupportedForCurrentDevice(
-      isIosShareTargetUnsupported(window.navigator),
-    );
+    setIsIosDevice(isIosShareTargetUnsupported(window.navigator));
   }, []);
 
   useEffect(() => {
@@ -399,6 +400,30 @@ export default function ReceiptShareTargetPage() {
   const handleCreateExpenseToggle = (checked: boolean) => {
     setIsCreatingExpense(checked);
     setSaveError(null);
+  };
+
+  const handleManualFilePick = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const result = await buildPayloadFromFile(file);
+
+    if (result.status === "error") {
+      setLoadSharedReceiptState({ message: result.message, status: "error" });
+      return;
+    }
+
+    setLoadSharedReceiptState({ payload: result.payload, status: "ready" });
+    setNewExpenseDescription(
+      deriveExpenseSearchQueryFromFileName(result.payload.fileName),
+    );
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleDiscardSharedReceipt = async () => {
@@ -568,27 +593,37 @@ export default function ReceiptShareTargetPage() {
         ) : null}
 
         {loadSharedReceiptState.status === "empty" ? (
-          isIosShareTargetUnsupportedForCurrentDevice ? (
-            <div className={styles.authCard}>
+          <div className={styles.authCard}>
+            {isIosDevice ? (
               <p className={styles.feedbackNeutral}>
-                iOS no soporta compartir archivos hacia PWAs desde la hoja del sistema.
-                Abri XFly y carga el comprobante manualmente desde la seccion de gastos.
+                iOS no soporta recibir archivos compartidos en PWAs.
+                Selecciona el comprobante manualmente con el boton de abajo.
               </p>
-              <Button
-                onClick={() => {
-                  void router.push("/gastos");
+            ) : (
+              <p className={styles.feedbackNeutral}>
+                No hay un comprobante pendiente. Comparti un archivo hacia XFly
+                desde otra app, o seleccionalo manualmente.
+              </p>
+            )}
+            <div>
+              <input
+                accept="application/pdf,image/heic,image/heif,image/jpeg,image/png,image/webp"
+                className={styles.hiddenInput}
+                onChange={(event) => {
+                  void handleManualFilePick(event);
                 }}
+                ref={fileInputRef}
+                type="file"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
                 type="button"
                 variant="outline"
               >
-                Abrir gastos
+                Seleccionar comprobante
               </Button>
             </div>
-          ) : (
-            <p className={styles.feedbackNeutral}>
-              No hay un comprobante pendiente. Comparti un archivo hacia XFly desde otra app.
-            </p>
-          )
+          </div>
         ) : null}
 
         {sharedReceiptPayload && sharedReceiptPreviewSource ? (
