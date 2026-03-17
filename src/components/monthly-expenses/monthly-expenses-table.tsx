@@ -724,16 +724,6 @@ function getSortableHeader(label: string) {
   };
 }
 
-function getLoanSortDirection(sorting: SortingState): "asc" | "desc" {
-  const loanSortEntry = sorting.find((entry) => entry.id === LOAN_SORT_COLUMN_ID);
-
-  if (!loanSortEntry) {
-    return "asc";
-  }
-
-  return loanSortEntry.desc ? "desc" : "asc";
-}
-
 function getLoanSortModeLabel(loanSortMode: LoanSortMode): string {
   const option = LOAN_SORT_OPTIONS.find((entry) => entry.value === loanSortMode);
 
@@ -755,6 +745,71 @@ function getColumnSortDirection(
   }
 
   return sortEntry.desc ? "desc" : "asc";
+}
+
+function normalizeSortToken(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[.\s/_-]+/g, "");
+}
+
+function isInvalidSortValue(value: unknown): boolean {
+  if (value == null) {
+    return true;
+  }
+
+  if (typeof value === "number") {
+    return !Number.isFinite(value);
+  }
+
+  if (typeof value === "string") {
+    const normalizedValue = value.trim();
+
+    if (!normalizedValue) {
+      return true;
+    }
+
+    const normalizedToken = normalizeSortToken(normalizedValue);
+
+    return normalizedToken === "noaplica" || normalizedToken === "na";
+  }
+
+  return false;
+}
+
+function compareValuesKeepingInvalidLast<TValue>({
+  compareValidValues,
+  leftValue,
+  rightValue,
+  sortDirection,
+}: {
+  compareValidValues: (
+    leftValue: NonNullable<TValue>,
+    rightValue: NonNullable<TValue>,
+  ) => number;
+  leftValue: TValue;
+  rightValue: TValue;
+  sortDirection: "asc" | "desc";
+}): number {
+  const leftIsInvalid = isInvalidSortValue(leftValue);
+  const rightIsInvalid = isInvalidSortValue(rightValue);
+
+  if (leftIsInvalid && rightIsInvalid) {
+    return 0;
+  }
+
+  if (leftIsInvalid && !rightIsInvalid) {
+    return sortDirection === "desc" ? -1 : 1;
+  }
+
+  if (!leftIsInvalid && rightIsInvalid) {
+    return sortDirection === "desc" ? 1 : -1;
+  }
+
+  return compareValidValues(
+    leftValue as NonNullable<TValue>,
+    rightValue as NonNullable<TValue>,
+  );
 }
 
 function getReceiptShareStatusLabel(
@@ -1357,7 +1412,10 @@ export function MonthlyExpensesTable({
     });
   }, [columnVisibility, loanSortMode, sorting]);
 
-  const loanSortDirection = getLoanSortDirection(sorting);
+  const getSortDirection = useCallback(
+    (columnId: string) => getColumnSortDirection(sorting, columnId),
+    [sorting],
+  );
   const loanInstallmentStartSortDirection = getColumnSortDirection(
     sorting,
     LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -1466,11 +1524,31 @@ export function MonthlyExpensesTable({
           cellClassName: styles.stickyDescriptionCell,
           label: "Descripción",
         },
+        sortingFn: (rowA, rowB) =>
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: rowA.original.description,
+            rightValue: rowB.original.description,
+            sortDirection: getSortDirection("description"),
+          }),
       },
       {
         accessorKey: "currency",
         header: getSortableHeader("Moneda"),
         meta: { label: "Moneda" },
+        sortingFn: (rowA, rowB) =>
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: rowA.original.currency,
+            rightValue: rowB.original.currency,
+            sortDirection: getSortDirection("currency"),
+          }),
       },
       {
         accessorKey: "subtotal",
@@ -1479,12 +1557,24 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Subtotal"),
         meta: { label: "Subtotal" },
         sortingFn: (rowA, rowB) =>
-          Number(rowA.original.subtotal) - Number(rowB.original.subtotal),
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: Number(rowA.original.subtotal),
+            rightValue: Number(rowB.original.subtotal),
+            sortDirection: getSortDirection("subtotal"),
+          }),
       },
       {
         accessorKey: "occurrencesPerMonth",
         header: getSortableHeader("Veces al mes"),
         meta: { label: "Veces al mes" },
+        sortingFn: (rowA, rowB) =>
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: Number(rowA.original.occurrencesPerMonth),
+            rightValue: Number(rowB.original.occurrencesPerMonth),
+            sortDirection: getSortDirection("occurrencesPerMonth"),
+          }),
       },
       {
         accessorKey: "total",
@@ -1496,7 +1586,12 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Total"),
         meta: { label: "Total" },
         sortingFn: (rowA, rowB) =>
-          Number(rowA.original.total) - Number(rowB.original.total),
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: Number(rowA.original.total),
+            rightValue: Number(rowB.original.total),
+            sortDirection: getSortDirection("total"),
+          }),
       },
       {
         accessorKey: "ars",
@@ -1540,8 +1635,12 @@ export function MonthlyExpensesTable({
             total: Number(rowB.original.total),
           });
 
-          return (leftAmount ?? Number.NEGATIVE_INFINITY) -
-            (rightAmount ?? Number.NEGATIVE_INFINITY);
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: leftAmount,
+            rightValue: rightAmount,
+            sortDirection: getSortDirection("ars"),
+          });
         },
       },
       {
@@ -1586,8 +1685,12 @@ export function MonthlyExpensesTable({
             total: Number(rowB.original.total),
           });
 
-          return (leftAmount ?? Number.NEGATIVE_INFINITY) -
-            (rightAmount ?? Number.NEGATIVE_INFINITY);
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: leftAmount,
+            rightValue: rightAmount,
+            sortDirection: getSortDirection("usd"),
+          });
         },
       },
       {
@@ -1687,12 +1790,18 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Link"),
         meta: { label: "Link" },
         sortingFn: (rowA, rowB) => {
-          const leftHasPaymentLink =
-            getValidPaymentLinkUrl(rowA.original.paymentLink) != null ? 1 : 0;
-          const rightHasPaymentLink =
-            getValidPaymentLinkUrl(rowB.original.paymentLink) != null ? 1 : 0;
+          const leftPaymentLink = getValidPaymentLinkUrl(rowA.original.paymentLink);
+          const rightPaymentLink = getValidPaymentLinkUrl(rowB.original.paymentLink);
 
-          return leftHasPaymentLink - rightHasPaymentLink;
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: leftPaymentLink,
+            rightValue: rightPaymentLink,
+            sortDirection: getSortDirection("paymentLink"),
+          });
         },
       },
       {
@@ -1751,29 +1860,17 @@ export function MonthlyExpensesTable({
           const leftStatus = getNormalizedReceiptShareStatus(rowA.original);
           const rightStatus = getNormalizedReceiptShareStatus(rowB.original);
 
-          if (leftStatus == null && rightStatus != null) {
-            return 1;
-          }
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => {
+              const leftRank = leftValue === "pending" ? 0 : 1;
+              const rightRank = rightValue === "pending" ? 0 : 1;
 
-          if (leftStatus != null && rightStatus == null) {
-            return -1;
-          }
-
-          if (leftStatus == null && rightStatus == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          if (leftStatus === rightStatus) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          return leftStatus === "pending" ? -1 : 1;
+              return leftRank - rightRank;
+            },
+            leftValue: leftStatus,
+            rightValue: rightStatus,
+            sortDirection: getSortDirection("receiptShareStatus"),
+          });
         },
       },
       {
@@ -1808,10 +1905,18 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Enviar"),
         meta: { label: "Enviar" },
         sortingFn: (rowA, rowB) => {
-          const leftHasLink = getReceiptShareWhatsAppLink(rowA.original) ? 1 : 0;
-          const rightHasLink = getReceiptShareWhatsAppLink(rowB.original) ? 1 : 0;
+          const leftLink = getReceiptShareWhatsAppLink(rowA.original);
+          const rightLink = getReceiptShareWhatsAppLink(rowB.original);
 
-          return leftHasLink - rightHasLink;
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: leftLink,
+            rightValue: rightLink,
+            sortDirection: getSortDirection("receiptShareLink"),
+          });
         },
       },
       {
@@ -2038,7 +2143,17 @@ export function MonthlyExpensesTable({
         },
         header: getSortableHeader("Comprobantes"),
         meta: { label: "Comprobantes" },
-        sortingFn: (rowA, rowB) => rowA.original.receipts.length - rowB.original.receipts.length,
+        sortingFn: (rowA, rowB) => {
+          const leftCount = rowA.original.receipts.length;
+          const rightCount = rowB.original.receipts.length;
+
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
+            leftValue: leftCount > 0 ? leftCount : null,
+            rightValue: rightCount > 0 ? rightCount : null,
+            sortDirection: getSortDirection("receiptFileUrl"),
+          });
+        },
       },
       {
         id: "receiptFolderUrl",
@@ -2119,10 +2234,18 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Carpeta del mes actual"),
         meta: { label: "Carpeta del mes actual" },
         sortingFn: (rowA, rowB) => {
-          const leftHasFolder = rowA.original.monthlyFolderViewUrl ? 1 : 0;
-          const rightHasFolder = rowB.original.monthlyFolderViewUrl ? 1 : 0;
+          const leftFolderUrl = getValidHttpUrl(rowA.original.monthlyFolderViewUrl);
+          const rightFolderUrl = getValidHttpUrl(rowB.original.monthlyFolderViewUrl);
 
-          return leftHasFolder - rightHasFolder;
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: leftFolderUrl,
+            rightValue: rightFolderUrl,
+            sortDirection: getSortDirection("receiptFolderUrl"),
+          });
         },
       },
       {
@@ -2206,10 +2329,18 @@ export function MonthlyExpensesTable({
         header: getSortableHeader("Carpeta de comprobantes"),
         meta: { label: "Carpeta de comprobantes" },
         sortingFn: (rowA, rowB) => {
-          const leftHasAllReceiptsFolder = rowA.original.allReceiptsFolderViewUrl ? 1 : 0;
-          const rightHasAllReceiptsFolder = rowB.original.allReceiptsFolderViewUrl ? 1 : 0;
+          const leftFolderUrl = getValidHttpUrl(rowA.original.allReceiptsFolderViewUrl);
+          const rightFolderUrl = getValidHttpUrl(rowB.original.allReceiptsFolderViewUrl);
 
-          return leftHasAllReceiptsFolder - rightHasAllReceiptsFolder;
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: leftFolderUrl,
+            rightValue: rightFolderUrl,
+            sortDirection: getSortDirection("allReceiptsFolderUrl"),
+          });
         },
       },
       {
@@ -2244,59 +2375,30 @@ export function MonthlyExpensesTable({
         ),
         meta: { label: "Deuda / cuotas" },
         sortingFn: (rowA, rowB) => {
-          const leftIsNoAplica = !rowA.original.isLoan;
-          const rightIsNoAplica = !rowB.original.isLoan;
+          const leftValue = rowA.original.isLoan
+            ? getLoanSortValue(rowA.original, loanSortMode)
+            : null;
+          const rightValue = rowB.original.isLoan
+            ? getLoanSortValue(rowB.original, loanSortMode)
+            : null;
 
-          if (leftIsNoAplica && !rightIsNoAplica) {
-            return loanSortDirection === "desc" ? -1 : 1;
-          }
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftNumericValue, rightNumericValue) => {
+              const difference = leftNumericValue - rightNumericValue;
 
-          if (!leftIsNoAplica && rightIsNoAplica) {
-            return loanSortDirection === "desc" ? 1 : -1;
-          }
+              if (difference !== 0) {
+                return difference;
+              }
 
-          if (leftIsNoAplica && rightIsNoAplica) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          const leftValue = getLoanSortValue(rowA.original, loanSortMode);
-          const rightValue = getLoanSortValue(rowB.original, loanSortMode);
-
-          if (leftValue == null && rightValue != null) {
-            return 1;
-          }
-
-          if (leftValue != null && rightValue == null) {
-            return -1;
-          }
-
-          if (leftValue == null && rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          if (leftValue == null || rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          const difference = leftValue - rightValue;
-
-          if (difference !== 0) {
-            return difference;
-          }
-
-          return rowA.original.description.localeCompare(
-            rowB.original.description,
-            "es",
-          );
+              return rowA.original.description.localeCompare(
+                rowB.original.description,
+                "es",
+              );
+            },
+            leftValue,
+            rightValue,
+            sortDirection: getSortDirection(LOAN_SORT_COLUMN_ID),
+          });
         },
       },
       {
@@ -2308,22 +2410,16 @@ export function MonthlyExpensesTable({
         },
         header: getSortableHeader("Prestamista"),
         meta: { label: "Prestamista" },
-        sortingFn: (rowA, rowB) => {
-          const leftValue = rowA.original.lenderName.trim();
-          const rightValue = rowB.original.lenderName.trim();
-
-          if (!leftValue && rightValue) {
-            return 1;
-          }
-
-          if (leftValue && !rightValue) {
-            return -1;
-          }
-
-          return leftValue.localeCompare(rightValue, "es", {
-            sensitivity: "base",
-          });
-        },
+        sortingFn: (rowA, rowB) =>
+          compareValuesKeepingInvalidLast({
+            compareValidValues: (leftValue, rightValue) =>
+              leftValue.localeCompare(rightValue, "es", {
+                sensitivity: "base",
+              }),
+            leftValue: rowA.original.lenderName.trim(),
+            rightValue: rowB.original.lenderName.trim(),
+            sortDirection: getSortDirection("lenderName"),
+          }),
       },
       {
         id: LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -2335,38 +2431,23 @@ export function MonthlyExpensesTable({
           const leftValue = getYearMonthSortValue(rowA.original.startMonth);
           const rightValue = getYearMonthSortValue(rowB.original.startMonth);
 
-          if (leftValue == null && rightValue != null) {
-            return loanInstallmentStartSortDirection === "desc" ? -1 : 1;
-          }
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftNumericValue, rightNumericValue) => {
+              const difference = leftNumericValue - rightNumericValue;
 
-          if (leftValue != null && rightValue == null) {
-            return loanInstallmentStartSortDirection === "desc" ? 1 : -1;
-          }
+              if (difference !== 0) {
+                return difference;
+              }
 
-          if (leftValue == null && rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          if (leftValue == null || rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          const difference = leftValue - rightValue;
-
-          if (difference !== 0) {
-            return difference;
-          }
-
-          return rowA.original.description.localeCompare(
-            rowB.original.description,
-            "es",
-          );
+              return rowA.original.description.localeCompare(
+                rowB.original.description,
+                "es",
+              );
+            },
+            leftValue,
+            rightValue,
+            sortDirection: loanInstallmentStartSortDirection,
+          });
         },
       },
       {
@@ -2379,38 +2460,23 @@ export function MonthlyExpensesTable({
           const leftValue = getYearMonthSortValue(rowA.original.loanEndMonth);
           const rightValue = getYearMonthSortValue(rowB.original.loanEndMonth);
 
-          if (leftValue == null && rightValue != null) {
-            return loanInstallmentEndSortDirection === "desc" ? -1 : 1;
-          }
+          return compareValuesKeepingInvalidLast({
+            compareValidValues: (leftNumericValue, rightNumericValue) => {
+              const difference = leftNumericValue - rightNumericValue;
 
-          if (leftValue != null && rightValue == null) {
-            return loanInstallmentEndSortDirection === "desc" ? 1 : -1;
-          }
+              if (difference !== 0) {
+                return difference;
+              }
 
-          if (leftValue == null && rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          if (leftValue == null || rightValue == null) {
-            return rowA.original.description.localeCompare(
-              rowB.original.description,
-              "es",
-            );
-          }
-
-          const difference = leftValue - rightValue;
-
-          if (difference !== 0) {
-            return difference;
-          }
-
-          return rowA.original.description.localeCompare(
-            rowB.original.description,
-            "es",
-          );
+              return rowA.original.description.localeCompare(
+                rowB.original.description,
+                "es",
+              );
+            },
+            leftValue,
+            rightValue,
+            sortDirection: loanInstallmentEndSortDirection,
+          });
         },
       },
       {
@@ -2434,9 +2500,9 @@ export function MonthlyExpensesTable({
     [
       actionDisabled,
       exchangeRateSnapshot,
+      getSortDirection,
       loanInstallmentEndSortDirection,
       loanInstallmentStartSortDirection,
-      loanSortDirection,
       loanSortMode,
       onDeleteAllReceiptsFolderReference,
       onDeleteExpense,

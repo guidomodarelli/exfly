@@ -5031,7 +5031,7 @@ describe("MonthlyExpensesPage", () => {
     );
   });
 
-  it("sorts Link by rows with and without payment links", async () => {
+  it("sorts Link keeping empty values at the end in both directions", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -5041,17 +5041,26 @@ describe("MonthlyExpensesPage", () => {
           items: [
             {
               currency: "ARS",
-              description: "Con link",
+              description: "Con link A",
               id: "expense-1",
               occurrencesPerMonth: 1,
-              paymentLink: "pagos.empresa.com",
+              paymentLink: "aaa.com",
+              subtotal: 100,
+              total: 100,
+            },
+            {
+              currency: "ARS",
+              description: "Con link Z",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              paymentLink: "zzz.com",
               subtotal: 100,
               total: 100,
             },
             {
               currency: "ARS",
               description: "Sin link",
-              id: "expense-2",
+              id: "expense-3",
               occurrencesPerMonth: 1,
               paymentLink: "",
               subtotal: 100,
@@ -5065,11 +5074,90 @@ describe("MonthlyExpensesPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Ordenar Link" }));
 
-    expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Sin link", "Con link"]);
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Con link A",
+      "Con link Z",
+      "Sin link",
+    ]);
 
     await user.click(screen.getByRole("button", { name: "Ordenar Link" }));
 
-    expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Con link", "Sin link"]);
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Con link Z",
+      "Con link A",
+      "Sin link",
+    ]);
+  });
+
+  it("sorts Estado de envío with No aplica rows always at the end", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Estado pendiente",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "pending",
+              requiresReceiptShare: true,
+              subtotal: 100,
+              total: 100,
+            },
+            {
+              currency: "ARS",
+              description: "Sin envio A",
+              id: "expense-2",
+              occurrencesPerMonth: 1,
+              requiresReceiptShare: false,
+              subtotal: 100,
+              total: 100,
+            },
+            {
+              currency: "ARS",
+              description: "Estado enviado",
+              id: "expense-3",
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "sent",
+              requiresReceiptShare: true,
+              subtotal: 100,
+              total: 100,
+            },
+            {
+              currency: "ARS",
+              description: "Sin envio B",
+              id: "expense-4",
+              occurrencesPerMonth: 1,
+              requiresReceiptShare: false,
+              subtotal: 100,
+              total: 100,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Ordenar Estado de envío" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Estado pendiente",
+      "Estado enviado",
+      "Sin envio A",
+      "Sin envio B",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Ordenar Estado de envío" }));
+
+    expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
+      "Estado enviado",
+      "Estado pendiente",
+      "Sin envio A",
+      "Sin envio B",
+    ]);
   });
 
   it("opens the debt sorting popover with three selectable criteria", async () => {
