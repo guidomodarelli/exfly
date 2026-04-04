@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   getSafeLendersErrorMessage,
   getSafeLoansReportErrorMessage,
+  getSafeMonthlyExpensesLoadErrorMessage,
   getSafeMonthlyExpensesErrorMessage,
 } from "@/modules/monthly-expenses/application/queries/get-monthly-expenses-page-feedback";
 import { copyMonthlyExpenseTemplatesToMonth } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
@@ -1340,7 +1341,7 @@ describe("MonthlyExpensesPage", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        "/api/storage/monthly-expenses?month=2026-04",
+        "/api/storage/monthly-expenses?month=2026-04&includeDriveStatuses=false",
         expect.objectContaining({
           headers: expect.any(Object),
           signal: undefined,
@@ -1484,12 +1485,79 @@ describe("MonthlyExpensesPage", () => {
       expect.anything(),
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/storage/monthly-expenses?month=2026-04",
+      "/api/storage/monthly-expenses?month=2026-04&includeDriveStatuses=false",
       expect.objectContaining({
         headers: expect.any(Object),
         signal: undefined,
       }),
     );
+  });
+
+  it("shows a load-specific error message when a client-side month change fails", async () => {
+    const router = createMockRouter({
+      query: {
+        month: "2026-03",
+        tab: "expenses",
+      },
+    });
+    const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      if (input === "/api/storage/monthly-expenses-copyable-months?targetMonth=2026-04") {
+        return {
+          json: async () => ({
+            data: {
+              defaultSourceMonth: "2026-03",
+              sourceMonths: ["2026-03", "2026-02"],
+              targetMonth: "2026-04",
+            },
+          }),
+          ok: true,
+        };
+      }
+
+      if (
+        input ===
+        "/api/storage/monthly-expenses?month=2026-04&includeDriveStatuses=false"
+      ) {
+        return {
+          json: async () => ({
+            error:
+              "Google authentication is required before loading monthly expenses from Drive.",
+          }),
+          ok: false,
+          status: 401,
+        };
+      }
+
+      throw new Error(`Unexpected fetch input: ${String(input)}`);
+    });
+
+    mockedUseRouter.mockReturnValue(
+      router as unknown as ReturnType<typeof useRouter>,
+    );
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Mes"), {
+      target: {
+        value: "2026-04",
+      },
+    });
+
+    await waitFor(() => {
+      expect(mockedToast.error).toHaveBeenCalledWith(
+        "Conectate con Google para cargar tus gastos mensuales.",
+      );
+    });
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("clears the SSR load error after a successful client-side month change", async () => {
@@ -4591,6 +4659,14 @@ describe("MonthlyExpensesPage", () => {
         "Google authentication is required before saving monthly expenses to Drive.",
       ),
     ).toBe("Conectate con Google para guardar tus gastos mensuales en Drive.");
+  });
+
+  it("maps technical monthly expenses load errors to a user-friendly message", () => {
+    expect(
+      getSafeMonthlyExpensesLoadErrorMessage(
+        "Google authentication is required before loading monthly expenses from Drive.",
+      ),
+    ).toBe("Conectate con Google para cargar tus gastos mensuales.");
   });
 
   it("maps technical lenders errors to a user-friendly message", () => {

@@ -39,6 +39,7 @@ import { getMonthlyExpenseLoanPreview } from "@/modules/monthly-expenses/applica
 import {
   getSafeLendersErrorMessage,
   getSafeLoansReportErrorMessage,
+  getSafeMonthlyExpensesLoadErrorMessage,
   getSafeMonthlyExpensesErrorMessage,
 } from "@/modules/monthly-expenses/application/queries/get-monthly-expenses-page-feedback";
 import {
@@ -1238,7 +1239,9 @@ export default function MonthlyExpensesPage({
 
     try {
       const [document, copyableMonths] = await Promise.all([
-        getMonthlyExpensesDocumentViaApi(normalizedMonth),
+        getMonthlyExpensesDocumentViaApi(normalizedMonth, {
+          includeDriveStatuses: false,
+        }),
         getMonthlyExpensesCopyableMonthsViaApi(normalizedMonth),
       ]);
 
@@ -1268,7 +1271,7 @@ export default function MonthlyExpensesPage({
         },
       );
     } catch (error) {
-      toast.error(getSafeMonthlyExpensesErrorMessage(error));
+      toast.error(getSafeMonthlyExpensesLoadErrorMessage(error));
     } finally {
       setIsMonthTransitionPending(false);
       setPendingMonth(null);
