@@ -62,6 +62,28 @@ function getRequestedMonth(queryValue: GetServerSidePropsContext["query"]["month
     : getCurrentMonthIdentifier();
 }
 
+function omitUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => omitUndefinedDeep(item)) as T;
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([entryKey, entryValue]) => [entryKey, omitUndefinedDeep(entryValue)]),
+    ) as T;
+  }
+
+  return value;
+}
+
+export function toSerializableMonthlyExpensesPageProps(
+  props: MonthlyExpensesPageProps,
+): MonthlyExpensesPageProps {
+  return omitUndefinedDeep(props);
+}
+
 export async function getMonthlyExpensesServerSidePropsForTab(
   context: GetServerSidePropsContext,
   initialActiveTab: MonthlyExpensesTabKey,
@@ -88,7 +110,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     });
 
     return {
-      props: {
+      props: toSerializableMonthlyExpensesPageProps({
         bootstrap,
         initialSidebarOpen,
         initialCopyableMonths:
@@ -102,7 +124,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
         lendersLoadError: null,
         loadError: null,
         reportLoadError: null,
-      },
+      }),
     };
   }
 
@@ -240,7 +262,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     }
 
     return {
-      props: {
+      props: toSerializableMonthlyExpensesPageProps({
         bootstrap,
         initialSidebarOpen,
         initialCopyableMonths:
@@ -272,7 +294,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
           reportResult.status === "rejected"
             ? "No pudimos cargar el reporte de deudas desde la base de datos."
             : null,
-      },
+      }),
     };
   } catch (error) {
     appLogger.error("monthly-expenses SSR request failed", {
@@ -286,7 +308,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
     });
 
     return {
-      props: {
+      props: toSerializableMonthlyExpensesPageProps({
         bootstrap,
         initialSidebarOpen,
         initialCopyableMonths:
@@ -305,7 +327,7 @@ export async function getMonthlyExpensesServerSidePropsForTab(
             ? null
             : "No pudimos cargar los gastos mensuales desde la base de datos. Igual podés editar la tabla y volver a guardarla.",
         reportLoadError: null,
-      },
+      }),
     };
   }
 }
