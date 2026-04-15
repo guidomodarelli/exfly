@@ -184,27 +184,31 @@ export async function getMonthlyExpensesServerSidePropsForTab(
       userSubject,
     );
 
+    const lendersCatalogPromise = getLendersCatalog({
+      repository: lendersRepository,
+    });
+    const loansReportPromise =
+      initialActiveTab === "debts"
+        ? lendersCatalogPromise.then((catalog) =>
+            getMonthlyExpensesLoansReport({
+              lenders: catalog.lenders,
+              repository: monthlyExpensesRepository,
+            }))
+        : Promise.resolve(createEmptyMonthlyExpensesLoansReportResult());
+
     const [documentResult, lendersResult, reportResult, copyableMonthsResult] =
       await Promise.allSettled([
         getMonthlyExpensesDocument({
           getExchangeRateSnapshot,
           query: {
+            includeDriveStatuses: false,
             month: selectedMonth,
           },
           receiptsRepository,
           repository: monthlyExpensesRepository,
         }),
-        getLendersCatalog({
-          repository: lendersRepository,
-        }),
-        getLendersCatalog({
-          repository: lendersRepository,
-        }).then((catalog) =>
-          getMonthlyExpensesLoansReport({
-            lenders: catalog.lenders,
-            repository: monthlyExpensesRepository,
-          }),
-        ),
+        lendersCatalogPromise,
+        loansReportPromise,
         getMonthlyExpensesCopyableMonths({
           query: {
             targetMonth: selectedMonth,
