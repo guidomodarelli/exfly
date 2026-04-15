@@ -126,16 +126,74 @@
 .receiptShareSummary {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.7rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
   border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
   border-radius: 0.6rem;
   font-size: 0.85rem;
   line-height: 1.35;
 }
 
+.receiptShareSummaryIcon {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  margin-top: 0.14rem;
+}
+
+.receiptShareSummaryContent {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.receiptShareSummaryText {
+  margin: 0;
+}
+
+.receiptShareSummaryList {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.receiptShareSummaryListItem {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.3rem;
+
+  &::before {
+    content: "- ";
+  }
+}
+
+.receiptShareSummaryListDescription {
+  margin-right: auto;
+}
+
+.receiptShareSummaryFilterButton {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #92400e;
+  text-decoration: underline;
+  text-underline-offset: 0.12rem;
+
+  &:hover {
+    background: transparent;
+    color: #92400e;
+  }
+}
+
 .receiptShareSummaryInfo {
-  color: #0b4a75;
-  border-color: color-mix(in srgb, #4da3e2 46%, var(--border));
-  background: color-mix(in srgb, #4da3e2 14%, var(--background));
+  color: #713f12;
+  border-color: color-mix(in srgb, #eab308 52%, var(--border));
+  background: color-mix(in srgb, #eab308 22%, var(--background));
 }
 
 .tableWrapper :global([data-slot="table-container"]) {

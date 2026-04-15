@@ -3786,7 +3786,9 @@ describe("MonthlyExpensesPage", () => {
     });
   });
 
-  it("shows pending receipt-share summary above the description filter", () => {
+  it("shows pending receipt-share summary above the description filter", async () => {
+    const user = userEvent.setup();
+
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -3841,10 +3843,26 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
+    const pendingCompletedSummaryText = screen.getByText(
+      "1 pago completo con comprobante pendiente de envío:",
+    );
+    const pendingCompletedSummary = pendingCompletedSummaryText.closest('[role="status"]');
+
+    expect(pendingCompletedSummary).not.toBeNull();
+
+    if (!pendingCompletedSummary) {
+      throw new Error("Expected a receipt-share summary status region");
+    }
     expect(
-      screen.getByText(
-        "Hay 1 gasto con todos los pagos completos pendiente de envío.",
+      within(pendingCompletedSummary).getByText(
+        "1 pago completo con comprobante pendiente de envío:",
       ),
+    ).toBeInTheDocument();
+    expect(
+      within(pendingCompletedSummary).getByRole("list"),
+    ).toBeInTheDocument();
+    expect(
+      within(pendingCompletedSummary).getByText("Servicio pendiente"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: "Estado de envío de Servicio pendiente" }),
@@ -3855,6 +3873,101 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.getByRole("combobox", { name: "Estado de envío de Servicio incompleto" }),
     ).not.toHaveClass("receiptShareStatusPending");
+    const summaryFilterButton = within(pendingCompletedSummary).getByRole("button", {
+      name: "Filtrar gasto Servicio pendiente",
+    });
+    await user.click(summaryFilterButton);
+    expect(
+      screen.getByRole("textbox", { name: "Filtrar gastos" }),
+    ).toHaveValue("Servicio pendiente");
+  });
+
+  it("keeps the original empty description when applying summary filter", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "",
+              id: "expense-empty-description",
+              manualCoveredPayments: 1,
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "pending",
+              requiresReceiptShare: true,
+              subtotal: 80,
+              total: 80,
+            },
+            {
+              currency: "ARS",
+              description: "Servicio pendiente",
+              id: "expense-with-description",
+              manualCoveredPayments: 1,
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "pending",
+              requiresReceiptShare: true,
+              subtotal: 75,
+              total: 75,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Filtrar gasto Gasto sin descripción" }),
+    );
+
+    expect(
+      screen.getByRole("textbox", { name: "Filtrar gastos" }),
+    ).toHaveValue("");
+    expect(screen.getByText("Sin descripción")).toBeInTheDocument();
+  });
+
+  it("renders distinct accessible names for each summary filter action", () => {
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Servicio pendiente",
+              id: "expense-1",
+              manualCoveredPayments: 1,
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "pending",
+              requiresReceiptShare: true,
+              subtotal: 80,
+              total: 80,
+            },
+            {
+              currency: "ARS",
+              description: "Otro pendiente",
+              id: "expense-2",
+              manualCoveredPayments: 1,
+              occurrencesPerMonth: 1,
+              receiptShareStatus: "pending",
+              requiresReceiptShare: true,
+              subtotal: 75,
+              total: 75,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Filtrar gasto Servicio pendiente" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Filtrar gasto Otro pendiente" }),
+    ).toBeInTheDocument();
   });
 
   it("does not show the summary when there are no pending completed expenses", () => {
@@ -3890,7 +4003,9 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    expect(screen.queryByText(/pagos completos pendientes de envío/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/pagos? completos? con comprobantes? pendientes? de envío:/i),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show the summary when all completed expenses were already sent", () => {
@@ -3916,7 +4031,9 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    expect(screen.queryByText(/pagos completos pendientes de envío/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/pagos? completos? con comprobantes? pendientes? de envío:/i),
+    ).not.toBeInTheDocument();
   });
 
   it("does not render the authenticated session identity details", () => {

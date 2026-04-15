@@ -1551,12 +1551,38 @@ export function MonthlyExpensesTable({
 
     return pendingCount;
   }, [rows]);
-  const completedPendingReceiptShareMessage = useMemo(() => {
-    if (completedPendingReceiptShareCount === 1) {
-      return "Hay 1 gasto con todos los pagos completos pendiente de envío.";
+  const completedPendingReceiptShareExpenses = useMemo(() => {
+    const pendingExpenses: Array<{
+      displayDescription: string;
+      expenseId: string;
+      rawDescription: string;
+    }> = [];
+
+    for (const row of rows) {
+      if (!isPaymentCompleted(row)) {
+        continue;
+      }
+
+      const normalizedStatus = getNormalizedReceiptShareStatus(row);
+
+      if (normalizedStatus !== "pending") {
+        continue;
+      }
+
+      pendingExpenses.push({
+        displayDescription: row.description.trim() || "Gasto sin descripción",
+        expenseId: row.id,
+        rawDescription: row.description,
+      });
     }
 
-    return `Hay ${completedPendingReceiptShareCount} gastos con todos los pagos completos pendientes de envío.`;
+    return pendingExpenses;
+  }, [rows]);
+  const completedPendingReceiptShareMessage = useMemo(() => {
+    const hasSinglePendingReceipt = completedPendingReceiptShareCount === 1;
+    const completedLabel = hasSinglePendingReceipt ? "completo" : "completos";
+
+    return `${completedPendingReceiptShareCount} pago${hasSinglePendingReceipt ? "" : "s"} ${completedLabel} con comprobante${hasSinglePendingReceipt ? "" : "s"} pendiente${hasSinglePendingReceipt ? "" : "s"} de envío:`;
   }, [completedPendingReceiptShareCount]);
 
   const handleOpenPaymentLinkDialog = useCallback(({
@@ -2621,13 +2647,42 @@ export function MonthlyExpensesTable({
 
           <div className={styles.tableWrapper}>
             {completedPendingReceiptShareCount > 0 ? (
-              <p
+              <div
                 aria-live="polite"
                 className={cn(styles.receiptShareSummary, styles.receiptShareSummaryInfo)}
                 role="status"
               >
-                {completedPendingReceiptShareMessage}
-              </p>
+                <AlertTriangle
+                  aria-hidden="true"
+                  className={styles.receiptShareSummaryIcon}
+                />
+                <div className={styles.receiptShareSummaryContent}>
+                  <p className={styles.receiptShareSummaryText}>
+                    {completedPendingReceiptShareMessage}
+                  </p>
+                  <ul className={styles.receiptShareSummaryList}>
+                    {completedPendingReceiptShareExpenses.map((expense) => (
+                      <li
+                        key={expense.expenseId}
+                        className={styles.receiptShareSummaryListItem}
+                      >
+                        <span className={styles.receiptShareSummaryListDescription}>
+                          {expense.displayDescription}
+                        </span>
+                        <Button
+                          aria-label={`Filtrar gasto ${expense.displayDescription}`}
+                          className={styles.receiptShareSummaryFilterButton}
+                          onClick={() => setDescriptionFilter(expense.rawDescription)}
+                          type="button"
+                          variant="ghost"
+                        >
+                          Filtrar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             ) : null}
             {isRestoringTablePreferences || isMonthTransitionPending ? (
               <div
