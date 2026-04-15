@@ -22,6 +22,7 @@ const monthlyExpenseReceiptResultSchema = z.object({
   fileId: z.string().trim().min(1),
   fileName: z.string().trim().min(1),
   fileViewUrl: z.string().trim().url(),
+  registeredAt: z.string().datetime(),
   monthlyFolderId: z.string().trim().min(1),
   monthlyFolderViewUrl: z.string().trim().url(),
 }).strict();

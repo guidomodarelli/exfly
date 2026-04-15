@@ -63,6 +63,7 @@ describe("GoogleDriveMonthlyExpenseReceiptsRepository", () => {
       });
     files.create.mockResolvedValueOnce({
       data: {
+        createdTime: "2026-04-14T12:00:00.000Z",
         id: "receipt-file-id",
         name: "factura-internet.pdf",
         webViewLink: "https://drive.google.com/file/d/receipt-file-id/view",
@@ -114,6 +115,7 @@ describe("GoogleDriveMonthlyExpenseReceiptsRepository", () => {
       fileId: "receipt-file-id",
       fileName: "factura-internet.pdf",
       fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+      registeredAt: "2026-04-14T12:00:00.000Z",
       monthlyFolderId: "month-folder-id",
       monthlyFolderViewUrl: "https://drive.google.com/drive/folders/month-folder-id",
     });
@@ -155,6 +157,7 @@ describe("GoogleDriveMonthlyExpenseReceiptsRepository", () => {
       });
     files.create.mockResolvedValueOnce({
       data: {
+        createdTime: "2026-04-14T12:00:00.000Z",
         id: "receipt-file-id",
         name: "factura-internet.pdf",
       },
@@ -185,6 +188,7 @@ describe("GoogleDriveMonthlyExpenseReceiptsRepository", () => {
       fileId: "receipt-file-id",
       fileName: "factura-internet.pdf",
       fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+      registeredAt: "2026-04-14T12:00:00.000Z",
       monthlyFolderId: "month-folder-id",
       monthlyFolderViewUrl: "https://drive.google.com/drive/folders/month-folder-id",
     });
@@ -233,7 +237,7 @@ describe("GoogleDriveMonthlyExpenseReceiptsRepository", () => {
     });
 
     expect(files.update).toHaveBeenCalledWith({
-      fields: "id,name,mimeType,parents,webViewLink",
+      fields: "id,name,mimeType,parents,webViewLink,createdTime",
       fileId: "receipt-file-id",
       requestBody: {
         name: "2026-03-16 - Internet - cubre 2 pagos.pdf",

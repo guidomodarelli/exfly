@@ -2174,11 +2174,13 @@ describe("MonthlyExpensesPage", () => {
     const manualPaymentsInput = screen.getByRole("spinbutton", {
       name: "Pagos sin comprobante de Internet abril",
     });
-    await waitFor(() => {
-      expect(manualPaymentsInput).not.toBeDisabled();
-    });
     await user.clear(manualPaymentsInput);
-    await user.type(manualPaymentsInput, "1{enter}");
+    await user.type(manualPaymentsInput, "1");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Agregar pago sin comprobante para Internet abril",
+      }),
+    );
 
     await waitFor(() => {
       const payload = getMonthlyExpensesSavePayload(fetchMock);
@@ -2839,9 +2841,11 @@ describe("MonthlyExpensesPage", () => {
       loanTotalInstallments: 12,
       manualCoveredPayments: "0",
       monthlyFolderId: "",
+      monthlyFolderStatus: undefined,
       monthlyFolderViewUrl: "",
       occurrencesPerMonth: "3",
       paymentLink: "https://pagos.example.com/tarjeta",
+      paymentRecords: [],
       receiptShareMessage: "Enviar comprobante",
       receiptSharePhoneDigits: "5491122334455",
       receiptShareStatus: "",
@@ -3853,16 +3857,17 @@ describe("MonthlyExpensesPage", () => {
     if (!pendingCompletedSummary) {
       throw new Error("Expected a receipt-share summary status region");
     }
+    const pendingCompletedSummaryElement = pendingCompletedSummary as HTMLElement;
     expect(
-      within(pendingCompletedSummary).getByText(
+      within(pendingCompletedSummaryElement).getByText(
         "1 pago completo con comprobante pendiente de envío:",
       ),
     ).toBeInTheDocument();
     expect(
-      within(pendingCompletedSummary).getByRole("list"),
+      within(pendingCompletedSummaryElement).getByRole("list"),
     ).toBeInTheDocument();
     expect(
-      within(pendingCompletedSummary).getByText("Servicio pendiente"),
+      within(pendingCompletedSummaryElement).getByText("Servicio pendiente"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: "Estado de envío de Servicio pendiente" }),
@@ -3873,7 +3878,7 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.getByRole("combobox", { name: "Estado de envío de Servicio incompleto" }),
     ).not.toHaveClass("receiptShareStatusPending");
-    const summaryFilterButton = within(pendingCompletedSummary).getByRole("button", {
+    const summaryFilterButton = within(pendingCompletedSummaryElement).getByRole("button", {
       name: "Filtrar gasto Servicio pendiente",
     });
     await user.click(summaryFilterButton);
@@ -6115,7 +6120,7 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.getAllByText("Abrir página de pago").length).toBeGreaterThan(0);
   });
 
-  it("renders Pagos and Pagos sin comprobante columns immediately before Comprobantes", () => {
+  it("renders Pagos immediately before Registro de pagos", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -6139,13 +6144,10 @@ describe("MonthlyExpensesPage", () => {
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
     const paidHeaderIndex = headers.indexOf("Pagos");
-    const manualPaidHeaderIndex = headers.indexOf("Pagos sin comprobante");
-    const receiptHeaderIndex = headers.indexOf("Comprobantes");
+    const paymentHistoryHeaderIndex = headers.indexOf("Registro de pagos");
 
-    expect(manualPaidHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(receiptHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(paidHeaderIndex).toBe(manualPaidHeaderIndex - 1);
-    expect(manualPaidHeaderIndex).toBe(receiptHeaderIndex - 1);
+    expect(paymentHistoryHeaderIndex).toBeGreaterThanOrEqual(0);
+    expect(paidHeaderIndex).toBe(paymentHistoryHeaderIndex - 1);
   });
 
   it("shows pending payments as a covered/total yellow badge when no manual or receipt coverage exists", () => {
@@ -6308,12 +6310,19 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /registros/i }));
+
     const manualPaymentsInput = screen.getByRole("spinbutton", {
       name: "Pagos sin comprobante de Internet",
     });
 
     await user.clear(manualPaymentsInput);
-    await user.type(manualPaymentsInput, "5{enter}");
+    await user.type(manualPaymentsInput, "5");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Agregar pago sin comprobante para Internet",
+      }),
+    );
 
     await waitFor(() => {
       const payload = getMonthlyExpensesSavePayload(fetchMock);
@@ -6322,7 +6331,7 @@ describe("MonthlyExpensesPage", () => {
     });
   });
 
-  it("discards manual covered payments draft changes from the table input column", async () => {
+  it("does not persist manual payment draft changes until add is confirmed", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
 
@@ -6359,6 +6368,8 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: /registros/i }));
+
     const manualPaymentsInput = screen.getByRole("spinbutton", {
       name: "Pagos sin comprobante de Internet",
     });
@@ -6366,18 +6377,83 @@ describe("MonthlyExpensesPage", () => {
     await user.clear(manualPaymentsInput);
     await user.type(manualPaymentsInput, "5");
 
-    const discardButton = screen.getByRole("button", {
-      name: "Descartar cambios de pagos sin comprobante de Internet",
-    });
-
-    await user.click(discardButton);
-
-    expect(manualPaymentsInput).toHaveValue(0);
+    expect(manualPaymentsInput).toHaveValue(5);
     expect(
       fetchMock.mock.calls.some(
         ([url]) => url === "/api/storage/monthly-expenses",
       ),
     ).toBe(false);
+  });
+
+  it("limits manual payment additions by existing manual payment records", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              occurrencesPerMonth: 3,
+              paymentRecords: [
+                {
+                  coveredPayments: 1,
+                  id: "manual-payment-1",
+                  registeredAt: "2026-03-01T12:00:00.000Z",
+                },
+                {
+                  coveredPayments: 1,
+                  id: "manual-payment-2",
+                  registeredAt: "2026-03-02T12:00:00.000Z",
+                },
+              ],
+              subtotal: 100,
+              total: 300,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /registros/i }));
+
+    const manualPaymentsInput = screen.getByRole("spinbutton", {
+      name: "Pagos sin comprobante de Internet",
+    });
+
+    await user.clear(manualPaymentsInput);
+    await user.type(manualPaymentsInput, "2");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Agregar pago sin comprobante para Internet",
+      }),
+    );
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(payload.items[0]?.manualCoveredPayments).toBe(3);
+      expect(payload.items[0]?.paymentRecords).toHaveLength(3);
+      expect(payload.items[0]?.paymentRecords[2]?.coveredPayments).toBe(1);
+    });
   });
 
   it("recalculates progress when deleting the last receipt without legacy confirmation", async () => {
@@ -6753,15 +6829,17 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Adjuntar comprobante" }));
+    await user.click(screen.getByRole("button", { name: /registros/i }));
 
-    expect(mockedToast.warning).toHaveBeenCalledWith(
-      "No quedan pagos pendientes para cubrir con comprobantes.",
-    );
+    const attachReceiptButton = screen.getByRole("button", {
+      name: "Adjuntar comprobante",
+    });
+
+    expect(attachReceiptButton).toBeDisabled();
     expect(screen.queryByText("Subir comprobante")).not.toBeInTheDocument();
   });
 
-  it("renders Estado de envío, Enviar, and payments columns after Link", () => {
+  it("renders Estado de envío, Enviar, Pagos, and Registro de pagos columns after Link", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -6796,20 +6874,15 @@ describe("MonthlyExpensesPage", () => {
     const receiptShareStatusHeaderIndex = headers.indexOf("Estado de envío");
     const receiptShareLinkHeaderIndex = headers.indexOf("Enviar");
     const paidHeaderIndex = headers.indexOf("Pagos");
-    const manualPaidHeaderIndex = headers.indexOf("Pagos sin comprobante");
-    const receiptHeaderIndex = headers.indexOf("Comprobantes");
+    const paymentHistoryHeaderIndex = headers.indexOf("Registro de pagos");
 
     expect(linkHeaderIndex).toBeGreaterThanOrEqual(0);
     expect(receiptShareStatusHeaderIndex).toBe(linkHeaderIndex + 1);
     expect(receiptShareLinkHeaderIndex).toBe(receiptShareStatusHeaderIndex + 1);
     expect(paidHeaderIndex).toBe(receiptShareLinkHeaderIndex + 1);
-    expect(manualPaidHeaderIndex).toBe(paidHeaderIndex + 1);
-    expect(receiptHeaderIndex).toBe(manualPaidHeaderIndex + 1);
+    expect(paymentHistoryHeaderIndex).toBe(paidHeaderIndex + 1);
     expect(headers).not.toContain("Carpeta del mes actual");
     expect(headers).not.toContain("Carpeta de comprobantes");
-    expect(
-      screen.getByRole("button", { name: "Adjuntar comprobante" }),
-    ).toBeInTheDocument();
   });
 
   it("renders receipt link inside the comprobantes popover and shows folder actions in row menu", async () => {
@@ -6856,7 +6929,7 @@ describe("MonthlyExpensesPage", () => {
     );
 
     const receiptLink = await screen.findByRole("link", {
-      name: "Ver comprobante parte 1",
+      name: /ver comprobante/i,
     });
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),

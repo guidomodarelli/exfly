@@ -104,11 +104,19 @@ const monthlyExpenseReceiptSchema = z.object({
     .string()
     .trim()
     .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  registeredAt: z.string().datetime().nullable().optional(),
   monthlyFolderId: z.string().trim().min(1),
   monthlyFolderViewUrl: z
     .string()
     .trim()
     .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+}).strict();
+
+const monthlyExpensePaymentRecordSchema = z.object({
+  coveredPayments: z.number().int().positive(),
+  id: z.string().trim().min(1),
+  receipt: monthlyExpenseReceiptSchema.nullable().optional(),
+  registeredAt: z.string().datetime().nullable().optional(),
 }).strict();
 
 const monthlyExpenseFoldersSchema = z.object({
@@ -168,6 +176,7 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
     .optional(),
   manualCoveredPayments: z.number().int().nonnegative().optional(),
   occurrencesPerMonth: z.number().int().positive(),
+  paymentRecords: z.array(monthlyExpensePaymentRecordSchema).optional(),
   paymentLink: z
     .string()
     .trim()
@@ -266,6 +275,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             loan,
             manualCoveredPayments,
             occurrencesPerMonth,
+            paymentRecords,
             paymentLink,
             receiptShareMessage,
             receiptSharePhoneDigits,
@@ -300,6 +310,40 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             ...(manualCoveredPayments > 0
               ? { manualCoveredPayments }
               : {}),
+            ...(paymentRecords && paymentRecords.length > 0
+              ? {
+                  paymentRecords: paymentRecords.map((paymentRecord) => ({
+                    coveredPayments: paymentRecord.coveredPayments,
+                    id: paymentRecord.id,
+                    ...(paymentRecord.receipt
+                      ? {
+                          receipt: {
+                            allReceiptsFolderId:
+                              paymentRecord.receipt.allReceiptsFolderId,
+                            allReceiptsFolderViewUrl:
+                              paymentRecord.receipt.allReceiptsFolderViewUrl,
+                            coveredPayments: paymentRecord.receipt.coveredPayments,
+                            fileId: paymentRecord.receipt.fileId,
+                            fileName: paymentRecord.receipt.fileName,
+                            fileViewUrl: paymentRecord.receipt.fileViewUrl,
+                            ...(paymentRecord.receipt.registeredAt
+                              ? {
+                                  registeredAt:
+                                    paymentRecord.receipt.registeredAt,
+                                }
+                              : {}),
+                            monthlyFolderId: paymentRecord.receipt.monthlyFolderId,
+                            monthlyFolderViewUrl:
+                              paymentRecord.receipt.monthlyFolderViewUrl,
+                          },
+                        }
+                      : {}),
+                    ...(paymentRecord.registeredAt
+                      ? { registeredAt: paymentRecord.registeredAt }
+                      : {}),
+                  })),
+                }
+              : {}),
             ...(isPaid === true ? { isPaid: true } : {}),
             occurrencesPerMonth,
             paymentLink,
@@ -322,6 +366,9 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
                     fileId: receipt.fileId,
                     fileName: receipt.fileName,
                     fileViewUrl: receipt.fileViewUrl,
+                    ...(receipt.registeredAt
+                      ? { registeredAt: receipt.registeredAt }
+                      : {}),
                     monthlyFolderId: receipt.monthlyFolderId,
                     monthlyFolderViewUrl: receipt.monthlyFolderViewUrl,
                   })),
@@ -410,6 +457,9 @@ export function parseGoogleDriveMonthlyExpensesContent(
           ...(item.loan ? { loan: item.loan } : {}),
           ...(item.manualCoveredPayments !== undefined
             ? { manualCoveredPayments: item.manualCoveredPayments }
+            : {}),
+          ...(item.paymentRecords !== undefined
+            ? { paymentRecords: item.paymentRecords }
             : {}),
           occurrencesPerMonth: item.occurrencesPerMonth,
           ...(item.paymentLink !== undefined

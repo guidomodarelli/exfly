@@ -25,7 +25,7 @@ import type {
   VerifyMonthlyExpenseReceiptInput,
 } from "../../../domain/repositories/monthly-expense-receipts-repository";
 
-const DRIVE_FILE_FIELDS = "id,name,mimeType,parents,webViewLink";
+const DRIVE_FILE_FIELDS = "id,name,mimeType,parents,webViewLink,createdTime";
 const DRIVE_FILE_STATUS_FIELDS = "id,trashed";
 const DRIVE_FILES_CREATE_ENDPOINT = "drive.files.create";
 const DRIVE_FILES_GET_ENDPOINT = "drive.files.get";
@@ -123,6 +123,7 @@ export class GoogleDriveMonthlyExpenseReceiptsRepository
         fileName: response.data.name ?? input.fileName,
         fileViewUrl:
           response.data.webViewLink ?? buildDriveFileViewUrl(fileId),
+        registeredAt: response.data.createdTime ?? new Date().toISOString(),
         monthlyFolderId: monthlyFolder.id,
         monthlyFolderViewUrl: buildDriveFolderViewUrl(monthlyFolder.id),
       };

@@ -7,6 +7,7 @@ export interface MonthlyExpenseReceiptResult {
   fileId: string;
   fileName: string;
   fileViewUrl: string;
+  registeredAt: string;
   monthlyFolderId: string;
   monthlyFolderViewUrl: string;
 }
@@ -21,6 +22,7 @@ export function toMonthlyExpenseReceiptResult(
     fileId: upload.fileId,
     fileName: upload.fileName,
     fileViewUrl: upload.fileViewUrl,
+    registeredAt: upload.registeredAt,
     monthlyFolderId: upload.monthlyFolderId,
     monthlyFolderViewUrl: upload.monthlyFolderViewUrl,
   };

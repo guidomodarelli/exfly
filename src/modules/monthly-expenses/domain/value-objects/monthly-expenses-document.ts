@@ -43,11 +43,26 @@ export interface MonthlyExpenseReceiptInput {
   fileId: string;
   fileName: string;
   fileViewUrl: string;
+  registeredAt?: string | null;
   monthlyFolderId: string;
   monthlyFolderViewUrl: string;
 }
 
 export type MonthlyExpenseReceipt = MonthlyExpenseReceiptInput;
+
+export interface MonthlyExpensePaymentRecordInput {
+  coveredPayments: number;
+  id: string;
+  receipt?: MonthlyExpenseReceiptInput | null;
+  registeredAt?: string | null;
+}
+
+export interface MonthlyExpensePaymentRecord {
+  coveredPayments: number;
+  id: string;
+  receipt?: MonthlyExpenseReceipt;
+  registeredAt: string | null;
+}
 
 export interface MonthlyExpenseFoldersInput {
   allReceiptsFolderId: string;
@@ -67,6 +82,7 @@ export interface MonthlyExpenseItemInput {
   loan?: MonthlyExpenseLoanInput;
   manualCoveredPayments?: number;
   occurrencesPerMonth: number;
+  paymentRecords?: MonthlyExpensePaymentRecordInput[] | null;
   paymentLink?: string | null;
   receiptShareMessage?: string | null;
   receiptSharePhoneDigits?: string | null;
@@ -81,6 +97,7 @@ export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
   loan?: MonthlyExpenseLoan;
   manualCoveredPayments: number;
   paymentLink?: string | null;
+  paymentRecords?: MonthlyExpensePaymentRecord[];
   receiptShareMessage?: string | null;
   receiptSharePhoneDigits?: string | null;
   receiptShareStatus?: MonthlyExpenseReceiptShareStatus | null;
@@ -426,6 +443,132 @@ function validateReceipts(
   });
 }
 
+/**
+ * Validates the payment registration timestamp and normalizes it to ISO format.
+ *
+ * @param registeredAt - Raw registration timestamp value.
+ * @param operationName - Operation name used in error messages.
+ * @returns The normalized ISO timestamp string or null when not available.
+ * @throws When the timestamp is present but not a valid ISO datetime.
+ */
+function validateRegisteredAt(
+  registeredAt: string | null | undefined,
+  operationName: string,
+): string | null {
+  if (registeredAt == null) {
+    return null;
+  }
+
+  const normalizedRegisteredAt = registeredAt.trim();
+
+  if (!normalizedRegisteredAt) {
+    return null;
+  }
+
+  const parsedDate = new Date(normalizedRegisteredAt);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error(
+      `${operationName} requires every payment record date to be a valid ISO datetime.`,
+    );
+  }
+
+  return parsedDate.toISOString();
+}
+
+/**
+ * Builds payment records from legacy manual and receipt coverage fields.
+ *
+ * @param expenseId - Expense identifier used to build deterministic legacy record ids.
+ * @param legacyManualCoveredPayments - Legacy manual covered payments value.
+ * @param legacyReceipts - Legacy receipts list.
+ * @returns A normalized list of payment records.
+ */
+function createPaymentRecordsFromLegacyFields({
+  expenseId,
+  legacyManualCoveredPayments,
+  legacyReceipts,
+}: {
+  expenseId: string;
+  legacyManualCoveredPayments: number;
+  legacyReceipts: MonthlyExpenseReceipt[];
+}): MonthlyExpensePaymentRecord[] {
+  const paymentRecordsFromReceipts = legacyReceipts.map((legacyReceipt) => ({
+    coveredPayments: legacyReceipt.coveredPayments ?? 1,
+    id: `legacy-receipt-${legacyReceipt.fileId}`,
+    receipt: legacyReceipt,
+    registeredAt: validateRegisteredAt(
+      legacyReceipt.registeredAt ?? null,
+      "Creating payment records from legacy receipts",
+    ),
+  }));
+
+  if (legacyManualCoveredPayments <= 0) {
+    return paymentRecordsFromReceipts;
+  }
+
+  return [
+    ...paymentRecordsFromReceipts,
+    {
+      coveredPayments: legacyManualCoveredPayments,
+      id: `legacy-manual-${expenseId}`,
+      registeredAt: null,
+    },
+  ];
+}
+
+/**
+ * Validates payment records and normalizes nested receipt metadata.
+ *
+ * @param paymentRecords - Raw payment record collection.
+ * @param operationName - Operation name used in error messages.
+ * @returns A normalized list of payment records.
+ * @throws When any record misses required identifiers or contains invalid numeric or date values.
+ */
+function validatePaymentRecords(
+  paymentRecords: MonthlyExpensePaymentRecordInput[] | null | undefined,
+  operationName: string,
+): MonthlyExpensePaymentRecord[] {
+  if (!paymentRecords || paymentRecords.length === 0) {
+    return [];
+  }
+
+  return paymentRecords.map((paymentRecord) => {
+    const normalizedCoveredPayments = paymentRecord.coveredPayments;
+
+    if (
+      !Number.isInteger(normalizedCoveredPayments) ||
+      normalizedCoveredPayments <= 0
+    ) {
+      throw new Error(
+        `${operationName} requires every payment record to include covered payments greater than 0.`,
+      );
+    }
+
+    const normalizedPaymentRecordId = paymentRecord.id.trim();
+
+    if (!normalizedPaymentRecordId) {
+      throw new Error(
+        `${operationName} requires every payment record to include an internal id.`,
+      );
+    }
+
+    return {
+      coveredPayments: normalizedCoveredPayments,
+      id: normalizedPaymentRecordId,
+      ...(paymentRecord.receipt
+        ? {
+            receipt: validateReceipts([paymentRecord.receipt], operationName)[0],
+          }
+        : {}),
+      registeredAt: validateRegisteredAt(
+        paymentRecord.registeredAt ?? null,
+        operationName,
+      ),
+    };
+  });
+}
+
 function validateFolders(
   folders: MonthlyExpenseFoldersInput | null | undefined,
   operationName: string,
@@ -514,6 +657,10 @@ function validateItem(
     ? normalizedReceiptShareStatus ?? "pending"
     : normalizedReceiptShareStatus;
   const normalizedReceipts = validateReceipts(receipts, operationName);
+  const normalizedPaymentRecordsInput = validatePaymentRecords(
+    item.paymentRecords,
+    operationName,
+  );
 
   if (!normalizedItem.id) {
     throw new Error(
@@ -560,27 +707,42 @@ function validateItem(
     );
   }
 
-  const normalizedManualCoveredPayments = manualCoveredPayments ??
+  const normalizedManualCoveredPaymentsFromLegacy = manualCoveredPayments ??
     (isPaid === true && normalizedReceipts.length === 0
       ? normalizedItem.occurrencesPerMonth
       : 0);
 
   if (
-    !Number.isInteger(normalizedManualCoveredPayments) ||
-    normalizedManualCoveredPayments < 0
+    !Number.isInteger(normalizedManualCoveredPaymentsFromLegacy) ||
+    normalizedManualCoveredPaymentsFromLegacy < 0
   ) {
     throw new Error(
       `${operationName} requires manual covered payments greater than or equal to 0.`,
     );
   }
 
-  const totalCoveredPayments =
-    normalizedManualCoveredPayments +
-    normalizedReceipts.reduce(
-      (accumulatedPayments, receipt) =>
-        accumulatedPayments + (receipt.coveredPayments ?? 0),
+  const normalizedPaymentRecords = normalizedPaymentRecordsInput.length > 0
+    ? normalizedPaymentRecordsInput
+    : createPaymentRecordsFromLegacyFields({
+        expenseId: normalizedItem.id,
+        legacyManualCoveredPayments: normalizedManualCoveredPaymentsFromLegacy,
+        legacyReceipts: normalizedReceipts,
+      });
+  const normalizedManualCoveredPayments = normalizedPaymentRecords
+    .filter((paymentRecord) => !paymentRecord.receipt)
+    .reduce(
+      (coveredPaymentsByManualRecords, paymentRecord) =>
+        coveredPaymentsByManualRecords + paymentRecord.coveredPayments,
       0,
     );
+  const normalizedReceiptsFromPaymentRecords = normalizedPaymentRecords
+    .filter((paymentRecord) => Boolean(paymentRecord.receipt))
+    .map((paymentRecord) => paymentRecord.receipt as MonthlyExpenseReceipt);
+  const totalCoveredPayments = normalizedPaymentRecords.reduce(
+    (accumulatedPayments, paymentRecord) =>
+      accumulatedPayments + paymentRecord.coveredPayments,
+    0,
+  );
   const normalizedIsPaid =
     totalCoveredPayments >= normalizedItem.occurrencesPerMonth;
 
@@ -601,7 +763,8 @@ function validateItem(
       ? { receiptShareStatus: resolvedReceiptShareStatus }
       : {}),
     ...(normalizedRequiresReceiptShare ? { requiresReceiptShare: true } : {}),
-    receipts: normalizedReceipts,
+    paymentRecords: normalizedPaymentRecords,
+    receipts: normalizedReceiptsFromPaymentRecords,
     total: calculateMonthlyExpenseTotal(normalizedItem),
   };
 }
@@ -722,6 +885,36 @@ export function toMonthlyExpensesDocumentInput(
             manualCoveredPayments: item.manualCoveredPayments,
           }
         : {}),
+      ...(item.paymentRecords && item.paymentRecords.length > 0
+        ? {
+            paymentRecords: item.paymentRecords.map((paymentRecord) => ({
+              coveredPayments: paymentRecord.coveredPayments,
+              id: paymentRecord.id,
+              ...(paymentRecord.receipt
+                ? {
+                    receipt: {
+                      allReceiptsFolderId: paymentRecord.receipt.allReceiptsFolderId,
+                      allReceiptsFolderViewUrl:
+                        paymentRecord.receipt.allReceiptsFolderViewUrl,
+                      coveredPayments: paymentRecord.receipt.coveredPayments,
+                      fileId: paymentRecord.receipt.fileId,
+                      fileName: paymentRecord.receipt.fileName,
+                      fileViewUrl: paymentRecord.receipt.fileViewUrl,
+                      ...(paymentRecord.receipt.registeredAt
+                        ? { registeredAt: paymentRecord.receipt.registeredAt }
+                        : {}),
+                      monthlyFolderId: paymentRecord.receipt.monthlyFolderId,
+                      monthlyFolderViewUrl:
+                        paymentRecord.receipt.monthlyFolderViewUrl,
+                    },
+                  }
+                : {}),
+              ...(paymentRecord.registeredAt
+                ? { registeredAt: paymentRecord.registeredAt }
+                : {}),
+            })),
+          }
+        : {}),
       occurrencesPerMonth: item.occurrencesPerMonth,
       paymentLink: item.paymentLink,
       ...(item.receiptShareMessage
@@ -749,6 +942,9 @@ export function toMonthlyExpensesDocumentInput(
               fileId: receipt.fileId,
               fileName: receipt.fileName,
               fileViewUrl: receipt.fileViewUrl,
+              ...(receipt.registeredAt
+                ? { registeredAt: receipt.registeredAt }
+                : {}),
               monthlyFolderId: receipt.monthlyFolderId,
               monthlyFolderViewUrl: receipt.monthlyFolderViewUrl,
             })),

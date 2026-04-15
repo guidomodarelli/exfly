@@ -23,6 +23,7 @@ describe("monthly-expenses-receipts-api client", () => {
           fileId: "receipt-file-id",
           fileName: "comprobante.pdf",
           fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+          registeredAt: "2026-04-14T12:00:00.000Z",
           monthlyFolderId: "receipt-folder-id",
           monthlyFolderViewUrl:
             "https://drive.google.com/drive/folders/receipt-folder-id",
@@ -94,6 +95,7 @@ describe("monthly-expenses-receipts-api client", () => {
             fileId: "receipt-file-id",
             fileName: "comprobante.pdf",
             fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+            registeredAt: "2026-04-14T12:00:00.000Z",
             monthlyFolderId: "receipt-folder-id",
             monthlyFolderViewUrl:
               "https://drive.google.com/drive/folders/receipt-folder-id",

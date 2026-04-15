@@ -102,11 +102,19 @@ const monthlyExpenseReceiptSchema = z.object({
     .string()
     .trim()
     .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+  registeredAt: z.string().datetime().nullable().optional(),
   monthlyFolderId: z.string().trim().min(1),
   monthlyFolderViewUrl: z
     .string()
     .trim()
     .refine((value) => RECEIPT_VIEW_URL_SCHEMA.safeParse(value).success),
+}).strict();
+
+const monthlyExpensePaymentRecordSchema = z.object({
+  coveredPayments: z.number().int().positive(),
+  id: z.string().trim().min(1),
+  receipt: monthlyExpenseReceiptSchema.nullable().optional(),
+  registeredAt: z.string().datetime().nullable().optional(),
 }).strict();
 
 const monthlyExpenseFoldersSchema = z.object({
@@ -163,6 +171,7 @@ const monthlyExpenseItemSchema = z.object({
     .optional(),
   manualCoveredPayments: z.number().int().nonnegative().optional(),
   occurrencesPerMonth: z.number().int().positive(),
+  paymentRecords: z.array(monthlyExpensePaymentRecordSchema).optional(),
   paymentLink: z
     .string()
     .trim()
@@ -227,6 +236,7 @@ const monthlyExpensesDocumentEnvelopeSchema = z.object({
           .optional(),
         manualCoveredPayments: z.number().int().nonnegative().optional(),
         occurrencesPerMonth: z.number().int().positive(),
+        paymentRecords: z.array(monthlyExpensePaymentRecordSchema).optional(),
         paymentLink: z
           .string()
           .trim()

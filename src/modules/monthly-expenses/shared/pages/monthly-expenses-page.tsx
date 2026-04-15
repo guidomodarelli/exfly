@@ -18,6 +18,7 @@ import { LendersPanel } from "@/components/monthly-expenses/lenders-panel";
 import { MonthlyExpensesLoansReport } from "@/components/monthly-expenses/monthly-expenses-loans-report";
 import {
   MonthlyExpensesTable,
+  type MonthlyExpensesEditablePaymentRecord,
   type MonthlyExpensesEditableReceipt,
   type MonthlyExpensesEditableRow,
 } from "@/components/monthly-expenses/monthly-expenses-table";
@@ -354,6 +355,7 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     loanTotalInstallments: null,
     manualCoveredPayments: "0",
     occurrencesPerMonth: "1",
+    paymentRecords: [],
     paymentLink: "",
     receiptShareMessage: "",
     receiptSharePhoneDigits: "",
@@ -390,6 +392,131 @@ function toEditableReceipts(
   }));
 }
 
+/**
+ * Builds editable payment records from document result with legacy fallback support.
+ *
+ * @param item - Monthly expense row from the API response.
+ * @returns Normalized editable payment records.
+ */
+function toEditablePaymentRecords(
+  item: MonthlyExpensesDocumentResult["items"][number],
+): MonthlyExpensesEditablePaymentRecord[] {
+  if (item.paymentRecords && item.paymentRecords.length > 0) {
+    return item.paymentRecords.map((paymentRecord) => ({
+      coveredPayments: paymentRecord.coveredPayments,
+      id: paymentRecord.id,
+      ...(paymentRecord.receipt
+        ? {
+            receipt: {
+              allReceiptsFolderId: paymentRecord.receipt.allReceiptsFolderId,
+              allReceiptsFolderStatus: undefined,
+              allReceiptsFolderViewUrl:
+                paymentRecord.receipt.allReceiptsFolderViewUrl,
+              coveredPayments: paymentRecord.receipt.coveredPayments ?? 1,
+              fileId: paymentRecord.receipt.fileId,
+              fileName: paymentRecord.receipt.fileName,
+              fileStatus: undefined,
+              fileViewUrl: paymentRecord.receipt.fileViewUrl,
+              monthlyFolderId: paymentRecord.receipt.monthlyFolderId,
+              monthlyFolderStatus: undefined,
+              monthlyFolderViewUrl: paymentRecord.receipt.monthlyFolderViewUrl,
+            },
+          }
+        : {}),
+      registeredAt: paymentRecord.registeredAt ?? null,
+    }));
+  }
+
+  const legacyReceipts = toEditableReceipts(item.receipts);
+  const legacyPaymentRecordsFromReceipts = legacyReceipts.map((legacyReceipt) => ({
+    coveredPayments: legacyReceipt.coveredPayments,
+    id: `legacy-receipt-${legacyReceipt.fileId}`,
+    receipt: legacyReceipt,
+    registeredAt: null,
+  }));
+  const legacyManualCoveredPayments =
+    item.manualCoveredPayments ?? (
+      item.isPaid === true && legacyReceipts.length === 0
+        ? item.occurrencesPerMonth
+        : 0
+    );
+
+  if (legacyManualCoveredPayments <= 0) {
+    return legacyPaymentRecordsFromReceipts;
+  }
+
+  return [
+    ...legacyPaymentRecordsFromReceipts,
+    {
+      coveredPayments: legacyManualCoveredPayments,
+      id: `legacy-manual-${item.id}`,
+      registeredAt: null,
+    },
+  ];
+}
+
+/**
+ * Derives legacy receipt fields from payment records for backward-compatible flows.
+ *
+ * @param paymentRecords - Editable payment records.
+ * @returns Legacy manual and receipt projections.
+ */
+function getLegacyCoverageFromPaymentRecords(
+  paymentRecords: MonthlyExpensesEditablePaymentRecord[],
+): {
+  manualCoveredPayments: string;
+  receipts: MonthlyExpensesEditableReceipt[];
+} {
+  const receipts = paymentRecords
+    .filter((paymentRecord) => Boolean(paymentRecord.receipt))
+    .map((paymentRecord) => paymentRecord.receipt as MonthlyExpensesEditableReceipt);
+  const manualCoveredPaymentsValue = paymentRecords
+    .filter((paymentRecord) => !paymentRecord.receipt)
+    .reduce(
+      (coveredPaymentsByManualRecords, paymentRecord) =>
+        coveredPaymentsByManualRecords + paymentRecord.coveredPayments,
+      0,
+    );
+
+  return {
+    manualCoveredPayments: formatEditableNumber(manualCoveredPaymentsValue),
+    receipts,
+  };
+}
+
+/**
+ * Builds a stable payment record identifier for client-side operations.
+ *
+ * @returns A non-empty unique identifier.
+ */
+function createPaymentRecordId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `payment-record-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+/**
+ * Synchronizes legacy coverage fields from payment records in a table row.
+ *
+ * @param row - Editable row to normalize.
+ * @returns Row with aligned payment records, manual coverage, and receipts.
+ */
+function synchronizeRowPaymentCoverage(
+  row: MonthlyExpensesEditableRow,
+): MonthlyExpensesEditableRow {
+  const legacyCoverage = getLegacyCoverageFromPaymentRecords(
+    row.paymentRecords ?? [],
+  );
+
+  return {
+    ...row,
+    manualCoveredPayments: legacyCoverage.manualCoveredPayments,
+    receipts: legacyCoverage.receipts,
+  };
+}
+
 function getPreferredFolderField(
   primaryValue: string | undefined,
   fallbackValue: string | undefined,
@@ -416,7 +543,11 @@ function getPreferredFolderStatus<TStatus>(
 export function toEditableRows(
   document: MonthlyExpensesDocumentResult,
 ): MonthlyExpensesEditableRow[] {
-  return document.items.map((item) => ({
+  return document.items.map((item) => {
+    const paymentRecords = toEditablePaymentRecords(item);
+    const legacyCoverage = getLegacyCoverageFromPaymentRecords(paymentRecords);
+
+    return ({
     ...(item.requiresReceiptShare === true
       ? {
           receiptShareStatus:
@@ -429,12 +560,10 @@ export function toEditableRows(
         }),
     ...(item.manualCoveredPayments !== undefined
       ? {
-          manualCoveredPayments: formatEditableNumber(item.manualCoveredPayments),
+          manualCoveredPayments: legacyCoverage.manualCoveredPayments,
         }
       : {
-          manualCoveredPayments: item.isPaid === true && (!item.receipts || item.receipts.length === 0)
-            ? formatEditableNumber(item.occurrencesPerMonth)
-            : "0",
+          manualCoveredPayments: legacyCoverage.manualCoveredPayments,
         }),
     allReceiptsFolderId: getPreferredFolderField(
       item.folders?.allReceiptsFolderId,
@@ -477,11 +606,12 @@ export function toEditableRows(
       ? `${item.loan.paidInstallments} de ${item.loan.installmentCount} cuotas abonadas`
       : "",
     occurrencesPerMonth: formatEditableNumber(item.occurrencesPerMonth),
+    paymentRecords,
     paymentLink: item.paymentLink?.trim() ?? "",
     receiptShareMessage: item.receiptShareMessage?.trim() ?? "",
     receiptSharePhoneDigits: item.receiptSharePhoneDigits?.trim() ?? "",
     requiresReceiptShare: item.requiresReceiptShare === true,
-    receipts: toEditableReceipts(item.receipts),
+    receipts: legacyCoverage.receipts,
     monthlyFolderId: getPreferredFolderField(
       item.folders?.monthlyFolderId,
       item.receipts?.[0]?.monthlyFolderId,
@@ -498,7 +628,8 @@ export function toEditableRows(
     startMonth: item.loan?.startMonth ?? "",
     subtotal: formatEditableNumber(item.subtotal),
     total: item.total.toFixed(2),
-  }));
+    });
+  });
 }
 
 function getCoveredPaymentsByReceipts(
@@ -576,13 +707,109 @@ function getMaxReceiptCoverageForEdition({
   );
 }
 
-function getMaxManualCoveredPayments(
-  row: Pick<MonthlyExpensesEditableRow, "occurrencesPerMonth" | "receipts">,
+export function getMaxManualCoveredPayments(
+  {
+    excludedPaymentRecordId,
+    row,
+  }: {
+    excludedPaymentRecordId?: string;
+    row: Pick<
+      MonthlyExpensesEditableRow,
+      "manualCoveredPayments" | "occurrencesPerMonth" | "paymentRecords" | "receipts"
+    >;
+  },
 ): number {
   const requiredPayments = getRequiredPayments(row);
   const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(row);
+  const paymentRecords = row.paymentRecords ?? [];
+  const coveredPaymentsByManualRecords = paymentRecords.reduce(
+    (coveredPayments, paymentRecord) =>
+      paymentRecord.receipt || paymentRecord.id === excludedPaymentRecordId
+        ? coveredPayments
+        : coveredPayments + paymentRecord.coveredPayments,
+    0,
+  );
+  const coveredPaymentsByManual = paymentRecords.length > 0
+    ? coveredPaymentsByManualRecords
+    : getNormalizedManualCoveredPayments(row);
 
-  return Math.max(requiredPayments - coveredPaymentsByReceipts, 0);
+  return Math.max(
+    requiredPayments - coveredPaymentsByReceipts - coveredPaymentsByManual,
+    0,
+  );
+}
+
+/**
+ * Rebuilds payment records from editable legacy fields while preserving record identity.
+ *
+ * @param row - Editable row to normalize before persistence.
+ * @returns Payment records aligned with legacy manual and receipt coverage fields.
+ */
+function getSynchronizedPaymentRecordsForSave(
+  row: MonthlyExpensesEditableRow,
+): MonthlyExpensesEditablePaymentRecord[] {
+  const existingPaymentRecords = row.paymentRecords ?? [];
+
+  if (existingPaymentRecords.length === 0) {
+    return [];
+  }
+
+  const receiptRecordByFileId = new Map(
+    existingPaymentRecords
+      .filter(
+        (paymentRecord) =>
+          Boolean(paymentRecord.receipt) && paymentRecord.receipt?.fileId,
+      )
+      .map((paymentRecord) => [paymentRecord.receipt?.fileId as string, paymentRecord]),
+  );
+  const synchronizedReceiptRecords = row.receipts.map((receipt) => {
+    const matchedRecord = receiptRecordByFileId.get(receipt.fileId);
+
+    return {
+      coveredPayments: receipt.coveredPayments,
+      id: matchedRecord?.id ?? `legacy-receipt-${receipt.fileId}`,
+      receipt,
+      registeredAt: matchedRecord?.registeredAt ?? null,
+    };
+  });
+  const manualCoveredPayments = getNormalizedManualCoveredPayments(row);
+
+  if (manualCoveredPayments <= 0) {
+    return synchronizedReceiptRecords;
+  }
+
+  const existingManualRecords = existingPaymentRecords.filter(
+    (paymentRecord) => !paymentRecord.receipt,
+  );
+
+  if (existingManualRecords.length === 0) {
+    return [
+      ...synchronizedReceiptRecords,
+      {
+        coveredPayments: manualCoveredPayments,
+        id: `legacy-manual-${row.id}`,
+        registeredAt: null,
+      },
+    ];
+  }
+
+  if (existingManualRecords.length > 1) {
+    return [
+      ...synchronizedReceiptRecords,
+      ...existingManualRecords,
+    ];
+  }
+
+  const existingManualRecord = existingManualRecords[0];
+
+  return [
+    ...synchronizedReceiptRecords,
+    {
+      coveredPayments: manualCoveredPayments,
+      id: existingManualRecord?.id ?? `legacy-manual-${row.id}`,
+      registeredAt: existingManualRecord?.registeredAt ?? null,
+    },
+  ];
 }
 
 function createMonthlyExpensesFormState(
@@ -720,6 +947,7 @@ export function copyMonthlyExpenseTemplatesToMonth(
       monthlyFolderId: "",
       monthlyFolderStatus: undefined,
       monthlyFolderViewUrl: "",
+      paymentRecords: [],
       receiptShareStatus: "",
       receipts: [],
     })),
@@ -915,77 +1143,122 @@ export function toSaveMonthlyExpensesCommand(
   state: MonthlyExpensesFormState,
 ): SaveMonthlyExpensesCommand {
   return {
-    items: state.rows.map((row) => ({
-      ...(getValidPaymentLink(row.paymentLink)
-        ? {
-            paymentLink: normalizePaymentLink(row.paymentLink),
-          }
-        : {
-            paymentLink: null,
-          }),
-      ...(row.requiresReceiptShare ? { requiresReceiptShare: true } : {}),
-      ...(normalizeReceiptSharePhoneDigits(row.receiptSharePhoneDigits)
-        ? {
-            receiptSharePhoneDigits: normalizeReceiptSharePhoneDigits(
-              row.receiptSharePhoneDigits,
-            ),
-          }
-        : {}),
-      ...(normalizeReceiptShareMessage(row.receiptShareMessage)
-        ? {
-            receiptShareMessage: normalizeReceiptShareMessage(
-              row.receiptShareMessage,
-            ),
-          }
-        : {}),
-      ...(isReceiptShareStatus(row.receiptShareStatus)
-        ? { receiptShareStatus: row.receiptShareStatus }
-        : {}),
-      ...(buildRowFoldersPayload(row)
-        ? {
-            folders: buildRowFoldersPayload(row),
-          }
-        : {}),
-      ...(row.receipts.length > 0
-        ? {
-            receipts: row.receipts.map((receipt) => ({
-              allReceiptsFolderId: receipt.allReceiptsFolderId.trim(),
-              allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl.trim(),
-              coveredPayments: receipt.coveredPayments,
-              fileId: receipt.fileId.trim(),
-              fileName:
-                receipt.fileName.trim().length > 0
-                  ? receipt.fileName.trim()
-                  : "Comprobante",
-              fileViewUrl: receipt.fileViewUrl.trim(),
-              monthlyFolderId: receipt.monthlyFolderId.trim(),
-              monthlyFolderViewUrl: receipt.monthlyFolderViewUrl.trim(),
-            })),
-          }
-        : {}),
-      currency: row.currency,
-      description: row.description.trim(),
-      id: row.id,
-      ...(row.isLoan
-        ? {
-            loan: {
-              installmentCount: Number(row.installmentCount),
-              ...(row.lenderId ? { lenderId: row.lenderId } : {}),
-              ...(row.lenderName.trim()
-                ? { lenderName: row.lenderName.trim() }
-                : {}),
-              startMonth: row.startMonth.trim(),
-            },
-          }
-        : {}),
-      ...(Number(row.manualCoveredPayments) > 0
-        ? {
-            manualCoveredPayments: Number(row.manualCoveredPayments),
-          }
-        : {}),
-      occurrencesPerMonth: Number(row.occurrencesPerMonth),
-      subtotal: Number(row.subtotal),
-    })),
+    items: state.rows.map((row) => {
+      const synchronizedPaymentRecords = getSynchronizedPaymentRecordsForSave(row);
+
+      return {
+        ...(getValidPaymentLink(row.paymentLink)
+          ? {
+              paymentLink: normalizePaymentLink(row.paymentLink),
+            }
+          : {
+              paymentLink: null,
+            }),
+        ...(row.requiresReceiptShare ? { requiresReceiptShare: true } : {}),
+        ...(normalizeReceiptSharePhoneDigits(row.receiptSharePhoneDigits)
+          ? {
+              receiptSharePhoneDigits: normalizeReceiptSharePhoneDigits(
+                row.receiptSharePhoneDigits,
+              ),
+            }
+          : {}),
+        ...(normalizeReceiptShareMessage(row.receiptShareMessage)
+          ? {
+              receiptShareMessage: normalizeReceiptShareMessage(
+                row.receiptShareMessage,
+              ),
+            }
+          : {}),
+        ...(isReceiptShareStatus(row.receiptShareStatus)
+          ? { receiptShareStatus: row.receiptShareStatus }
+          : {}),
+        ...(buildRowFoldersPayload(row)
+          ? {
+              folders: buildRowFoldersPayload(row),
+            }
+          : {}),
+        ...(row.receipts.length > 0
+          ? {
+              receipts: row.receipts.map((receipt) => ({
+                allReceiptsFolderId: receipt.allReceiptsFolderId.trim(),
+                allReceiptsFolderViewUrl: receipt.allReceiptsFolderViewUrl.trim(),
+                coveredPayments: receipt.coveredPayments,
+                fileId: receipt.fileId.trim(),
+                fileName:
+                  receipt.fileName.trim().length > 0
+                    ? receipt.fileName.trim()
+                    : "Comprobante",
+                fileViewUrl: receipt.fileViewUrl.trim(),
+                ...(synchronizedPaymentRecords.find(
+                  (paymentRecord) =>
+                    paymentRecord.receipt?.fileId === receipt.fileId &&
+                    paymentRecord.registeredAt,
+                )?.registeredAt
+                  ? {
+                      registeredAt: synchronizedPaymentRecords.find(
+                        (paymentRecord) =>
+                          paymentRecord.receipt?.fileId === receipt.fileId,
+                      )?.registeredAt,
+                    }
+                  : {}),
+                monthlyFolderId: receipt.monthlyFolderId.trim(),
+                monthlyFolderViewUrl: receipt.monthlyFolderViewUrl.trim(),
+              })),
+            }
+          : {}),
+        ...(synchronizedPaymentRecords.length > 0
+          ? {
+              paymentRecords: synchronizedPaymentRecords.map((paymentRecord) => ({
+                coveredPayments: paymentRecord.coveredPayments,
+                id: paymentRecord.id,
+                ...(paymentRecord.receipt
+                  ? {
+                      receipt: {
+                        allReceiptsFolderId:
+                          paymentRecord.receipt.allReceiptsFolderId.trim(),
+                        allReceiptsFolderViewUrl:
+                          paymentRecord.receipt.allReceiptsFolderViewUrl.trim(),
+                        coveredPayments: paymentRecord.receipt.coveredPayments,
+                        fileId: paymentRecord.receipt.fileId.trim(),
+                        fileName:
+                          paymentRecord.receipt.fileName.trim() || "Comprobante",
+                        fileViewUrl: paymentRecord.receipt.fileViewUrl.trim(),
+                        monthlyFolderId: paymentRecord.receipt.monthlyFolderId.trim(),
+                        monthlyFolderViewUrl:
+                          paymentRecord.receipt.monthlyFolderViewUrl.trim(),
+                      },
+                    }
+                  : {}),
+                ...(paymentRecord.registeredAt
+                  ? { registeredAt: paymentRecord.registeredAt }
+                  : {}),
+              })),
+            }
+          : {}),
+        currency: row.currency,
+        description: row.description.trim(),
+        id: row.id,
+        ...(row.isLoan
+          ? {
+              loan: {
+                installmentCount: Number(row.installmentCount),
+                ...(row.lenderId ? { lenderId: row.lenderId } : {}),
+                ...(row.lenderName.trim()
+                  ? { lenderName: row.lenderName.trim() }
+                  : {}),
+                startMonth: row.startMonth.trim(),
+              },
+            }
+          : {}),
+        ...(Number(row.manualCoveredPayments) > 0
+          ? {
+              manualCoveredPayments: Number(row.manualCoveredPayments),
+            }
+          : {}),
+        occurrencesPerMonth: Number(row.occurrencesPerMonth),
+        subtotal: Number(row.subtotal),
+      };
+    }),
     month: state.month.trim(),
   };
 }
@@ -1786,7 +2059,7 @@ export default function MonthlyExpensesPage({
 
       const nextRows = formState.rows.map((row) =>
         row.id === expenseRow.id
-          ? {
+          ? synchronizeRowPaymentCoverage({
               ...row,
               allReceiptsFolderId: receiptUpload.allReceiptsFolderId,
               allReceiptsFolderStatus: undefined,
@@ -1794,21 +2067,26 @@ export default function MonthlyExpensesPage({
               monthlyFolderId: receiptUpload.monthlyFolderId,
               monthlyFolderStatus: undefined,
               monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
-              receipts: [
-                ...row.receipts,
+              paymentRecords: [
+                ...(row.paymentRecords ?? []),
                 {
-                  allReceiptsFolderId: receiptUpload.allReceiptsFolderId,
-                  allReceiptsFolderViewUrl:
-                    receiptUpload.allReceiptsFolderViewUrl,
                   coveredPayments: receiptUpload.coveredPayments,
-                  fileId: receiptUpload.fileId,
-                  fileName: receiptUpload.fileName,
-                  fileViewUrl: receiptUpload.fileViewUrl,
-                  monthlyFolderId: receiptUpload.monthlyFolderId,
-                  monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
+                  id: createPaymentRecordId(),
+                  receipt: {
+                    allReceiptsFolderId: receiptUpload.allReceiptsFolderId,
+                    allReceiptsFolderViewUrl:
+                      receiptUpload.allReceiptsFolderViewUrl,
+                    coveredPayments: receiptUpload.coveredPayments,
+                    fileId: receiptUpload.fileId,
+                    fileName: receiptUpload.fileName,
+                    fileViewUrl: receiptUpload.fileViewUrl,
+                    monthlyFolderId: receiptUpload.monthlyFolderId,
+                    monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
+                  },
+                  registeredAt: receiptUpload.registeredAt,
                 },
               ],
-            }
+            })
           : row,
       );
       const wasSaved = await persistMonthlyExpensesRows(nextRows, {
@@ -1871,16 +2149,12 @@ export default function MonthlyExpensesPage({
       const nextRows = formState.rows.map((row) =>
         row.id !== expenseId
           ? row
-          : (() => {
-              const remainingReceipts = row.receipts.filter(
-                (item) => item.fileId !== receiptFileId,
-              );
-
-              return {
-                ...row,
-                receipts: remainingReceipts,
-              };
-            })(),
+          : synchronizeRowPaymentCoverage({
+              ...row,
+              paymentRecords: (row.paymentRecords ?? []).filter(
+                (paymentRecord) => paymentRecord.receipt?.fileId !== receiptFileId,
+              ),
+            }),
       );
       await persistMonthlyExpensesRows(nextRows, {
         loading: "Eliminando comprobante...",
@@ -2005,16 +2279,22 @@ export default function MonthlyExpensesPage({
       const nextRows = formState.rows.map((row) =>
         row.id !== activeExpenseId
           ? row
-          : {
+          : synchronizeRowPaymentCoverage({
               ...row,
-              receipts: row.receipts.map((receipt) =>
-                receipt.fileId !== activeReceiptFileId
-                  ? receipt
+              paymentRecords: (row.paymentRecords ?? []).map((paymentRecord) =>
+                paymentRecord.receipt?.fileId !== activeReceiptFileId
+                  ? paymentRecord
                   : {
-                      ...receipt,
+                      ...paymentRecord,
                       coveredPayments,
+                      receipt: paymentRecord.receipt
+                        ? {
+                            ...paymentRecord.receipt,
+                            coveredPayments,
+                          }
+                        : paymentRecord.receipt,
                     }),
-            },
+            }),
       );
 
       const wasSaved = await persistMonthlyExpensesRows(nextRows, {
@@ -2041,12 +2321,12 @@ export default function MonthlyExpensesPage({
     }
   };
 
-  const handleUpdateManualCoveredPayments = async ({
+  const handleAddManualPaymentRecord = async ({
+    coveredPayments,
     expenseId,
-    manualCoveredPayments,
   }: {
+    coveredPayments: number;
     expenseId: string;
-    manualCoveredPayments: number;
   }) => {
     if (!isOAuthConfigured || !isAuthenticated) {
       toast.warning("Conectate con Google para actualizar pagos sin comprobante.");
@@ -2060,32 +2340,149 @@ export default function MonthlyExpensesPage({
       return;
     }
 
-    const maxManualCoveredPayments = getMaxManualCoveredPayments(expenseRow);
+    const maxManualCoveredPayments = getMaxManualCoveredPayments({
+      row: expenseRow,
+    });
 
     if (
-      !Number.isInteger(manualCoveredPayments) ||
-      manualCoveredPayments < 0 ||
-      manualCoveredPayments > maxManualCoveredPayments
+      !Number.isInteger(coveredPayments) ||
+      coveredPayments <= 0 ||
+      coveredPayments > maxManualCoveredPayments
     ) {
       toast.warning(
-        `Ingresá una cantidad válida entre 0 y ${maxManualCoveredPayments}.`,
+        `Ingresá una cantidad válida entre 1 y ${maxManualCoveredPayments}.`,
       );
-      return;
-    }
-
-    const currentManualCoveredPayments = Number(expenseRow.manualCoveredPayments) || 0;
-
-    if (manualCoveredPayments === currentManualCoveredPayments) {
       return;
     }
 
     const nextRows = formState.rows.map((row) =>
       row.id === expenseId
-        ? {
+        ? synchronizeRowPaymentCoverage({
             ...row,
-            manualCoveredPayments: String(manualCoveredPayments),
-          }
+            paymentRecords: [
+              ...(row.paymentRecords ?? []),
+              {
+                coveredPayments,
+                id: createPaymentRecordId(),
+                registeredAt: new Date().toISOString(),
+              },
+            ],
+          })
         : row,
+    );
+
+    await persistMonthlyExpensesRows(nextRows, {
+      loading: "Actualizando pagos sin comprobante...",
+      success: "Pagos sin comprobante actualizados.",
+    });
+  };
+
+  const handleEditManualPaymentRecord = async ({
+    coveredPayments,
+    expenseId,
+    paymentRecordId,
+  }: {
+    coveredPayments: number;
+    expenseId: string;
+    paymentRecordId: string;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para actualizar pagos sin comprobante.");
+      return;
+    }
+
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    const manualRecord = (expenseRow.paymentRecords ?? []).find(
+      (paymentRecord) =>
+        paymentRecord.id === paymentRecordId && !paymentRecord.receipt,
+    );
+
+    if (!manualRecord) {
+      toast.warning("No pudimos encontrar el registro manual seleccionado.");
+      return;
+    }
+
+    const maxManualCoveredPayments = getMaxManualCoveredPayments({
+      excludedPaymentRecordId: paymentRecordId,
+      row: expenseRow,
+    });
+
+    if (
+      !Number.isInteger(coveredPayments) ||
+      coveredPayments <= 0 ||
+      coveredPayments > maxManualCoveredPayments
+    ) {
+      toast.warning(
+        `Ingresá una cantidad válida entre 1 y ${maxManualCoveredPayments}.`,
+      );
+      return;
+    }
+
+    const nextRows = formState.rows.map((row) =>
+      row.id !== expenseId
+        ? row
+        : synchronizeRowPaymentCoverage({
+            ...row,
+            paymentRecords: (row.paymentRecords ?? []).map((paymentRecord) =>
+              paymentRecord.id !== paymentRecordId
+                ? paymentRecord
+                : {
+                    ...paymentRecord,
+                    coveredPayments,
+                  }),
+          }),
+    );
+
+    await persistMonthlyExpensesRows(nextRows, {
+      loading: "Actualizando pagos sin comprobante...",
+      success: "Pagos sin comprobante actualizados.",
+    });
+  };
+
+  const handleDeleteManualPaymentRecord = async ({
+    expenseId,
+    paymentRecordId,
+  }: {
+    expenseId: string;
+    paymentRecordId: string;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para actualizar pagos sin comprobante.");
+      return;
+    }
+
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    const manualRecord = (expenseRow.paymentRecords ?? []).find(
+      (paymentRecord) =>
+        paymentRecord.id === paymentRecordId && !paymentRecord.receipt,
+    );
+
+    if (!manualRecord) {
+      toast.warning("No pudimos encontrar el registro manual seleccionado.");
+      return;
+    }
+
+    const nextRows = formState.rows.map((row) =>
+      row.id !== expenseId
+        ? row
+        : synchronizeRowPaymentCoverage({
+            ...row,
+            paymentRecords: (row.paymentRecords ?? []).filter(
+              (paymentRecord) => paymentRecord.id !== paymentRecordId,
+            ),
+          }),
     );
 
     await persistMonthlyExpensesRows(nextRows, {
@@ -2661,7 +3058,9 @@ export default function MonthlyExpensesPage({
                 onRequestCloseExpenseSheet={handleRequestCloseExpenseSheet}
                 onSaveExpense={handleSaveExpense}
                 onSaveUnsavedChanges={handleSaveUnsavedChanges}
-                onUpdateManualCoveredPayments={handleUpdateManualCoveredPayments}
+                onAddManualPaymentRecord={handleAddManualPaymentRecord}
+                onDeleteManualPaymentRecord={handleDeleteManualPaymentRecord}
+                onEditManualPaymentRecord={handleEditManualPaymentRecord}
                 onUpdatePaymentLink={handleUpdatePaymentLink}
                 onUpdateReceiptShareStatus={handleUpdateReceiptShareStatus}
                 onUploadReceipt={handleOpenReceiptUpload}

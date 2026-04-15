@@ -2,6 +2,7 @@ import type {
   MonthlyExpenseCurrency,
   MonthlyExpenseFolders,
   MonthlyExpenseLoan,
+  MonthlyExpensePaymentRecord,
   MonthlyExpenseReceipt,
   MonthlyExpenseReceiptShareStatus,
   MonthlyExpensesExchangeRateSnapshot,
@@ -40,6 +41,7 @@ export interface MonthlyExpenseItemResult {
   loan?: MonthlyExpenseLoan;
   manualCoveredPayments?: number;
   occurrencesPerMonth: number;
+  paymentRecords?: MonthlyExpensePaymentRecord[];
   paymentLink?: string | null;
   receiptShareMessage?: string | null;
   receiptSharePhoneDigits?: string | null;

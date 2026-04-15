@@ -265,4 +265,42 @@ describe("ExpenseReceiptUploadDialog", () => {
 
     expect(screen.queryByText("factura.pdf")).not.toBeInTheDocument();
   });
+
+  it("resets selected file when the dialog is reopened", async () => {
+    const user = userEvent.setup();
+    const onUpload = jest.fn<Promise<void>, [
+      {
+        coveredPayments: number;
+        file: File;
+      },
+    ]>().mockResolvedValue(undefined);
+    const baseProps: DialogProps = {
+      coveredPaymentsMax: 4,
+      coveredPaymentsRemaining: 3,
+      errorMessage: null,
+      expenseDescription: "Internet",
+      isOpen: true,
+      isSubmitting: false,
+      onClose: jest.fn(),
+      onUpload,
+      uploadProgressPercent: 0,
+    };
+    const { rerender } = render(<ExpenseReceiptUploadDialog {...baseProps} />);
+    const file = new File(["invoice"], "factura.pdf", {
+      type: "application/pdf",
+    });
+    const fileInput = document.querySelector('input[type="file"]');
+
+    if (!(fileInput instanceof HTMLInputElement)) {
+      throw new Error("File input not found");
+    }
+
+    await user.upload(fileInput, file);
+    expect(screen.getByText("factura.pdf")).toBeInTheDocument();
+
+    rerender(<ExpenseReceiptUploadDialog {...baseProps} isOpen={false} />);
+    rerender(<ExpenseReceiptUploadDialog {...baseProps} isOpen={true} />);
+
+    expect(screen.queryByText("factura.pdf")).not.toBeInTheDocument();
+  });
 });

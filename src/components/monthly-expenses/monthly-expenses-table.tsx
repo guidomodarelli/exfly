@@ -9,7 +9,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  Check,
   Clock3,
   CircleX,
   EyeOff,
@@ -20,7 +19,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  X,
 } from "lucide-react";
 
 import { ExpenseRowActions } from "@/components/monthly-expenses/expense-row-actions";
@@ -94,7 +92,7 @@ const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
 const SORTABLE_COLUMN_IDS = new Set([
   "description",
   "paymentsProgress",
-  "manualCoveredPaymentsWithoutReceipt",
+  "paymentHistory",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -104,7 +102,6 @@ const SORTABLE_COLUMN_IDS = new Set([
   "paymentLink",
   "receiptShareStatus",
   "receiptShareLink",
-  "receiptFileUrl",
   LOAN_SORT_COLUMN_ID,
   "lenderName",
   LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -112,7 +109,7 @@ const SORTABLE_COLUMN_IDS = new Set([
 ]);
 const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
   "paymentsProgress",
-  "manualCoveredPaymentsWithoutReceipt",
+  "paymentHistory",
   "currency",
   "subtotal",
   "occurrencesPerMonth",
@@ -122,7 +119,6 @@ const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
   "paymentLink",
   "receiptShareStatus",
   "receiptShareLink",
-  "receiptFileUrl",
   LOAN_SORT_COLUMN_ID,
   "lenderName",
   LOAN_INSTALLMENT_START_COLUMN_ID,
@@ -616,6 +612,7 @@ export interface MonthlyExpensesEditableRow {
   loanTotalInstallments: number | null;
   manualCoveredPayments: string;
   occurrencesPerMonth: string;
+  paymentRecords?: MonthlyExpensesEditablePaymentRecord[];
   paymentLink: string;
   receiptShareMessage: string;
   receiptSharePhoneDigits: string;
@@ -647,6 +644,13 @@ export interface MonthlyExpensesEditableReceipt {
   monthlyFolderId: string;
   monthlyFolderStatus?: MonthlyExpenseDriveResourceStatus;
   monthlyFolderViewUrl: string;
+}
+
+export interface MonthlyExpensesEditablePaymentRecord {
+  coveredPayments: number;
+  id: string;
+  receipt?: MonthlyExpensesEditableReceipt;
+  registeredAt: string | null;
 }
 
 interface MonthlyExpensesTableProps {
@@ -700,9 +704,18 @@ interface MonthlyExpensesTableProps {
     expenseId: string;
     receiptFileId: string;
   }) => void;
-  onUpdateManualCoveredPayments: (args: {
+  onAddManualPaymentRecord: (args: {
     expenseId: string;
-    manualCoveredPayments: number;
+    coveredPayments: number;
+  }) => void;
+  onEditManualPaymentRecord: (args: {
+    coveredPayments: number;
+    expenseId: string;
+    paymentRecordId: string;
+  }) => void;
+  onDeleteManualPaymentRecord: (args: {
+    expenseId: string;
+    paymentRecordId: string;
   }) => void;
   onUpdatePaymentLink: (args: {
     expenseId: string;
@@ -1308,104 +1321,275 @@ function DriveStatusBadge({
   );
 }
 
-function ManualCoveredPaymentsCell({
+/**
+ * Formats an ISO datetime for the payment history popover.
+ *
+ * @param isoDatetime - Datetime string to render.
+ * @returns A DD/MM/YYYY label in Spanish locale.
+ */
+function formatPaymentRecordDate(isoDatetime: string): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(isoDatetime));
+}
+
+/**
+ * Sorts payment records using the newest registration date first.
+ *
+ * @param leftRecord - Left record to compare.
+ * @param rightRecord - Right record to compare.
+ * @returns Positive when right should come first.
+ */
+function sortPaymentRecordsByDateDescending(
+  leftRecord: MonthlyExpensesEditablePaymentRecord,
+  rightRecord: MonthlyExpensesEditablePaymentRecord,
+): number {
+  const leftTimestamp = leftRecord.registeredAt
+    ? new Date(leftRecord.registeredAt).getTime()
+    : Number.NEGATIVE_INFINITY;
+  const rightTimestamp = rightRecord.registeredAt
+    ? new Date(rightRecord.registeredAt).getTime()
+    : Number.NEGATIVE_INFINITY;
+
+  if (leftTimestamp !== rightTimestamp) {
+    return rightTimestamp - leftTimestamp;
+  }
+
+  return leftRecord.id.localeCompare(rightRecord.id);
+}
+
+function PaymentHistoryCell({
   actionDisabled,
   expenseDescription,
   expenseId,
-  maxManualCoveredPayments,
-  normalizedManualCoveredPayments,
-  onUpdateManualCoveredPayments,
+  maxPaymentsPerRecord,
+  onAddManualPaymentRecord,
+  onDeleteManualPaymentRecord,
+  onDeleteReceipt,
+  onEditManualPaymentRecord,
+  onEditReceiptCoverage,
+  onUploadReceipt,
+  paymentRecords,
 }: {
   actionDisabled: boolean;
   expenseDescription: string;
   expenseId: string;
-  maxManualCoveredPayments: number;
-  normalizedManualCoveredPayments: number;
-  onUpdateManualCoveredPayments: (args: {
+  maxPaymentsPerRecord: number;
+  onAddManualPaymentRecord: (args: {
+    coveredPayments: number;
     expenseId: string;
-    manualCoveredPayments: number;
   }) => void;
+  onDeleteManualPaymentRecord: (args: {
+    expenseId: string;
+    paymentRecordId: string;
+  }) => void;
+  onDeleteReceipt: (args: {
+    expenseId: string;
+    receiptFileId: string;
+  }) => void;
+  onEditManualPaymentRecord: (args: {
+    coveredPayments: number;
+    expenseId: string;
+    paymentRecordId: string;
+  }) => void;
+  onEditReceiptCoverage: (args: {
+    expenseId: string;
+    receiptFileId: string;
+  }) => void;
+  onUploadReceipt: (expenseId: string) => void;
+  paymentRecords: MonthlyExpensesEditablePaymentRecord[];
 }) {
-  const [draftManualCoveredPayments, setDraftManualCoveredPayments] =
-    useState(String(normalizedManualCoveredPayments));
-  const manualPaymentsHintId = `manual-covered-payments-hint-${expenseId}`;
-  const clampedDraftManualCoveredPayments = clampManualCoveredPaymentsValue({
-    fallbackValue: normalizedManualCoveredPayments,
-    maxManualCoveredPayments,
-    value: draftManualCoveredPayments,
+  const [manualRecordDraft, setManualRecordDraft] = useState("1");
+  const normalizedPaymentsByDraft = clampManualCoveredPaymentsValue({
+    fallbackValue: 1,
+    maxManualCoveredPayments: maxPaymentsPerRecord,
+    value: manualRecordDraft,
   });
-  const hasDraftChanges =
-    clampedDraftManualCoveredPayments !== normalizedManualCoveredPayments;
-
-  const handleConfirmChanges = () => {
-    setDraftManualCoveredPayments(String(clampedDraftManualCoveredPayments));
-
-    if (!hasDraftChanges || actionDisabled) {
-      return;
-    }
-
-    onUpdateManualCoveredPayments({
-      expenseId,
-      manualCoveredPayments: clampedDraftManualCoveredPayments,
-    });
-  };
+  const sortedPaymentRecords = [...paymentRecords].sort(
+    sortPaymentRecordsByDateDescending,
+  );
+  const receiptPaymentRecordsCount = paymentRecords.filter(
+    (paymentRecord) => Boolean(paymentRecord.receipt),
+  ).length;
+  const receiptCountLabel = receiptPaymentRecordsCount === 1
+    ? "comprobante"
+    : "comprobantes";
+  const recordsCountLabel = paymentRecords.length === 1
+    ? "registro"
+    : "registros";
 
   return (
-    <div className={styles.manualPaymentsCell}>
-      <div className={styles.manualPaymentsControls}>
-        <Input
-          aria-describedby={manualPaymentsHintId}
-          aria-label={`Pagos sin comprobante de ${expenseDescription}`}
-          className={styles.manualPaymentsInput}
-          disabled={actionDisabled}
-          inputMode="numeric"
-          max={maxManualCoveredPayments}
-          min={0}
-          onBlur={() => {
-            setDraftManualCoveredPayments(String(clampedDraftManualCoveredPayments));
-          }}
-          onChange={(event) => {
-            setDraftManualCoveredPayments(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") {
-              return;
-            }
+    <div className={styles.receiptActionsCell}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button className={styles.extraReceiptsTrigger} type="button" variant="link">
+            {receiptPaymentRecordsCount > 0
+              ? `${paymentRecords.length} ${recordsCountLabel} · 📎 ${receiptPaymentRecordsCount} ${receiptCountLabel}`
+              : `${paymentRecords.length} ${recordsCountLabel}`}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className={styles.extraReceiptsPopover}>
+          <div className={styles.extraReceiptsList}>
+            <div className={styles.manualPaymentsControls}>
+              <Input
+                aria-label={`Pagos sin comprobante de ${expenseDescription}`}
+                className={styles.manualPaymentsInput}
+                disabled={actionDisabled || maxPaymentsPerRecord <= 0}
+                inputMode="numeric"
+                max={maxPaymentsPerRecord}
+                min={1}
+                onChange={(event) => setManualRecordDraft(event.target.value)}
+                type="number"
+                value={manualRecordDraft}
+              />
+              <Button
+                aria-label="Adjuntar comprobante"
+                disabled={actionDisabled || maxPaymentsPerRecord <= 0}
+                onClick={() => onUploadReceipt(expenseId)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Paperclip aria-hidden="true" />
+              </Button>
+              <Button
+                aria-label={`Agregar pago sin comprobante para ${expenseDescription}`}
+                disabled={actionDisabled || maxPaymentsPerRecord <= 0}
+                onClick={() =>
+                  onAddManualPaymentRecord({
+                    coveredPayments: normalizedPaymentsByDraft,
+                    expenseId,
+                  })}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Agregar pago
+              </Button>
+            </div>
+            {sortedPaymentRecords.map((paymentRecord) => {
+              const displayDate = paymentRecord.registeredAt
+                ? formatPaymentRecordDate(paymentRecord.registeredAt)
+                : "Sin fecha";
+              const paymentsLabel = paymentRecord.coveredPayments === 1
+                ? "pago"
+                : "pagos";
+              const recordLabel =
+                `${displayDate} — ${paymentRecord.coveredPayments} ${paymentsLabel}`;
+              const receiptFileUrl = paymentRecord.receipt
+                ? getValidHttpUrl(paymentRecord.receipt.fileViewUrl)
+                : null;
 
-            event.preventDefault();
-            handleConfirmChanges();
-          }}
-          type="number"
-          value={draftManualCoveredPayments}
-        />
-        <div className={styles.manualPaymentsActions}>
-          <Button
-            aria-label={`Descartar cambios de pagos sin comprobante de ${expenseDescription}`}
-            disabled={actionDisabled || !hasDraftChanges}
-            onClick={() => {
-              setDraftManualCoveredPayments(String(normalizedManualCoveredPayments));
-            }}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <X aria-hidden="true" />
-          </Button>
-          <Button
-            aria-label={`Confirmar pagos sin comprobante de ${expenseDescription}`}
-            disabled={actionDisabled || !hasDraftChanges}
-            onClick={handleConfirmChanges}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <Check aria-hidden="true" />
-          </Button>
-        </div>
-      </div>
-      <span className={styles.manualPaymentsHint} id={manualPaymentsHintId}>
-        0 a {maxManualCoveredPayments}
-      </span>
+              return (
+                <div className={styles.extraReceiptRow} key={paymentRecord.id}>
+                  {paymentRecord.receipt
+                    ? <DriveStatusBadge status={paymentRecord.receipt.fileStatus} />
+                    : null}
+                  <div className={styles.extraReceiptInfo}>
+                    <span>{recordLabel}</span>
+                    {paymentRecord.receipt && receiptFileUrl
+                      ? (
+                          <a
+                            className={styles.paymentLinkAction}
+                            href={receiptFileUrl}
+                            rel="noopener noreferrer"
+                            target="_blank"
+                          >
+                            📎 Ver comprobante
+                            <ExternalLink
+                              aria-hidden="true"
+                              className={styles.paymentLinkIcon}
+                            />
+                          </a>
+                        )
+                      : null}
+                  </div>
+                  {paymentRecord.receipt
+                    ? (
+                        <div className={styles.paymentRecordActions}>
+                          <Button
+                            aria-label={`Editar cobertura de comprobante ${paymentRecord.receipt.fileName}`}
+                            className={styles.receiptEditButton}
+                            disabled={actionDisabled}
+                            onClick={() =>
+                              onEditReceiptCoverage({
+                                expenseId,
+                                receiptFileId: paymentRecord.receipt?.fileId ?? "",
+                              })}
+                            size="icon-sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Pencil aria-hidden="true" />
+                          </Button>
+                          <ReceiptDeleteConfirmButton
+                            actionDisabled={actionDisabled}
+                            onConfirm={() =>
+                              onDeleteReceipt({
+                                expenseId,
+                                receiptFileId: paymentRecord.receipt?.fileId ?? "",
+                              })}
+                            receiptFileName={paymentRecord.receipt.fileName}
+                          />
+                        </div>
+                      )
+                    : (
+                        <div className={styles.paymentRecordActions}>
+                          <Button
+                            aria-label={`Editar registro manual de ${expenseDescription}`}
+                            className={styles.receiptEditButton}
+                            disabled={actionDisabled}
+                            onClick={() => {
+                              const nextCoveredPaymentsValue = window.prompt(
+                                "Ingresá la nueva cantidad de pagos",
+                                String(paymentRecord.coveredPayments),
+                              );
+
+                              if (!nextCoveredPaymentsValue) {
+                                return;
+                              }
+
+                              const parsedCoveredPayments = Number(
+                                nextCoveredPaymentsValue,
+                              );
+
+                              onEditManualPaymentRecord({
+                                coveredPayments: parsedCoveredPayments,
+                                expenseId,
+                                paymentRecordId: paymentRecord.id,
+                              });
+                            }}
+                            size="icon-sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Pencil aria-hidden="true" />
+                          </Button>
+                          <Button
+                            aria-label={`Eliminar registro manual de ${expenseDescription}`}
+                            className={styles.receiptDeleteButton}
+                            disabled={actionDisabled}
+                            onClick={() =>
+                              onDeleteManualPaymentRecord({
+                                expenseId,
+                                paymentRecordId: paymentRecord.id,
+                              })}
+                            size="icon-sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2 aria-hidden="true" />
+                          </Button>
+                        </div>
+                      )}
+                </div>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -1443,7 +1627,9 @@ export function MonthlyExpensesTable({
   onExpenseReceiptShareToggle,
   onDeleteReceipt,
   onEditReceiptCoverage,
-  onUpdateManualCoveredPayments,
+  onAddManualPaymentRecord,
+  onDeleteManualPaymentRecord,
+  onEditManualPaymentRecord,
   onUpdatePaymentLink,
   onUpdateReceiptShareStatus,
   onMonthChange,
@@ -2147,180 +2333,39 @@ export function MonthlyExpensesTable({
         },
       },
       {
-        id: "manualCoveredPaymentsWithoutReceipt",
-        accessorFn: (row) => {
-          const requiredPayments = parsePositiveInteger(row.occurrencesPerMonth);
-          const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(
-            row.receipts,
-          );
-
-          return Math.max(requiredPayments - coveredPaymentsByReceipts, 0);
-        },
+        id: "paymentHistory",
+        accessorFn: (row) => (row.paymentRecords ?? []).length,
         cell: ({ row }) => {
-          const requiredPayments = parsePositiveInteger(row.original.occurrencesPerMonth);
-          const coveredPaymentsByReceipts = getCoveredPaymentsByReceipts(
-            row.original.receipts,
+          const { coveredPayments, requiredPayments } = getPaymentProgress(
+            row.original,
           );
           const maxManualCoveredPayments = Math.max(
-            requiredPayments - coveredPaymentsByReceipts,
+            requiredPayments - coveredPayments,
             0,
-          );
-          const normalizedManualCoveredPayments = Math.min(
-            parseNonNegativeInteger(row.original.manualCoveredPayments),
-            maxManualCoveredPayments,
           );
           const expenseDescription = row.original.description.trim() || "gasto";
 
           return (
-            <ManualCoveredPaymentsCell
+            <PaymentHistoryCell
               actionDisabled={actionDisabled}
               expenseDescription={expenseDescription}
               expenseId={row.original.id}
-              key={`${row.original.id}-${row.original.manualCoveredPayments}-${maxManualCoveredPayments}`}
-              maxManualCoveredPayments={maxManualCoveredPayments}
-              normalizedManualCoveredPayments={normalizedManualCoveredPayments}
-              onUpdateManualCoveredPayments={onUpdateManualCoveredPayments}
+              maxPaymentsPerRecord={maxManualCoveredPayments}
+              onAddManualPaymentRecord={onAddManualPaymentRecord}
+              onDeleteManualPaymentRecord={onDeleteManualPaymentRecord}
+              onDeleteReceipt={onDeleteReceipt}
+              onEditManualPaymentRecord={onEditManualPaymentRecord}
+              onEditReceiptCoverage={onEditReceiptCoverage}
+              onUploadReceipt={onUploadReceipt}
+              paymentRecords={row.original.paymentRecords ?? []}
             />
           );
         },
-        header: getSortableHeader("Pagos sin comprobante"),
-        meta: { label: "Pagos sin comprobante" },
-        sortingFn: (rowA, rowB) => {
-          const leftValue = parseNonNegativeInteger(
-            rowA.original.manualCoveredPayments,
-          );
-          const rightValue = parseNonNegativeInteger(
-            rowB.original.manualCoveredPayments,
-          );
-
-          return leftValue - rightValue;
-        },
-      },
-      {
-        id: "receiptFileUrl",
-        accessorFn: (row) => row.receipts[0]?.fileViewUrl ?? "",
-        cell: ({ row }) => {
-          const receiptsCount = row.original.receipts.length;
-          const receiptCountLabel = receiptsCount === 1 ? "comprobante" : "comprobantes";
-          const { coveredPaymentsByReceipts, requiredPayments } = getPaymentProgress(
-            row.original,
-          );
-
-          return (
-            <div className={styles.receiptActionsCell}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    aria-label="Adjuntar comprobante"
-                    disabled={actionDisabled}
-                    onClick={() => onUploadReceipt(row.original.id)}
-                    size="icon-sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Paperclip aria-hidden="true" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Adjuntar comprobante</TooltipContent>
-              </Tooltip>
-
-              {receiptsCount > 0 ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      className={styles.extraReceiptsTrigger}
-                      type="button"
-                      variant="link"
-                    >
-                      {`📎 ${receiptsCount} ${receiptCountLabel}`}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className={styles.extraReceiptsPopover}>
-                    <div className={styles.extraReceiptsList}>
-                      {row.original.receipts.map((receipt, index) => {
-                        const receiptFileUrl = getValidHttpUrl(receipt.fileViewUrl);
-
-                        return (
-                          <div className={styles.extraReceiptRow} key={receipt.fileId}>
-                            <DriveStatusBadge status={receipt.fileStatus} />
-                            {receiptFileUrl ? (
-                              <div className={styles.extraReceiptInfo}>
-                                <a
-                                  className={styles.paymentLinkAction}
-                                  href={receiptFileUrl}
-                                  rel="noopener noreferrer"
-                                  target="_blank"
-                                >
-                                  Ver comprobante parte {index + 1}
-                                  <ExternalLink
-                                    aria-hidden="true"
-                                    className={styles.paymentLinkIcon}
-                                  />
-                                </a>
-                                <span className={styles.receiptCoverage}>
-                                  ({receipt.coveredPayments} pagos)
-                                </span>
-                              </div>
-                            ) : (
-                              <div className={styles.extraReceiptInfo}>
-                                <span className={styles.mutedValue}>
-                                  Comprobante parte {index + 1} sin enlace
-                                </span>
-                                <span className={styles.receiptCoverage}>
-                                  ({receipt.coveredPayments} pagos)
-                                </span>
-                              </div>
-                            )}
-                            <Button
-                              aria-label={`Editar cobertura de comprobante ${receipt.fileName}`}
-                              className={styles.receiptEditButton}
-                              disabled={actionDisabled}
-                              onClick={() =>
-                                onEditReceiptCoverage({
-                                  expenseId: row.original.id,
-                                  receiptFileId: receipt.fileId,
-                                })}
-                              size="icon-sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              <Pencil aria-hidden="true" />
-                            </Button>
-                            <ReceiptDeleteConfirmButton
-                              actionDisabled={actionDisabled}
-                              onConfirm={() =>
-                                onDeleteReceipt({
-                                  expenseId: row.original.id,
-                                  receiptFileId: receipt.fileId,
-                                })}
-                              receiptFileName={receipt.fileName}
-                            />
-                          </div>
-                        );
-                      })}
-                      <p className={styles.receiptSummary}>
-                        {`Total cubierto: ${coveredPaymentsByReceipts} / ${requiredPayments}`}
-                      </p>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              ) : null}
-            </div>
-          );
-        },
-        header: getSortableHeader("Comprobantes"),
-        meta: { label: "Comprobantes" },
-        sortingFn: (rowA, rowB) => {
-          const leftCount = rowA.original.receipts.length;
-          const rightCount = rowB.original.receipts.length;
-
-          return compareValuesKeepingInvalidLast({
-            compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
-            leftValue: leftCount > 0 ? leftCount : null,
-            rightValue: rightCount > 0 ? rightCount : null,
-            sortDirection: getSortDirection("receiptFileUrl"),
-          });
-        },
+        header: getSortableHeader("Registro de pagos"),
+        meta: { label: "Registro de pagos" },
+        sortingFn: (rowA, rowB) =>
+          (rowA.original.paymentRecords ?? []).length -
+          (rowB.original.paymentRecords ?? []).length,
       },
       {
         accessorKey: "loanProgress",
@@ -2511,9 +2556,11 @@ export function MonthlyExpensesTable({
       onDeletePaymentLink,
       onDeleteMonthlyFolderReference,
       onDeleteReceipt,
+      onDeleteManualPaymentRecord,
       onEditReceiptCoverage,
+      onEditManualPaymentRecord,
       onEditExpense,
-      onUpdateManualCoveredPayments,
+      onAddManualPaymentRecord,
       onUploadReceipt,
       onUpdateReceiptShareStatus,
       handleOpenPaymentLinkDialog,

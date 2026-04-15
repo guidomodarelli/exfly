@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -158,13 +159,32 @@ export function ExpenseReceiptUploadDialog({
         ? 100
         : 0;
 
+  /**
+   * Resets the local form state so each upload flow starts from a clean slate.
+   */
+  function resetDialogState() {
+    setIsFileRemoveConfirmOpen(false);
+    setSelectedFile(null);
+    setIsDraggingFile(false);
+    setCoverageMode("full");
+    setPartialCoveredPayments("1");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    resetDialogState();
+  }, [isOpen]);
+
   const handleDialogOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
-      setIsFileRemoveConfirmOpen(false);
-      setSelectedFile(null);
-      setIsDraggingFile(false);
-      setCoverageMode("full");
-      setPartialCoveredPayments("1");
+      resetDialogState();
       onClose();
     }
   };

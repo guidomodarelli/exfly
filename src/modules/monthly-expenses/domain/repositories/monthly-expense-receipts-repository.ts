@@ -14,6 +14,7 @@ export interface MonthlyExpenseReceiptUpload {
   fileId: string;
   fileName: string;
   fileViewUrl: string;
+  registeredAt: string;
   monthlyFolderId: string;
   monthlyFolderViewUrl: string;
 }
