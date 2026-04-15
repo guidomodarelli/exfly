@@ -1935,8 +1935,8 @@ export function MonthlyExpensesTable({
       },
       {
         accessorKey: "occurrencesPerMonth",
-        header: getSortableHeader("Veces al mes"),
-        meta: { label: "Veces al mes" },
+        header: getSortableHeader("por mes"),
+        meta: { label: "por mes" },
         sortingFn: (rowA, rowB) =>
           compareValuesKeepingInvalidLast({
             compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
