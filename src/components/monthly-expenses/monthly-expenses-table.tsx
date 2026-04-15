@@ -89,6 +89,9 @@ const LOAN_INSTALLMENT_START_COLUMN_ID = "loanInstallmentStart";
 const LOAN_INSTALLMENT_END_COLUMN_ID = "loanInstallmentEnd";
 const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
   "larry.monthly-expenses.table-preferences";
+const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+  usd: false,
+};
 const SORTABLE_COLUMN_IDS = new Set([
   "description",
   "paymentsProgress",
@@ -266,8 +269,12 @@ function getPersistedMonthlyExpensesTablePreferences(): MonthlyExpensesTablePref
       parsePersistedLoanSortMode(parsedPreferences.loanSortMode) ??
       DEFAULT_LOAN_SORT_MODE;
     const sorting = parsePersistedSorting(parsedPreferences.sorting) ?? [];
-    const columnVisibility =
+    const parsedColumnVisibility =
       parsePersistedColumnVisibility(parsedPreferences.columnVisibility) ?? {};
+    const columnVisibility: VisibilityState = {
+      ...MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY,
+      ...parsedColumnVisibility,
+    };
 
     return {
       columnVisibility,
@@ -1689,7 +1696,9 @@ export function MonthlyExpensesTable({
   const [loanSortMode, setLoanSortMode] =
     useState<LoanSortMode>(DEFAULT_LOAN_SORT_MODE);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+    MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY,
+  );
   const [isRestoringTablePreferences, setIsRestoringTablePreferences] =
     useState(true);
   const [descriptionFilter, setDescriptionFilter] = useState("");
@@ -2772,6 +2781,9 @@ export function MonthlyExpensesTable({
               columnVisibilityButtonLabel="Columnas"
               columnVisibilityMenuLabel="Mostrar columnas"
               columns={columns}
+              hideableColumnsDefaultVisibility={
+                MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY
+              }
               data={fuzzySortedRows}
               emptyMessage="No hay gastos cargados para este mes."
               filterColumnId="description"
@@ -2784,6 +2796,7 @@ export function MonthlyExpensesTable({
               onFilterValueChange={setDescriptionFilter}
               onColumnVisibilityChange={setColumnVisibility}
               onSortingChange={setSorting}
+              selectAllColumnsLabel="Restablecer"
               showColumnVisibilityToggle={true}
               sortingBadgeLabelOverrides={{
                 [LOAN_SORT_COLUMN_ID]: `Deuda / cuotas (${getLoanSortModeLabel(loanSortMode)})`,

@@ -59,6 +59,7 @@ interface DataTableProps<TData, TValue> {
   sortingBadgeLabelOverrides?: Record<string, string>;
   selectAllColumnsLabel?: string;
   deselectAllColumnsLabel?: string;
+  hideableColumnsDefaultVisibility?: VisibilityState;
 }
 
 interface DataTableColumnMeta {
@@ -86,6 +87,7 @@ export function DataTable<TData, TValue>({
   sortingBadgeLabelOverrides,
   selectAllColumnsLabel = "Mostrar todas",
   deselectAllColumnsLabel = "Ocultar todas",
+  hideableColumnsDefaultVisibility,
 }: DataTableProps<TData, TValue>) {
   const [uncontrolledSorting, setUncontrolledSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -148,8 +150,14 @@ export function DataTable<TData, TValue>({
   const hideableColumns = table
     .getAllLeafColumns()
     .filter((column) => column.getCanHide());
-  const areAllHideableColumnsVisible = hideableColumns.every((column) =>
-    column.getIsVisible(),
+  const getHideableColumnDefaultVisibility = React.useCallback(
+    (columnId: string): boolean =>
+      hideableColumnsDefaultVisibility?.[columnId] ?? true,
+    [hideableColumnsDefaultVisibility],
+  );
+  const areHideableColumnsAtDefaultVisibility = hideableColumns.every(
+    (column) =>
+      column.getIsVisible() === getHideableColumnDefaultVisibility(column.id),
   );
   const areSomeHideableColumnsVisible = hideableColumns.some((column) =>
     column.getIsVisible(),
@@ -157,7 +165,7 @@ export function DataTable<TData, TValue>({
   const shouldShowColumnVisibilityToggle =
     showColumnVisibilityToggle && hideableColumns.length > 0;
   const hasModifiedColumnVisibility =
-    shouldShowColumnVisibilityToggle && !areAllHideableColumnsVisible;
+    shouldShowColumnVisibilityToggle && !areHideableColumnsAtDefaultVisibility;
   const hasToolbarChanges = hasModifiedColumnVisibility;
   const shouldShowToolbarActions = shouldShowColumnVisibilityToggle;
   const shouldShowToolbar = Boolean(filterColumnId) || shouldShowToolbarActions;
@@ -304,11 +312,13 @@ export function DataTable<TData, TValue>({
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
                       <DropdownMenuItem
-                        disabled={areAllHideableColumnsVisible}
+                        disabled={areHideableColumnsAtDefaultVisibility}
                         onSelect={(event) => {
                           event.preventDefault();
                           hideableColumns.forEach((column) => {
-                            column.toggleVisibility(true);
+                            column.toggleVisibility(
+                              getHideableColumnDefaultVisibility(column.id),
+                            );
                           });
                         }}
                       >

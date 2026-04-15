@@ -637,12 +637,13 @@ describe("MonthlyExpensesPage", () => {
     expect(screen.queryByRole("columnheader", { name: "Link" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
-    await user.click(screen.getByRole("menuitem", { name: "Mostrar todas" }));
+    await user.click(screen.getByRole("menuitem", { name: "Restablecer" }));
 
     await user.keyboard("{Escape}");
 
     expect(screen.getByRole("columnheader", { name: "Subtotal" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Link" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "USD" })).not.toBeInTheDocument();
   });
 
   it("shows a modified indicator on the column selector button when visibility changes", async () => {
@@ -673,13 +674,13 @@ describe("MonthlyExpensesPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Subtotal" }));
-    expect(screen.getByText("Columna deseleccionada")).toBeInTheDocument();
+    expect(screen.getAllByText("Columna deseleccionada").length).toBeGreaterThan(0);
     await user.keyboard("{Escape}");
 
     expect(screen.getByText("Columnas modificadas")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
-    await user.click(screen.getByRole("menuitem", { name: "Mostrar todas" }));
+    await user.click(screen.getByRole("menuitem", { name: "Restablecer" }));
     await user.keyboard("{Escape}");
 
     expect(
@@ -687,7 +688,7 @@ describe("MonthlyExpensesPage", () => {
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Columnas" }));
-    expect(screen.queryByText("Columna deseleccionada")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Columna deseleccionada")).toHaveLength(1);
     await user.keyboard("{Escape}");
   });
 
@@ -842,6 +843,9 @@ describe("MonthlyExpensesPage", () => {
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("columnheader", { name: "Link" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("columnheader", { name: "USD" }),
       ).not.toBeInTheDocument();
     });
 
@@ -1127,6 +1131,10 @@ describe("MonthlyExpensesPage", () => {
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
+    await user.keyboard("{Escape}");
+
     await user.click(screen.getByRole("button", { name: "Ordenar USD" }));
 
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
@@ -1144,7 +1152,9 @@ describe("MonthlyExpensesPage", () => {
     ]);
   });
 
-  it("renders ARS total in Total footer and keeps USD footer", () => {
+  it("renders ARS total in Total footer and keeps USD footer", async () => {
+    const user = userEvent.setup();
+
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -1178,6 +1188,10 @@ describe("MonthlyExpensesPage", () => {
         }}
       />,
     );
+
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
+    await user.keyboard("{Escape}");
 
     expect(screen.getByText(/\$\s*390,00/)).toBeInTheDocument();
     expect(screen.getByText(/US\$\s*3,25/)).toBeInTheDocument();
@@ -6022,7 +6036,7 @@ describe("MonthlyExpensesPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders converted amounts in subtotal and total while keeping the USD column", () => {
+  it("renders converted amounts in subtotal and total while hiding the USD column by default", () => {
     renderWithProviders(
       <MonthlyExpensesPage
         {...basePageProps}
@@ -6060,7 +6074,9 @@ describe("MonthlyExpensesPage", () => {
     expect(
       screen.queryByRole("columnheader", { name: "ARS" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "USD" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "USD" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/^Dólar oficial:/i)).toBeInTheDocument();
     expect(screen.getByText("$ 1.200")).toBeInTheDocument();
     expect(screen.getByText(/^Dólar solidario:/i)).toBeInTheDocument();
@@ -6072,7 +6088,7 @@ describe("MonthlyExpensesPage", () => {
     );
   });
 
-  it("renders the Link column after USD and opens payment links in a new tab", async () => {
+  it("renders the Link column after USD when USD is enabled and opens payment links in a new tab", async () => {
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -6101,6 +6117,10 @@ describe("MonthlyExpensesPage", () => {
         }}
       />,
     );
+
+    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
+    await user.keyboard("{Escape}");
 
     const headers = screen
       .getAllByRole("columnheader")
