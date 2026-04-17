@@ -914,7 +914,6 @@ interface MonthlyExpensesTableProps {
     file: File | null;
   }) => Promise<boolean>;
   onEditManualPaymentRecord: (args: {
-    coveredPayments: number;
     expenseId: string;
     paymentRecordId: string;
   }) => void;
@@ -1640,7 +1639,6 @@ function PaymentHistoryCell({
     receiptFileId: string;
   }) => void;
   onEditManualPaymentRecord: (args: {
-    coveredPayments: number;
     expenseId: string;
     paymentRecordId: string;
   }) => void;
@@ -1744,9 +1742,9 @@ function PaymentHistoryCell({
             </DialogDescription>
           </DialogHeader>
           <div className={styles.manualPaymentsCell}>
-            <Label htmlFor={registerPaymentInputId}>Cantidad de pagos a cubrir:</Label>
+            <Label htmlFor={registerPaymentInputId}>¿Cuántos pagos desea cubrir?</Label>
             <Input
-              aria-label="Cantidad de pagos a cubrir"
+              aria-label="¿Cuántos pagos desea cubrir?"
               className={styles.manualPaymentsInput}
               disabled={actionDisabled || maxPaymentsPerRecord <= 0}
               id={registerPaymentInputId}
@@ -1895,24 +1893,11 @@ function PaymentHistoryCell({
                         expenseId,
                         paymentRecordId: paymentRecord.id,
                       }),
-                    onEdit: () => {
-                      const nextCoveredPaymentsValue = window.prompt(
-                        "Ingresá la nueva cantidad de pagos",
-                        String(paymentRecord.coveredPayments),
-                      );
-
-                      if (!nextCoveredPaymentsValue) {
-                        return;
-                      }
-
-                      const parsedCoveredPayments = Number(nextCoveredPaymentsValue);
-
+                    onEdit: () =>
                       onEditManualPaymentRecord({
-                        coveredPayments: parsedCoveredPayments,
                         expenseId,
                         paymentRecordId: paymentRecord.id,
-                      });
-                    },
+                      }),
                     triggerAriaLabel:
                       `Abrir acciones de registro manual ${recordLabel} para ${expenseDescription}`,
                   };

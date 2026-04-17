@@ -1878,7 +1878,7 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
     const manualPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos a cubrir",
+      name: "¿Cuántos pagos desea cubrir?",
     });
     await user.clear(manualPaymentsInput);
     await user.type(manualPaymentsInput, "1");

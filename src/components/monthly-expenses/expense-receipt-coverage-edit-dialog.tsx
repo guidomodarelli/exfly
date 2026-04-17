@@ -21,7 +21,7 @@ interface ExpenseReceiptCoverageEditDialogProps {
   maxCoveredPayments: number;
   onClose: () => void;
   onSave: (coveredPayments: number) => Promise<void>;
-  receiptFileName: string;
+  receiptFileName: string | null;
 }
 
 export function ExpenseReceiptCoverageEditDialog({
@@ -64,17 +64,15 @@ export function ExpenseReceiptCoverageEditDialog({
     <Dialog onOpenChange={handleDialogOpenChange} open={isOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar cobertura del comprobante</DialogTitle>
+          <DialogTitle>Editar registro de pago</DialogTitle>
           <DialogDescription>
-            Ajusta cuantos pagos cubre este comprobante para {expenseDescription || "el gasto seleccionado"}.
+            Ajusta cuántos pagos desea cubrir para {expenseDescription || "el gasto seleccionado"}.
           </DialogDescription>
         </DialogHeader>
 
         <div className={styles.content}>
-          <p className={styles.fileName}>Archivo: {receiptFileName || "Comprobante"}</p>
-
           <div className={styles.fieldGroup}>
-            <label htmlFor="receipt-covered-payments">Cantidad de pagos</label>
+            <label htmlFor="receipt-covered-payments">¿Cuántos pagos desea cubrir?</label>
             <Input
               id="receipt-covered-payments"
               inputMode="numeric"
@@ -86,6 +84,9 @@ export function ExpenseReceiptCoverageEditDialog({
               value={coveredPaymentsValue}
             />
             <p className={styles.hint}>Maximo permitido: {normalizedMaxCoveredPayments} pagos.</p>
+            {receiptFileName ? (
+              <p className={styles.fileName}>Archivo: {receiptFileName}</p>
+            ) : null}
           </div>
 
           {!hasValidCoveredPayments ? (

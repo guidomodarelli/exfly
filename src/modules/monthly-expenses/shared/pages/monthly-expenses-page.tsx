@@ -145,8 +145,9 @@ interface ExpenseReceiptCoverageEditState {
   isOpen: boolean;
   isSubmitting: boolean;
   maxCoveredPayments: number;
+  paymentRecordId: string | null;
   receiptFileId: string | null;
-  receiptFileName: string;
+  receiptFileName: string | null;
 }
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -190,8 +191,9 @@ function createClosedExpenseReceiptCoverageEditState(): ExpenseReceiptCoverageEd
     isOpen: false,
     isSubmitting: false,
     maxCoveredPayments: 1,
+    paymentRecordId: null,
     receiptFileId: null,
-    receiptFileName: "",
+    receiptFileName: null,
   };
 }
 
@@ -2165,8 +2167,50 @@ export default function MonthlyExpensesPage({
         receiptFileId,
         row: expenseRow,
       }),
+      paymentRecordId: null,
       receiptFileId,
       receiptFileName: receipt.fileName,
+    }));
+  };
+
+  const handleOpenManualPaymentRecordEditor = ({
+    expenseId,
+    paymentRecordId,
+  }: {
+    expenseId: string;
+    paymentRecordId: string;
+  }) => {
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    const manualRecord = (expenseRow.paymentRecords ?? []).find(
+      (paymentRecord) =>
+        paymentRecord.id === paymentRecordId && !paymentRecord.receipt,
+    );
+
+    if (!manualRecord) {
+      toast.warning("No pudimos encontrar el registro manual seleccionado.");
+      return;
+    }
+
+    updateExpenseReceiptCoverageEditState(() => ({
+      currentCoveredPayments: manualRecord.coveredPayments,
+      error: null,
+      expenseDescription: expenseRow.description,
+      expenseId,
+      isOpen: true,
+      isSubmitting: false,
+      maxCoveredPayments: getMaxManualCoveredPayments({
+        excludedPaymentRecordId: paymentRecordId,
+        row: expenseRow,
+      }),
+      paymentRecordId,
+      receiptFileId: null,
+      receiptFileName: null,
     }));
   };
 
@@ -2176,17 +2220,18 @@ export default function MonthlyExpensesPage({
 
   const handleSaveReceiptCoverage = async (coveredPayments: number) => {
     if (!isOAuthConfigured || !isAuthenticated) {
-      toast.warning("Conectate con Google para editar comprobantes.");
+      toast.warning("Conectate con Google para editar registros.");
       return;
     }
 
     const activeExpenseId = expenseReceiptCoverageEditState.expenseId;
     const activeReceiptFileId = expenseReceiptCoverageEditState.receiptFileId;
+    const activePaymentRecordId = expenseReceiptCoverageEditState.paymentRecordId;
 
-    if (!activeExpenseId || !activeReceiptFileId) {
+    if (!activeExpenseId || (!activeReceiptFileId && !activePaymentRecordId)) {
       updateExpenseReceiptCoverageEditState((currentState) => ({
         ...currentState,
-        error: "No pudimos identificar el comprobante para editar.",
+        error: "No pudimos identificar el registro para editar.",
       }));
       return;
     }
@@ -2202,23 +2247,15 @@ export default function MonthlyExpensesPage({
       return;
     }
 
-    const activeReceipt = expenseRow.receipts.find(
-      (receipt) => receipt.fileId === activeReceiptFileId,
-    );
-
-    if (!activeReceipt) {
-      updateExpenseReceiptCoverageEditState((currentState) => ({
-        ...currentState,
-        error: "No pudimos encontrar el comprobante seleccionado.",
-        isSubmitting: false,
-      }));
-      return;
-    }
-
-    const maxCoveredPayments = getMaxReceiptCoverageForEdition({
-      receiptFileId: activeReceiptFileId,
-      row: expenseRow,
-    });
+    const maxCoveredPayments = activeReceiptFileId
+      ? getMaxReceiptCoverageForEdition({
+          receiptFileId: activeReceiptFileId,
+          row: expenseRow,
+        })
+      : getMaxManualCoveredPayments({
+          excludedPaymentRecordId: activePaymentRecordId ?? undefined,
+          row: expenseRow,
+        });
 
     if (
       !Number.isInteger(coveredPayments) ||
@@ -2227,10 +2264,39 @@ export default function MonthlyExpensesPage({
     ) {
       updateExpenseReceiptCoverageEditState((currentState) => ({
         ...currentState,
-        error: "La cantidad de pagos no es valida para este comprobante.",
+        error: "La cantidad de pagos no es valida para este registro.",
         maxCoveredPayments,
       }));
       return;
+    }
+
+    if (activeReceiptFileId) {
+      const activeReceipt = expenseRow.receipts.find(
+        (receipt) => receipt.fileId === activeReceiptFileId,
+      );
+
+      if (!activeReceipt) {
+        updateExpenseReceiptCoverageEditState((currentState) => ({
+          ...currentState,
+          error: "No pudimos encontrar el comprobante seleccionado.",
+          isSubmitting: false,
+        }));
+        return;
+      }
+    } else {
+      const activeManualRecord = (expenseRow.paymentRecords ?? []).find(
+        (paymentRecord) =>
+          paymentRecord.id === activePaymentRecordId && !paymentRecord.receipt,
+      );
+
+      if (!activeManualRecord) {
+        updateExpenseReceiptCoverageEditState((currentState) => ({
+          ...currentState,
+          error: "No pudimos encontrar el registro manual seleccionado.",
+          isSubmitting: false,
+        }));
+        return;
+      }
     }
 
     updateExpenseReceiptCoverageEditState((currentState) => ({
@@ -2246,24 +2312,35 @@ export default function MonthlyExpensesPage({
           : synchronizeRowPaymentCoverage({
               ...row,
               paymentRecords: (row.paymentRecords ?? []).map((paymentRecord) =>
-                paymentRecord.receipt?.fileId !== activeReceiptFileId
-                  ? paymentRecord
-                  : {
-                      ...paymentRecord,
-                      coveredPayments,
-                      receipt: paymentRecord.receipt
-                        ? {
-                            ...paymentRecord.receipt,
-                            coveredPayments,
-                          }
-                        : paymentRecord.receipt,
-                    }),
+                activeReceiptFileId
+                  ? paymentRecord.receipt?.fileId !== activeReceiptFileId
+                    ? paymentRecord
+                    : {
+                        ...paymentRecord,
+                        coveredPayments,
+                        receipt: paymentRecord.receipt
+                          ? {
+                              ...paymentRecord.receipt,
+                              coveredPayments,
+                            }
+                          : paymentRecord.receipt,
+                      }
+                  : paymentRecord.id !== activePaymentRecordId
+                    ? paymentRecord
+                    : {
+                        ...paymentRecord,
+                        coveredPayments,
+                      }),
             }),
       );
 
       const wasSaved = await persistMonthlyExpensesRows(nextRows, {
-        loading: "Actualizando cobertura del comprobante...",
-        success: "Cobertura del comprobante actualizada.",
+        loading: activeReceiptFileId
+          ? "Actualizando cobertura del comprobante..."
+          : "Actualizando registro de pago...",
+        success: activeReceiptFileId
+          ? "Cobertura del comprobante actualizada."
+          : "Registro de pago actualizado.",
       });
 
       if (!wasSaved) {
@@ -2281,7 +2358,11 @@ export default function MonthlyExpensesPage({
         error: getSafeMonthlyExpensesErrorMessage(error),
         isSubmitting: false,
       }));
-      toast.error("No pudimos actualizar la cobertura del comprobante.");
+      toast.error(
+        activeReceiptFileId
+          ? "No pudimos actualizar la cobertura del comprobante."
+          : "No pudimos actualizar el registro manual.",
+      );
     }
   };
 
@@ -2448,74 +2529,6 @@ export default function MonthlyExpensesPage({
       toast.error(getSafeMonthlyExpensesErrorMessage(error));
       return false;
     }
-  };
-
-  const handleEditManualPaymentRecord = async ({
-    coveredPayments,
-    expenseId,
-    paymentRecordId,
-  }: {
-    coveredPayments: number;
-    expenseId: string;
-    paymentRecordId: string;
-  }) => {
-    if (!isOAuthConfigured || !isAuthenticated) {
-      toast.warning("Conectate con Google para actualizar pagos sin comprobante.");
-      return;
-    }
-
-    const expenseRow = formState.rows.find((row) => row.id === expenseId);
-
-    if (!expenseRow) {
-      toast.warning("No pudimos encontrar el gasto seleccionado.");
-      return;
-    }
-
-    const manualRecord = (expenseRow.paymentRecords ?? []).find(
-      (paymentRecord) =>
-        paymentRecord.id === paymentRecordId && !paymentRecord.receipt,
-    );
-
-    if (!manualRecord) {
-      toast.warning("No pudimos encontrar el registro manual seleccionado.");
-      return;
-    }
-
-    const maxManualCoveredPayments = getMaxManualCoveredPayments({
-      excludedPaymentRecordId: paymentRecordId,
-      row: expenseRow,
-    });
-
-    if (
-      !Number.isInteger(coveredPayments) ||
-      coveredPayments <= 0 ||
-      coveredPayments > maxManualCoveredPayments
-    ) {
-      toast.warning(
-        `Ingresá una cantidad válida entre 1 y ${maxManualCoveredPayments}.`,
-      );
-      return;
-    }
-
-    const nextRows = formState.rows.map((row) =>
-      row.id !== expenseId
-        ? row
-        : synchronizeRowPaymentCoverage({
-            ...row,
-            paymentRecords: (row.paymentRecords ?? []).map((paymentRecord) =>
-              paymentRecord.id !== paymentRecordId
-                ? paymentRecord
-                : {
-                    ...paymentRecord,
-                    coveredPayments,
-                  }),
-          }),
-    );
-
-    await persistMonthlyExpensesRows(nextRows, {
-      loading: "Actualizando pagos sin comprobante...",
-      success: "Pagos sin comprobante actualizados.",
-    });
   };
 
   const handleDeleteManualPaymentRecord = async ({
@@ -3369,7 +3382,7 @@ export default function MonthlyExpensesPage({
                 onSaveUnsavedChanges={handleSaveUnsavedChanges}
                 onRegisterPaymentRecord={handleRegisterPaymentRecord}
                 onDeleteManualPaymentRecord={handleDeleteManualPaymentRecord}
-                onEditManualPaymentRecord={handleEditManualPaymentRecord}
+                onEditManualPaymentRecord={handleOpenManualPaymentRecordEditor}
                 onUpdatePaymentLink={handleUpdatePaymentLink}
                 onUpdateExpenseOccurrencesPerMonth={handleUpdateExpenseOccurrencesPerMonth}
                 onUpdateExpenseReceiptShare={handleUpdateExpenseReceiptShare}

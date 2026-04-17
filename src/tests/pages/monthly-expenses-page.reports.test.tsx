@@ -572,7 +572,7 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
     const manualPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos a cubrir",
+      name: "¿Cuántos pagos desea cubrir?",
     });
 
     await user.clear(manualPaymentsInput);
@@ -629,7 +629,7 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
     const manualPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos a cubrir",
+      name: "¿Cuántos pagos desea cubrir?",
     });
 
     await user.clear(manualPaymentsInput);
@@ -699,7 +699,7 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
     const manualPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos a cubrir",
+      name: "¿Cuántos pagos desea cubrir?",
     });
 
     await user.clear(manualPaymentsInput);
@@ -788,6 +788,87 @@ registerMonthlyExpensesPageDefaultHooks({
       const payload = getMonthlyExpensesSavePayload(fetchMock);
 
       expect(JSON.stringify(payload.items[0])).not.toContain("manual-payment-1");
+    });
+  });
+
+  it("edits manual payment records from the same modal used for receipts without showing file details", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              occurrencesPerMonth: 4,
+              paymentRecords: [
+                {
+                  coveredPayments: 1,
+                  id: "manual-payment-1",
+                  registeredAt: "2026-03-01T12:00:00.000Z",
+                },
+              ],
+              subtotal: 100,
+              total: 400,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /1 registro/i }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /Abrir acciones de registro manual .* para Internet/i,
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Editar registro",
+      }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Editar registro de pago" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Archivo:/i)).not.toBeInTheDocument();
+
+    const coveredPaymentsInput = screen.getByRole("spinbutton", {
+      name: "¿Cuántos pagos desea cubrir?",
+    });
+
+    await user.clear(coveredPaymentsInput);
+    await user.type(coveredPaymentsInput, "3");
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+      const paymentRecords = payload.items[0]?.paymentRecords ?? [];
+      const editedRecord = paymentRecords.find(
+        (paymentRecord: { id: string; coveredPayments: number }) =>
+          paymentRecord.id === "manual-payment-1",
+      );
+
+      expect(editedRecord?.coveredPayments).toBe(3);
     });
   });
 
@@ -1005,8 +1086,15 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
 
+    const coveredPaymentsLabel = screen.getByText("¿Cuántos pagos desea cubrir?");
+    const receiptFileName = screen.getByText("Archivo: comprobante.pdf");
+    expect(
+      coveredPaymentsLabel.compareDocumentPosition(receiptFileName) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
     const coveredPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos",
+      name: "¿Cuántos pagos desea cubrir?",
     });
 
     await user.clear(coveredPaymentsInput);
@@ -1105,7 +1193,7 @@ registerMonthlyExpensesPageDefaultHooks({
     );
 
     const coveredPaymentsInput = screen.getByRole("spinbutton", {
-      name: "Cantidad de pagos",
+      name: "¿Cuántos pagos desea cubrir?",
     });
 
     await user.clear(coveredPaymentsInput);
@@ -1190,7 +1278,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(registerPaymentButton).toBeDisabled();
     expect(
-      screen.queryByText("Cantidad de pagos a cubrir"),
+      screen.queryByText("¿Cuántos pagos desea cubrir?"),
     ).not.toBeInTheDocument();
   });
 
