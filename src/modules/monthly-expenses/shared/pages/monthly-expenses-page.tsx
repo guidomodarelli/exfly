@@ -1729,7 +1729,13 @@ export default function MonthlyExpensesPage({
       loading: "Guardando gastos mensuales...",
       success: "Gastos mensuales guardados correctamente.",
     },
+    options: {
+      showToast?: boolean;
+      throwOnError?: boolean;
+    } = {},
   ) => {
+    const { showToast = true, throwOnError = false } = options;
+
     if (!isOAuthConfigured || !isAuthenticated) {
       toast.warning("Conectate con Google para guardar gastos mensuales.");
       return false;
@@ -1749,14 +1755,16 @@ export default function MonthlyExpensesPage({
         }),
       );
 
-      void toast.promise(
-        savePromise,
-        {
-          error: "No pudimos guardar los gastos mensuales.",
-          loading: toastMessages.loading,
-          success: toastMessages.success,
-        },
-      );
+      if (showToast) {
+        void toast.promise(
+          savePromise,
+          {
+            error: "No pudimos guardar los gastos mensuales.",
+            loading: toastMessages.loading,
+            success: toastMessages.success,
+          },
+        );
+      }
       const saveResult = await savePromise;
 
       updateFormState((currentState) => ({
@@ -1780,6 +1788,11 @@ export default function MonthlyExpensesPage({
         error: getSafeMonthlyExpensesErrorMessage(error),
         isSubmitting: false,
       }));
+
+      if (throwOnError) {
+        throw error;
+      }
+
       return false;
     }
   };
@@ -2716,7 +2729,7 @@ export default function MonthlyExpensesPage({
       return false;
     }
 
-    try {
+    const registerReceiptPromise = (async (): Promise<boolean> => {
       const contentBase64 = await fileToBase64WithProgress(file, () => undefined);
       const receiptUpload = await uploadMonthlyExpenseReceiptViaApi({
         contentBase64,
@@ -2760,12 +2773,31 @@ export default function MonthlyExpensesPage({
           : row,
       );
 
-      return await persistMonthlyExpensesRows(nextRows, {
+      return await persistMonthlyExpensesRows(
+        nextRows,
+        {
+          loading: "Guardando comprobante...",
+          success: "Comprobante subido correctamente.",
+        },
+        {
+          showToast: false,
+          throwOnError: true,
+        },
+      );
+    })();
+
+    void toast.promise(
+      registerReceiptPromise,
+      {
+        error: (error) => getSafeMonthlyExpensesErrorMessage(error),
         loading: "Guardando comprobante...",
         success: "Comprobante subido correctamente.",
-      });
-    } catch (error) {
-      toast.error(getSafeMonthlyExpensesErrorMessage(error));
+      },
+    );
+
+    try {
+      return await registerReceiptPromise;
+    } catch {
       return false;
     }
   };
