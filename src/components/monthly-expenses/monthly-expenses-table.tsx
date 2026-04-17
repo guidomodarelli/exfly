@@ -355,6 +355,9 @@ interface PaymentLinkActionsMenuProps {
 
 interface QuickEditActionsMenuProps {
   actionDisabled: boolean;
+  confirmDeleteActionAriaLabel?: string;
+  confirmDeleteActionDescription?: string;
+  confirmDeleteActionTitle?: string;
   deleteActionLabel?: string;
   editActionLabel: string;
   expenseDescription: string;
@@ -441,6 +444,9 @@ function PaymentLinkActionsMenu({
 
 function QuickEditActionsMenu({
   actionDisabled,
+  confirmDeleteActionAriaLabel,
+  confirmDeleteActionDescription,
+  confirmDeleteActionTitle,
   deleteActionLabel,
   editActionLabel,
   expenseDescription,
@@ -448,51 +454,85 @@ function QuickEditActionsMenu({
   onEdit,
   triggerAriaLabel,
 }: QuickEditActionsMenuProps) {
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const normalizedExpenseDescription = expenseDescription.trim() || "gasto";
+  const shouldConfirmDelete =
+    Boolean(confirmDeleteActionTitle) && Boolean(confirmDeleteActionDescription);
 
   return (
-    <DropdownMenu onOpenChange={setIsMenuOpen} open={isMenuOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={`${triggerAriaLabel} para ${normalizedExpenseDescription}`}
-          className={styles.paymentLinkActionButton}
-          disabled={actionDisabled}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <MoreVertical aria-hidden="true" className={styles.paymentLinkIcon} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onSelect={() => {
-            setIsMenuOpen(false);
-            window.setTimeout(() => {
-              onEdit();
-            }, 0);
-          }}
-        >
-          <Pencil aria-hidden="true" />
-          {editActionLabel}
-        </DropdownMenuItem>
-        {onDelete ? (
+    <AlertDialog onOpenChange={setIsConfirmDialogOpen} open={isConfirmDialogOpen}>
+      <DropdownMenu onOpenChange={setIsMenuOpen} open={isMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={`${triggerAriaLabel} para ${normalizedExpenseDescription}`}
+            className={styles.paymentLinkActionButton}
+            disabled={actionDisabled}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <MoreVertical aria-hidden="true" className={styles.paymentLinkIcon} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
           <DropdownMenuItem
             onSelect={() => {
               setIsMenuOpen(false);
               window.setTimeout(() => {
-                void onDelete();
+                onEdit();
               }, 0);
             }}
-            variant="destructive"
           >
-            <Trash2 aria-hidden="true" />
-            {deleteActionLabel ?? "Eliminar"}
+            <Pencil aria-hidden="true" />
+            {editActionLabel}
           </DropdownMenuItem>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {onDelete ? (
+            <DropdownMenuItem
+              onSelect={() => {
+                setIsMenuOpen(false);
+                window.setTimeout(() => {
+                  if (shouldConfirmDelete) {
+                    setIsConfirmDialogOpen(true);
+                    return;
+                  }
+
+                  void onDelete();
+                }, 0);
+              }}
+              variant="destructive"
+            >
+              <Trash2 aria-hidden="true" />
+              {deleteActionLabel ?? "Eliminar"}
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {onDelete && shouldConfirmDelete ? (
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmDeleteActionTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmDeleteActionDescription}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              aria-label={
+                confirmDeleteActionAriaLabel ??
+                `Confirmar eliminación para ${normalizedExpenseDescription}`
+              }
+              onClick={() => {
+                setIsConfirmDialogOpen(false);
+                void onDelete();
+              }}
+              variant="destructive"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      ) : null}
+    </AlertDialog>
   );
 }
 
@@ -2641,6 +2681,9 @@ export function MonthlyExpensesTable({
               )}
               <QuickEditActionsMenu
                 actionDisabled={actionDisabled}
+                confirmDeleteActionAriaLabel={`Confirmar eliminación de datos de envío para ${expenseDescription}`}
+                confirmDeleteActionDescription="Esta acción borra el número de WhatsApp y el mensaje guardado para compartir comprobantes."
+                confirmDeleteActionTitle="¿Querés eliminar estos datos de envío?"
                 deleteActionLabel="Eliminar datos de envío"
                 editActionLabel="Editar datos de envío"
                 expenseDescription={expenseDescription}

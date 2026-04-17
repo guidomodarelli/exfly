@@ -1434,7 +1434,7 @@ registerMonthlyExpensesPageDefaultHooks({
     ).not.toBeInTheDocument();
   });
 
-  it("deletes receipt share data from the enviar actions menu and shows plus again", async () => {
+  it("deletes receipt share data from the enviar actions menu only after confirmation and shows plus again", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
 
@@ -1479,6 +1479,20 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.getByRole("button", { name: "Abrir acciones de envío para Internet" }),
     );
     await user.click(screen.getByRole("menuitem", { name: "Eliminar datos de envío" }));
+
+    expect(screen.getByText("¿Querés eliminar estos datos de envío?")).toBeInTheDocument();
+
+    expect(
+      fetchMock.mock.calls.find(
+        ([url]) => url === "/api/storage/monthly-expenses",
+      ),
+    ).toBeUndefined();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Confirmar eliminación de datos de envío para Internet",
+      }),
+    );
 
     await waitFor(() => {
       expect(getMonthlyExpensesSavePayload(fetchMock)).toEqual({
