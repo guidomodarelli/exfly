@@ -1904,34 +1904,6 @@ export default function MonthlyExpensesPage({
     }));
   };
 
-  const handleOpenReceiptUpload = (expenseId: string) => {
-    const row = formState.rows.find((currentRow) => currentRow.id === expenseId);
-
-    if (!row) {
-      toast.warning("No pudimos encontrar el gasto para subir el comprobante.");
-      return;
-    }
-
-    const remainingPaymentsForReceipts = getRemainingPaymentsForReceipts(row);
-
-    if (remainingPaymentsForReceipts <= 0) {
-      toast.warning("No quedan pagos pendientes para cubrir con comprobantes.");
-      return;
-    }
-
-    updateExpenseReceiptUploadState(() => ({
-      coveredPaymentsByReceipts: getCoveredPaymentsByReceipts(row),
-      error: null,
-      expenseDescription: row.description,
-      expenseId,
-      isOpen: true,
-      isSubmitting: false,
-      manualCoveredPayments: Number(row.manualCoveredPayments) || 0,
-      occurrencesPerMonth: Number(row.occurrencesPerMonth) || 1,
-      uploadProgressPercent: 0,
-    }));
-  };
-
   const handleCloseReceiptUpload = () => {
     setExpenseReceiptUploadState(createClosedExpenseReceiptUploadState());
   };

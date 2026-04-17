@@ -290,6 +290,13 @@ External API/SDK -> infrastructure DTO -> infrastructure mapper -> domain entity
 - When functionality changes, add or update the corresponding tests in the same work item.
 - Prefer mocks at the port boundary, not at low-level vendor internals, unless the test is explicitly for an adapter.
 
+### Lint gate (mandatory)
+
+- Every work item must run `npm run lint` before completion.
+- A change is blocked from completion if `npm run lint` exits with a non-zero status.
+- If lint fails, fix the reported issues in the same work item and rerun lint until it passes.
+- Do not bypass lint failures with pending TODOs or deferred follow-ups.
+
 ## 7. Implementation Checklist
 
 - Does the change preserve hexagonal boundaries?
@@ -303,3 +310,4 @@ External API/SDK -> infrastructure DTO -> infrastructure mapper -> domain entity
 - Are product styles implemented with `SCSS`?
 - Are Google tokens and secrets kept server-side only?
 - Were tests written first and left green at the end?
+- Does `npm run lint` pass with exit code `0`?

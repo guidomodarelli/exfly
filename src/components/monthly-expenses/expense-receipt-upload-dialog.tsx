@@ -181,6 +181,7 @@ export function ExpenseReceiptUploadDialog({
     }
 
     // Keep local state clean when the controlled dialog transitions open/closed.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     resetDialogState();
     wasOpenRef.current = isOpen;
   }, [isOpen]);
