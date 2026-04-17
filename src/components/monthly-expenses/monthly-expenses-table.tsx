@@ -356,17 +356,23 @@ interface LoanSortColumnHeaderProps {
   }) => void;
 }
 
-interface ReceiptDeleteConfirmButtonProps {
-  actionDisabled: boolean;
-  onConfirm: () => void | Promise<void>;
-  receiptFileName: string;
-}
-
 interface PaymentLinkActionsMenuProps {
   actionDisabled: boolean;
   expenseDescription: string;
   onDelete: () => void | Promise<void>;
   onEdit: () => void;
+}
+
+interface PaymentRecordActionsMenuProps {
+  actionDisabled: boolean;
+  confirmDeleteActionAriaLabel: string;
+  confirmDeleteActionDescription: string;
+  confirmDeleteActionTitle: string;
+  deleteActionLabel: string;
+  editActionLabel: string;
+  onDelete: () => void | Promise<void>;
+  onEdit: () => void;
+  triggerAriaLabel: string;
 }
 
 interface QuickEditActionsMenuProps {
@@ -552,55 +558,81 @@ function QuickEditActionsMenu({
   );
 }
 
-function ReceiptDeleteConfirmButton({
+function PaymentRecordActionsMenu({
   actionDisabled,
-  onConfirm,
-  receiptFileName,
-}: ReceiptDeleteConfirmButtonProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  confirmDeleteActionAriaLabel,
+  confirmDeleteActionDescription,
+  confirmDeleteActionTitle,
+  deleteActionLabel,
+  editActionLabel,
+  onDelete,
+  onEdit,
+  triggerAriaLabel,
+}: PaymentRecordActionsMenuProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   return (
-    <Popover onOpenChange={setIsOpen} open={isOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          aria-label={`Eliminar comprobante ${receiptFileName}`}
-          className={styles.receiptDeleteButton}
-          disabled={actionDisabled}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <Trash2 aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className={styles.receiptDeleteConfirmPopover}>
-        <p className={styles.receiptDeleteConfirmMessage}>
-          ¿Querés eliminar este comprobante?
-        </p>
-        <div className={styles.receiptDeleteConfirmActions}>
+    <AlertDialog onOpenChange={setIsConfirmDialogOpen} open={isConfirmDialogOpen}>
+      <DropdownMenu onOpenChange={setIsMenuOpen} open={isMenuOpen}>
+        <DropdownMenuTrigger asChild>
           <Button
-            onClick={() => setIsOpen(false)}
-            size="sm"
+            aria-label={triggerAriaLabel}
+            className={styles.paymentLinkActionButton}
+            disabled={actionDisabled}
+            size="icon-sm"
             type="button"
-            variant="outline"
+            variant="ghost"
           >
-            Cancelar
+            <MoreVertical aria-hidden="true" className={styles.paymentLinkIcon} />
           </Button>
-          <Button
-            aria-label={`Confirmar eliminación de comprobante ${receiptFileName}`}
-            onClick={() => {
-              setIsOpen(false);
-              void onConfirm();
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsMenuOpen(false);
+              window.setTimeout(() => {
+                onEdit();
+              }, 0);
             }}
-            size="sm"
-            type="button"
+          >
+            <Pencil aria-hidden="true" />
+            {editActionLabel}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsMenuOpen(false);
+              window.setTimeout(() => {
+                setIsConfirmDialogOpen(true);
+              }, 0);
+            }}
+            variant="destructive"
+          >
+            <Trash2 aria-hidden="true" />
+            {deleteActionLabel}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmDeleteActionTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmDeleteActionDescription}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            aria-label={confirmDeleteActionAriaLabel}
+            onClick={() => {
+              setIsConfirmDialogOpen(false);
+              void onDelete();
+            }}
             variant="destructive"
           >
             Eliminar
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -1813,6 +1845,58 @@ function PaymentHistoryCell({
               const receiptFileUrl = paymentRecord.receipt
                 ? getValidHttpUrl(paymentRecord.receipt.fileViewUrl)
                 : null;
+              const paymentRecordActions = paymentRecord.receipt
+                ? {
+                    confirmDeleteActionAriaLabel:
+                      `Confirmar eliminación de comprobante ${paymentRecord.receipt.fileName}`,
+                    confirmDeleteActionTitle: "¿Querés eliminar este comprobante?",
+                    deleteActionLabel: "Eliminar registro",
+                    editActionLabel: "Editar registro",
+                    onDelete: () =>
+                      onDeleteReceipt({
+                        expenseId,
+                        receiptFileId: paymentRecord.receipt?.fileId ?? "",
+                      }),
+                    onEdit: () =>
+                      onEditReceiptCoverage({
+                        expenseId,
+                        receiptFileId: paymentRecord.receipt?.fileId ?? "",
+                      }),
+                    triggerAriaLabel:
+                      `Abrir acciones de registro de pago para comprobante ${paymentRecord.receipt.fileName} de ${expenseDescription}`,
+                  }
+                : {
+                    confirmDeleteActionAriaLabel:
+                      `Confirmar eliminación de registro manual de ${expenseDescription}`,
+                    confirmDeleteActionTitle: "¿Querés eliminar este registro manual?",
+                    deleteActionLabel: "Eliminar registro",
+                    editActionLabel: "Editar registro",
+                    onDelete: () =>
+                      onDeleteManualPaymentRecord({
+                        expenseId,
+                        paymentRecordId: paymentRecord.id,
+                      }),
+                    onEdit: () => {
+                      const nextCoveredPaymentsValue = window.prompt(
+                        "Ingresá la nueva cantidad de pagos",
+                        String(paymentRecord.coveredPayments),
+                      );
+
+                      if (!nextCoveredPaymentsValue) {
+                        return;
+                      }
+
+                      const parsedCoveredPayments = Number(nextCoveredPaymentsValue);
+
+                      onEditManualPaymentRecord({
+                        coveredPayments: parsedCoveredPayments,
+                        expenseId,
+                        paymentRecordId: paymentRecord.id,
+                      });
+                    },
+                    triggerAriaLabel:
+                      `Abrir acciones de registro manual ${recordLabel} para ${expenseDescription}`,
+                  };
 
               return (
                 <div className={styles.extraReceiptRow} key={paymentRecord.id}>
@@ -1842,84 +1926,21 @@ function PaymentHistoryCell({
                         )
                       : null}
                   </div>
-                  {paymentRecord.receipt
-                    ? (
-                        <div className={styles.paymentRecordActions}>
-                          <Button
-                            aria-label={`Editar cobertura de comprobante ${paymentRecord.receipt.fileName}`}
-                            className={styles.receiptEditButton}
-                            disabled={actionDisabled}
-                            onClick={() =>
-                              onEditReceiptCoverage({
-                                expenseId,
-                                receiptFileId: paymentRecord.receipt?.fileId ?? "",
-                              })}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Pencil aria-hidden="true" />
-                          </Button>
-                          <ReceiptDeleteConfirmButton
-                            actionDisabled={actionDisabled}
-                            onConfirm={() =>
-                              onDeleteReceipt({
-                                expenseId,
-                                receiptFileId: paymentRecord.receipt?.fileId ?? "",
-                              })}
-                            receiptFileName={paymentRecord.receipt.fileName}
-                          />
-                        </div>
-                      )
-                    : (
-                        <div className={styles.paymentRecordActions}>
-                          <Button
-                            aria-label={`Editar registro manual de ${expenseDescription}`}
-                            className={styles.receiptEditButton}
-                            disabled={actionDisabled}
-                            onClick={() => {
-                              const nextCoveredPaymentsValue = window.prompt(
-                                "Ingresá la nueva cantidad de pagos",
-                                String(paymentRecord.coveredPayments),
-                              );
-
-                              if (!nextCoveredPaymentsValue) {
-                                return;
-                              }
-
-                              const parsedCoveredPayments = Number(
-                                nextCoveredPaymentsValue,
-                              );
-
-                              onEditManualPaymentRecord({
-                                coveredPayments: parsedCoveredPayments,
-                                expenseId,
-                                paymentRecordId: paymentRecord.id,
-                              });
-                            }}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Pencil aria-hidden="true" />
-                          </Button>
-                          <Button
-                            aria-label={`Eliminar registro manual de ${expenseDescription}`}
-                            className={styles.receiptDeleteButton}
-                            disabled={actionDisabled}
-                            onClick={() =>
-                              onDeleteManualPaymentRecord({
-                                expenseId,
-                                paymentRecordId: paymentRecord.id,
-                              })}
-                            size="icon-sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Trash2 aria-hidden="true" />
-                          </Button>
-                        </div>
-                      )}
+                  <div className={styles.paymentRecordActions}>
+                    <PaymentRecordActionsMenu
+                      actionDisabled={actionDisabled}
+                      confirmDeleteActionAriaLabel={
+                        paymentRecordActions.confirmDeleteActionAriaLabel
+                      }
+                      confirmDeleteActionDescription="Esta acción guarda el cambio inmediatamente en tu archivo mensual."
+                      confirmDeleteActionTitle={paymentRecordActions.confirmDeleteActionTitle}
+                      deleteActionLabel={paymentRecordActions.deleteActionLabel}
+                      editActionLabel={paymentRecordActions.editActionLabel}
+                      onDelete={paymentRecordActions.onDelete}
+                      onEdit={paymentRecordActions.onEdit}
+                      triggerAriaLabel={paymentRecordActions.triggerAriaLabel}
+                    />
+                  </div>
                 </div>
               );
             })}

@@ -717,6 +717,84 @@ registerMonthlyExpensesPageDefaultHooks({
     ).toBe(false);
   });
 
+  it("requires confirmation before deleting a manual payment record from the popover menu", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              occurrencesPerMonth: 4,
+              paymentRecords: [
+                {
+                  coveredPayments: 1,
+                  id: "manual-payment-1",
+                  registeredAt: "2026-03-01T12:00:00.000Z",
+                },
+              ],
+              subtotal: 100,
+              total: 400,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /1 registro/i }));
+
+    await user.click(
+      screen.getByRole("button", {
+        name: /Abrir acciones de registro manual .* para Internet/i,
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Eliminar registro",
+      }),
+    );
+
+    expect(
+      fetchMock.mock.calls.find(
+        ([url]) => url === "/api/storage/monthly-expenses",
+      ),
+    ).toBeUndefined();
+    expect(
+      screen.getByRole("heading", { name: "¿Querés eliminar este registro manual?" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Confirmar eliminación de registro manual de Internet",
+      }),
+    );
+
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(JSON.stringify(payload.items[0])).not.toContain("manual-payment-1");
+    });
+  });
+
   it("recalculates progress when deleting the last receipt without legacy confirmation", async () => {
     const user = userEvent.setup();
     const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
@@ -829,7 +907,13 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await user.click(
       screen.getByRole("button", {
-        name: "Eliminar comprobante comprobante.pdf",
+        name:
+          "Abrir acciones de registro de pago para comprobante comprobante.pdf de Internet",
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Eliminar registro",
       }),
     );
 
@@ -915,7 +999,13 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await user.click(
       screen.getByRole("button", {
-        name: "Editar cobertura de comprobante comprobante.pdf",
+        name:
+          "Abrir acciones de registro de pago para comprobante comprobante.pdf de Internet",
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Editar registro",
       }),
     );
 
@@ -1008,7 +1098,13 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await user.click(
       screen.getByRole("button", {
-        name: "Editar cobertura de comprobante comprobante-1.pdf",
+        name:
+          "Abrir acciones de registro de pago para comprobante comprobante-1.pdf de Internet",
+      }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: "Editar registro",
       }),
     );
 
