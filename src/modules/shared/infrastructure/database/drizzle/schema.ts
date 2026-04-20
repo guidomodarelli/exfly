@@ -6,11 +6,14 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
-export const monthlyExpensesDocumentsTable = sqliteTable(
-  "monthly_expenses_documents",
+export const monthlyExpenseMonthsTable = sqliteTable(
+  "monthly_expense_months",
   {
+    exchangeRateBlueRate: real("exchange_rate_blue_rate"),
+    exchangeRateMonth: text("exchange_rate_month"),
+    exchangeRateOfficialRate: real("exchange_rate_official_rate"),
+    exchangeRateSolidarityRate: real("exchange_rate_solidarity_rate"),
     month: text("month").notNull(),
-    payloadJson: text("payload_json").notNull(),
     updatedAtIso: text("updated_at_iso").notNull(),
     userSubject: text("user_subject").notNull(),
   },

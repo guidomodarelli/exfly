@@ -1,11 +1,11 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   expenseMonthsTable,
   expensePaymentRecordsTable,
   expenseReceiptsTable,
   expensesTable,
-  monthlyExpensesDocumentsTable,
+  monthlyExpenseMonthsTable,
 } from "@/modules/shared/infrastructure/database/drizzle/schema";
 import type { TursoDatabase } from "@/modules/shared/infrastructure/database/drizzle/turso-database";
 
@@ -14,12 +14,11 @@ import type { MonthlyExpensesRepository } from "../../../domain/repositories/mon
 import {
   createMonthlyExpensesDocument,
   type MonthlyExpenseItem,
+  type MonthlyExpensesExchangeRateSnapshot,
   type MonthlyExpensesDocument,
 } from "../../../domain/value-objects/monthly-expenses-document";
 import {
   createMonthlyExpensesFileName,
-  mapMonthlyExpensesDocumentToGoogleDriveFile,
-  parseGoogleDriveMonthlyExpensesContent,
 } from "../../google-drive/dto/mapper";
 
 interface NormalizedExpenseRow {
@@ -50,6 +49,14 @@ interface NormalizedExpenseRow {
   subtotal: number;
 }
 
+interface MonthlyExpenseMonthRow {
+  exchangeRateBlueRate: number | null;
+  exchangeRateMonth: string | null;
+  exchangeRateOfficialRate: number | null;
+  exchangeRateSolidarityRate: number | null;
+  month: string;
+}
+
 function toBooleanInteger(value: boolean): number {
   return value ? 1 : 0;
 }
@@ -70,10 +77,6 @@ function getDuplicatedExpenseIds(items: readonly MonthlyExpenseItem[]): string[]
   return Array.from(duplicatedExpenseIds);
 }
 
-function hasDuplicatedExpenseIds(items: readonly MonthlyExpenseItem[]): boolean {
-  return getDuplicatedExpenseIds(items).length > 0;
-}
-
 interface MonthlyExpensesPersistenceExecutor {
   delete: TursoDatabase["delete"];
   insert: TursoDatabase["insert"];
@@ -82,6 +85,39 @@ interface MonthlyExpensesPersistenceExecutor {
 
 function buildOrderedCreatedAtIso(baseTimestamp: number, index: number): string {
   return new Date(baseTimestamp + index).toISOString();
+}
+
+function assertUniqueExpenseIds(items: readonly MonthlyExpenseItem[]): void {
+  const duplicatedExpenseIds = getDuplicatedExpenseIds(items);
+
+  if (duplicatedExpenseIds.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    "Saving monthly expenses requires unique expense ids before persisting SQL rows.",
+  );
+}
+
+function getExchangeRateSnapshotFromRow(
+  row: MonthlyExpenseMonthRow | NormalizedExpenseRow | undefined,
+): MonthlyExpensesExchangeRateSnapshot | undefined {
+  if (
+    !row ||
+    row.exchangeRateBlueRate === null ||
+    row.exchangeRateMonth === null ||
+    row.exchangeRateOfficialRate === null ||
+    row.exchangeRateSolidarityRate === null
+  ) {
+    return undefined;
+  }
+
+  return {
+    blueRate: row.exchangeRateBlueRate,
+    month: row.exchangeRateMonth,
+    officialRate: row.exchangeRateOfficialRate,
+    solidarityRate: row.exchangeRateSolidarityRate,
+  };
 }
 
 function getPreferredAllReceiptsFolder(item: MonthlyExpenseItem): {
@@ -150,33 +186,6 @@ export class DrizzleMonthlyExpensesRepository
     private readonly userSubject: string,
   ) {}
 
-  private async getLegacyDocumentByMonth(
-    month: string,
-  ): Promise<MonthlyExpensesDocument | null> {
-    const rows = await this.database
-      .select({
-        payloadJson: monthlyExpensesDocumentsTable.payloadJson,
-      })
-      .from(monthlyExpensesDocumentsTable)
-      .where(
-        and(
-          eq(monthlyExpensesDocumentsTable.userSubject, this.userSubject),
-          eq(monthlyExpensesDocumentsTable.month, month),
-        ),
-      )
-      .limit(1);
-    const row = rows[0];
-
-    if (!row) {
-      return null;
-    }
-
-    return parseGoogleDriveMonthlyExpensesContent(
-      row.payloadJson,
-      "Loading monthly expenses from database",
-    );
-  }
-
   private async removeOrphanedExpenses(
     databaseExecutor: MonthlyExpensesPersistenceExecutor,
     expenseIds: string[],
@@ -214,20 +223,39 @@ export class DrizzleMonthlyExpensesRepository
     databaseExecutor: MonthlyExpensesPersistenceExecutor,
     document: MonthlyExpensesDocument,
   ): Promise<void> {
-    const duplicatedExpenseIds = getDuplicatedExpenseIds(document.items);
-
-    if (duplicatedExpenseIds.length > 0) {
-      await this.clearNormalizedMonthWithExecutor(
-        databaseExecutor,
-        document.month,
-      );
-
-      return;
-    }
-
+    assertUniqueExpenseIds(document.items);
     const nowIso = new Date().toISOString();
     const createdAtBaseTimestamp = Date.now();
     const currentExpenseIds = document.items.map((item) => item.id);
+
+    await databaseExecutor
+      .insert(monthlyExpenseMonthsTable)
+      .values({
+        exchangeRateBlueRate: document.exchangeRateSnapshot?.blueRate ?? null,
+        exchangeRateMonth: document.exchangeRateSnapshot?.month ?? null,
+        exchangeRateOfficialRate:
+          document.exchangeRateSnapshot?.officialRate ?? null,
+        exchangeRateSolidarityRate:
+          document.exchangeRateSnapshot?.solidarityRate ?? null,
+        month: document.month,
+        updatedAtIso: nowIso,
+        userSubject: this.userSubject,
+      })
+      .onConflictDoUpdate({
+        set: {
+          exchangeRateBlueRate: document.exchangeRateSnapshot?.blueRate ?? null,
+          exchangeRateMonth: document.exchangeRateSnapshot?.month ?? null,
+          exchangeRateOfficialRate:
+            document.exchangeRateSnapshot?.officialRate ?? null,
+          exchangeRateSolidarityRate:
+            document.exchangeRateSnapshot?.solidarityRate ?? null,
+          updatedAtIso: nowIso,
+        },
+        target: [
+          monthlyExpenseMonthsTable.userSubject,
+          monthlyExpenseMonthsTable.month,
+        ],
+      });
 
     const existingRowsForMonth = await databaseExecutor
       .select({
@@ -483,17 +511,28 @@ export class DrizzleMonthlyExpensesRepository
     await this.removeOrphanedExpenses(databaseExecutor, existingExpenseIds);
   }
 
-  private async saveNormalizedDocument(
-    document: MonthlyExpensesDocument,
-  ): Promise<void> {
-    await this.database.transaction(async (transaction) => {
-      await this.saveNormalizedDocumentWithExecutor(transaction, document);
-    });
-  }
-
   private async getByMonthFromNormalized(
     month: string,
   ): Promise<MonthlyExpensesDocument | null> {
+    const monthlyRows = await this.database
+      .select({
+        exchangeRateBlueRate: monthlyExpenseMonthsTable.exchangeRateBlueRate,
+        exchangeRateMonth: monthlyExpenseMonthsTable.exchangeRateMonth,
+        exchangeRateOfficialRate:
+          monthlyExpenseMonthsTable.exchangeRateOfficialRate,
+        exchangeRateSolidarityRate:
+          monthlyExpenseMonthsTable.exchangeRateSolidarityRate,
+        month: monthlyExpenseMonthsTable.month,
+      })
+      .from(monthlyExpenseMonthsTable)
+      .where(
+        and(
+          eq(monthlyExpenseMonthsTable.userSubject, this.userSubject),
+          eq(monthlyExpenseMonthsTable.month, month),
+        ),
+      )
+      .limit(1);
+    const monthlyRow = monthlyRows[0] as MonthlyExpenseMonthRow | undefined;
     const rows = await this.database
       .select({
         allReceiptsFolderId: expensesTable.allReceiptsFolderId,
@@ -542,7 +581,23 @@ export class DrizzleMonthlyExpensesRepository
       );
 
     if (rows.length === 0) {
-      return null;
+      if (!monthlyRow) {
+        return null;
+      }
+
+      const emptyMonthExchangeRateSnapshot =
+        getExchangeRateSnapshotFromRow(monthlyRow);
+
+      return createMonthlyExpensesDocument(
+        {
+          ...(emptyMonthExchangeRateSnapshot
+            ? { exchangeRateSnapshot: emptyMonthExchangeRateSnapshot }
+            : {}),
+          items: [],
+          month,
+        },
+        "Loading monthly expenses from database",
+      );
     }
 
     const normalizedRows = rows as NormalizedExpenseRow[];
@@ -682,20 +737,15 @@ export class DrizzleMonthlyExpensesRepository
     }
 
     const firstRow = normalizedRows[0];
+    const exchangeRateSnapshot =
+      getExchangeRateSnapshotFromRow(monthlyRow) ??
+      getExchangeRateSnapshotFromRow(firstRow);
 
     return createMonthlyExpensesDocument(
       {
-        ...(firstRow.exchangeRateMonth &&
-        firstRow.exchangeRateBlueRate &&
-        firstRow.exchangeRateOfficialRate &&
-        firstRow.exchangeRateSolidarityRate
+        ...(exchangeRateSnapshot
           ? {
-              exchangeRateSnapshot: {
-                blueRate: firstRow.exchangeRateBlueRate,
-                month: firstRow.exchangeRateMonth,
-                officialRate: firstRow.exchangeRateOfficialRate,
-                solidarityRate: firstRow.exchangeRateSolidarityRate,
-              },
+              exchangeRateSnapshot,
             }
           : {}),
         items: normalizedRows.map((row) => ({
@@ -759,127 +809,49 @@ export class DrizzleMonthlyExpensesRepository
     );
   }
 
-  private async migrateLegacyMonth(
-    month: string,
-  ): Promise<MonthlyExpensesDocument | null> {
-    const legacyDocument = await this.getLegacyDocumentByMonth(month);
-
-    if (!legacyDocument) {
-      return null;
-    }
-
-    if (hasDuplicatedExpenseIds(legacyDocument.items)) {
-      return legacyDocument;
-    }
-
-    await this.saveNormalizedDocument(legacyDocument);
-
-    return legacyDocument;
-  }
-
   async getByMonth(month: string): Promise<MonthlyExpensesDocument | null> {
-    const normalizedDocument = await this.getByMonthFromNormalized(month);
-
-    if (normalizedDocument) {
-      try {
-        const legacyDocument = await this.getLegacyDocumentByMonth(month);
-
-        if (legacyDocument && hasDuplicatedExpenseIds(legacyDocument.items)) {
-          return legacyDocument;
-        }
-      } catch {
-        return normalizedDocument;
-      }
-
-      return normalizedDocument;
-    }
-
-    return this.migrateLegacyMonth(month);
+    return this.getByMonthFromNormalized(month);
   }
 
   async getOldestStoredMonth(): Promise<string | null> {
-    const normalizedRows = await this.database
+    const rows = await this.database
       .select({
-        month: expenseMonthsTable.month,
+        month: monthlyExpenseMonthsTable.month,
       })
-      .from(expenseMonthsTable)
-      .where(eq(expenseMonthsTable.userSubject, this.userSubject))
-      .orderBy(asc(expenseMonthsTable.month))
+      .from(monthlyExpenseMonthsTable)
+      .where(eq(monthlyExpenseMonthsTable.userSubject, this.userSubject))
+      .orderBy(asc(monthlyExpenseMonthsTable.month))
       .limit(1);
 
-    const legacyRows = await this.database
-      .select({
-        month: monthlyExpensesDocumentsTable.month,
-      })
-      .from(monthlyExpensesDocumentsTable)
-      .where(eq(monthlyExpensesDocumentsTable.userSubject, this.userSubject))
-      .orderBy(asc(monthlyExpensesDocumentsTable.month))
-      .limit(1);
-
-    const oldestMonth = [normalizedRows[0]?.month, legacyRows[0]?.month]
-      .filter((value): value is string => Boolean(value))
-      .sort((left, right) => left.localeCompare(right))[0];
-
-    return oldestMonth ?? null;
+    return rows[0]?.month ?? null;
   }
 
   async save(
     document: MonthlyExpensesDocument,
   ): Promise<StoredMonthlyExpensesDocument> {
-    const serializedDocument = mapMonthlyExpensesDocumentToGoogleDriveFile(document);
-    const nowIso = new Date().toISOString();
+    assertUniqueExpenseIds(document.items);
 
     await this.database.transaction(async (transaction) => {
       await this.saveNormalizedDocumentWithExecutor(transaction, document);
-
-      await transaction
-        .insert(monthlyExpensesDocumentsTable)
-        .values({
-          month: document.month,
-          payloadJson: serializedDocument.content,
-          updatedAtIso: nowIso,
-          userSubject: this.userSubject,
-        })
-        .onConflictDoUpdate({
-          set: {
-            payloadJson: serializedDocument.content,
-            updatedAtIso: nowIso,
-          },
-          target: [
-            monthlyExpensesDocumentsTable.userSubject,
-            monthlyExpensesDocumentsTable.month,
-          ],
-        });
     });
 
     return {
       id: `${this.userSubject}:${document.month}`,
       month: document.month,
-      name: serializedDocument.name,
+      name: createMonthlyExpensesFileName(document.month),
       viewUrl: null,
     };
   }
 
   async listAll(): Promise<MonthlyExpensesDocument[]> {
-    const normalizedMonthsRows = await this.database
+    const monthlyRows = await this.database
       .select({
-        month: expenseMonthsTable.month,
+        month: monthlyExpenseMonthsTable.month,
       })
-      .from(expenseMonthsTable)
-      .where(eq(expenseMonthsTable.userSubject, this.userSubject));
-
-    const legacyMonthsRows = await this.database
-      .select({
-        month: monthlyExpensesDocumentsTable.month,
-      })
-      .from(monthlyExpensesDocumentsTable)
-      .where(eq(monthlyExpensesDocumentsTable.userSubject, this.userSubject));
-
+      .from(monthlyExpenseMonthsTable)
+      .where(eq(monthlyExpenseMonthsTable.userSubject, this.userSubject));
     const uniqueMonths = Array.from(
-      new Set([
-        ...normalizedMonthsRows.map((row) => row.month),
-        ...legacyMonthsRows.map((row) => row.month),
-      ]),
+      new Set(monthlyRows.map((row) => row.month)),
     ).sort((left, right) => left.localeCompare(right));
 
     const documents: MonthlyExpensesDocument[] = [];
@@ -896,31 +868,14 @@ export class DrizzleMonthlyExpensesRepository
   }
 
   async listMonthsWithExpenses(): Promise<string[]> {
-    const normalizedMonthsRows = await this.database
+    const monthRows = await this.database
       .select({
         month: expenseMonthsTable.month,
       })
       .from(expenseMonthsTable)
       .where(eq(expenseMonthsTable.userSubject, this.userSubject));
 
-    const legacyMonthsRows = await this.database
-      .select({
-        month: monthlyExpensesDocumentsTable.month,
-      })
-      .from(monthlyExpensesDocumentsTable)
-      .where(
-        and(
-          eq(monthlyExpensesDocumentsTable.userSubject, this.userSubject),
-          sql`json_array_length(json_extract(${monthlyExpensesDocumentsTable.payloadJson}, '$.items')) > 0`,
-        ),
-      );
-
-    return Array.from(
-      new Set([
-        ...normalizedMonthsRows.map((row) => row.month),
-        ...legacyMonthsRows.map((row) => row.month),
-      ]),
-    );
+    return Array.from(new Set(monthRows.map((row) => row.month)));
   }
 
   createFileName(month: string): string {

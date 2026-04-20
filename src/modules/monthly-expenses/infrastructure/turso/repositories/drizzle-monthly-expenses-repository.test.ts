@@ -4,13 +4,13 @@ import {
 } from "@/modules/monthly-expenses/domain/value-objects/monthly-expenses-document";
 import {
   expensesTable,
-  monthlyExpensesDocumentsTable,
+  monthlyExpenseMonthsTable,
 } from "@/modules/shared/infrastructure/database/drizzle/schema";
 
 import { DrizzleMonthlyExpensesRepository } from "./drizzle-monthly-expenses-repository";
 
 describe("DrizzleMonthlyExpensesRepository", () => {
-  it("persists normalized and legacy documents in a single transaction", async () => {
+  it("persists monthly metadata and normalized rows in a single transaction", async () => {
     const selectWhereMock = jest.fn().mockResolvedValue([]);
     const selectFromMock = jest.fn().mockReturnValue({
       where: selectWhereMock,
@@ -50,7 +50,7 @@ describe("DrizzleMonthlyExpensesRepository", () => {
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(selectMock).toHaveBeenCalledTimes(1);
     expect(transactionExecutor.insert).toHaveBeenCalledWith(
-      monthlyExpensesDocumentsTable,
+      monthlyExpenseMonthsTable,
     );
     expect(transactionExecutor.insert).toHaveBeenCalledTimes(1);
   });
@@ -167,16 +167,25 @@ describe("DrizzleMonthlyExpensesRepository", () => {
   });
 
   it("orders normalized reads by created timestamp and expense id", async () => {
+    const metadataLimitMock = jest.fn().mockResolvedValue([]);
+    const metadataWhereMock = jest.fn().mockReturnValue({
+      limit: metadataLimitMock,
+    });
     const orderByMock = jest.fn().mockResolvedValue([]);
-    const whereMock = jest.fn().mockReturnValue({
+    const expensesWhereMock = jest.fn().mockReturnValue({
       orderBy: orderByMock,
     });
     const innerJoinMock = jest.fn().mockReturnValue({
-      where: whereMock,
+      where: expensesWhereMock,
     });
-    const fromMock = jest.fn().mockReturnValue({
-      innerJoin: innerJoinMock,
-    });
+    const fromMock = jest
+      .fn()
+      .mockReturnValueOnce({
+        where: metadataWhereMock,
+      })
+      .mockReturnValueOnce({
+        innerJoin: innerJoinMock,
+      });
     const selectMock = jest.fn().mockReturnValue({
       from: fromMock,
     });
@@ -188,7 +197,7 @@ describe("DrizzleMonthlyExpensesRepository", () => {
       "user-subject",
     );
 
-    await (repository as {
+    await (repository as unknown as {
       getByMonthFromNormalized: (month: string) => Promise<unknown>;
     }).getByMonthFromNormalized("2026-04");
 
@@ -196,33 +205,69 @@ describe("DrizzleMonthlyExpensesRepository", () => {
     expect(orderByMock.mock.calls[0]).toHaveLength(2);
   });
 
-  it("skips normalized persistence when document has duplicated expense ids", async () => {
-    const selectWhereMock = jest.fn().mockResolvedValue([]);
-    const selectFromMock = jest.fn().mockReturnValue({
-      where: selectWhereMock,
+  it("returns an empty document when monthly metadata exists without expense rows", async () => {
+    const metadataLimitMock = jest.fn().mockResolvedValue([
+      {
+        exchangeRateBlueRate: 1200,
+        exchangeRateMonth: "2026-04",
+        exchangeRateOfficialRate: 1000,
+        exchangeRateSolidarityRate: 1300,
+        month: "2026-04",
+      },
+    ]);
+    const metadataWhereMock = jest.fn().mockReturnValue({
+      limit: metadataLimitMock,
     });
-    const selectMock = jest.fn().mockReturnValue({
-      from: selectFromMock,
+    const expensesOrderByMock = jest.fn().mockResolvedValue([]);
+    const expensesWhereMock = jest.fn().mockReturnValue({
+      orderBy: expensesOrderByMock,
     });
-    const deleteWhereMock = jest.fn().mockResolvedValue(undefined);
-    const deleteMock = jest.fn().mockReturnValue({
-      where: deleteWhereMock,
+    const innerJoinMock = jest.fn().mockReturnValue({
+      where: expensesWhereMock,
     });
-    const insertMock = jest.fn().mockReturnValue({
-      values: jest.fn().mockReturnValue({
-        onConflictDoUpdate: jest.fn().mockResolvedValue(undefined),
-      }),
-    });
-    const transactionExecutor = {
-      delete: deleteMock,
-      insert: insertMock,
-      select: selectMock,
-    };
-    const transactionMock = jest
+    const fromMock = jest
       .fn()
-      .mockImplementation(async (callback: (tx: unknown) => Promise<void>) =>
-        callback(transactionExecutor),
-      );
+      .mockReturnValueOnce({
+        where: metadataWhereMock,
+      })
+      .mockReturnValueOnce({
+        innerJoin: innerJoinMock,
+      });
+    const selectMock = jest.fn().mockReturnValue({
+      from: fromMock,
+    });
+    const repository = new DrizzleMonthlyExpensesRepository(
+      {
+        select: selectMock,
+      } as never,
+      "user-subject",
+    );
+
+    const result = await (repository as unknown as {
+      getByMonthFromNormalized: (
+        month: string,
+      ) => Promise<ReturnType<typeof createEmptyMonthlyExpensesDocument> | null>;
+    }).getByMonthFromNormalized("2026-04");
+
+    expect(result).toEqual(
+      createMonthlyExpensesDocument(
+        {
+          exchangeRateSnapshot: {
+            blueRate: 1200,
+            month: "2026-04",
+            officialRate: 1000,
+            solidarityRate: 1300,
+          },
+          items: [],
+          month: "2026-04",
+        },
+        "Testing empty monthly metadata reads",
+      ),
+    );
+  });
+
+  it("rejects duplicated expense ids before starting persistence", async () => {
+    const transactionMock = jest.fn();
     const repository = new DrizzleMonthlyExpensesRepository(
       {
         transaction: transactionMock,
@@ -252,14 +297,14 @@ describe("DrizzleMonthlyExpensesRepository", () => {
       "Testing duplicated expense ids persistence",
     );
 
-    await repository.save(duplicatedIdsDocument);
+    await expect(repository.save(duplicatedIdsDocument)).rejects.toThrow(
+      "Saving monthly expenses requires unique expense ids before persisting SQL rows.",
+    );
 
-    expect(transactionMock).toHaveBeenCalledTimes(1);
-    expect(insertMock).toHaveBeenCalledTimes(1);
-    expect(insertMock).toHaveBeenCalledWith(monthlyExpensesDocumentsTable);
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
-  it("returns legacy document when normalized month exists but legacy has duplicated ids", async () => {
+  it("returns normalized documents without checking the legacy JSON table", async () => {
     const repository = new DrizzleMonthlyExpensesRepository(
       {} as never,
       "user-subject",
@@ -279,37 +324,17 @@ describe("DrizzleMonthlyExpensesRepository", () => {
       },
       "Testing normalized result",
     );
-    const legacyDocumentWithDuplicates = createMonthlyExpensesDocument(
-      {
-        items: [
-          {
-            currency: "ARS",
-            description: "Legacy expense A",
-            id: "duplicated-id",
-            occurrencesPerMonth: 1,
-            subtotal: 100,
-          },
-          {
-            currency: "ARS",
-            description: "Legacy expense B",
-            id: "duplicated-id",
-            occurrencesPerMonth: 2,
-            subtotal: 200,
-          },
-        ],
-        month: "2026-04",
+    jest.spyOn(
+      repository as unknown as {
+        getByMonthFromNormalized: (
+          month: string,
+        ) => Promise<typeof normalizedDocument>;
       },
-      "Testing duplicated expense ids fallback",
-    );
-    jest
-      .spyOn(repository as never, "getByMonthFromNormalized")
-      .mockResolvedValue(normalizedDocument);
-    jest
-      .spyOn(repository as never, "getLegacyDocumentByMonth")
-      .mockResolvedValue(legacyDocumentWithDuplicates);
+      "getByMonthFromNormalized",
+    ).mockResolvedValue(normalizedDocument);
 
     const result = await repository.getByMonth("2026-04");
 
-    expect(result).toEqual(legacyDocumentWithDuplicates);
+    expect(result).toEqual(normalizedDocument);
   });
 });
