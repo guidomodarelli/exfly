@@ -51,7 +51,7 @@ const SHARE_ERROR_MESSAGES: Record<string, string> = {
   "empty-payload": "No pudimos recuperar el contenido del comprobante compartido.",
   "invalid-payload": "No pudimos procesar el comprobante compartido.",
   "invalid-size": "El comprobante debe pesar entre 1 byte y 5 MB.",
-  "missing-file": "No recibimos un archivo al compartir con Larry.",
+  "missing-file": "No recibimos un archivo al compartir con Mes en regla.",
   "unsupported-type": "Solo se admiten comprobantes PDF, JPG, PNG, WEBP, HEIC o HEIF.",
 };
 const MANUAL_RECEIPT_INVALID_TYPE_ERROR = SHARE_ERROR_MESSAGES["unsupported-type"];
@@ -594,7 +594,7 @@ export default function ReceiptShareTargetPage() {
               </p>
             ) : (
               <p className={styles.feedbackNeutral}>
-                No hay un comprobante pendiente. Comparti un archivo hacia Larry
+                No hay un comprobante pendiente. Comparti un archivo hacia Mes en regla
                 desde otra app, o seleccionalo manualmente.
               </p>
             )}

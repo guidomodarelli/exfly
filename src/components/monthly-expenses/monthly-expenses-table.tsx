@@ -125,7 +125,7 @@ const LOAN_SORT_COLUMN_ID = "loanProgress";
 const LOAN_INSTALLMENT_START_COLUMN_ID = "loanInstallmentStart";
 const LOAN_INSTALLMENT_END_COLUMN_ID = "loanInstallmentEnd";
 const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
-  "larry.monthly-expenses.table-preferences";
+  "mes-en-regla.monthly-expenses.table-preferences";
 const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
   usd: false,
 };

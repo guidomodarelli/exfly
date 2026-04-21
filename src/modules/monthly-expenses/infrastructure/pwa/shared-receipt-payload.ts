@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const SHARED_RECEIPT_PAYLOAD_CACHE_NAME = "larry-shared-receipt-v1";
+export const SHARED_RECEIPT_PAYLOAD_CACHE_NAME = "mes-en-regla-shared-receipt-v1";
 export const SHARED_RECEIPT_PAYLOAD_CACHE_PATH = "/__pwa/shared-receipt/payload";
 export const MAX_SHARED_RECEIPT_SIZE_BYTES = 5 * 1024 * 1024;
 export const DEFAULT_SHARED_RECEIPT_MAX_AGE_MS = 30 * 60 * 1000;
@@ -68,7 +68,7 @@ function getRequestUrl({
     (typeof globalThis !== "undefined" && "location" in globalThis
       ? globalThis.location.origin
       : "") ||
-    "https://larry.local";
+    "https://mes-en-regla.local";
 
   return `${origin}${SHARED_RECEIPT_PAYLOAD_CACHE_PATH}`;
 }

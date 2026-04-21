@@ -110,7 +110,7 @@ export function FinanceAppShell({
         <SidebarHeader
           className={`${styles.sidebarHeader} group-data-[collapsible=icon]:hidden`}
         >
-          <p className={styles.sidebarTitle}>Larry</p>
+          <p className={styles.sidebarTitle}>Mes en regla</p>
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>

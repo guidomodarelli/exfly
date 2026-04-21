@@ -28,7 +28,7 @@ type PagePropsWithSession = {
   session?: Session | null;
 };
 
-const APP_NAME = "Larry";
+const APP_NAME = "Mes en regla";
 const APP_DESCRIPTION = "Gestiona tus gastos, prestamistas y reportes mensuales.";
 const APP_THEME_COLOR = "#121826";
 const PAGE_TITLE_BY_PATHNAME: Record<string, string> = {
