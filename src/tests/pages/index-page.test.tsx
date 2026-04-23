@@ -17,7 +17,7 @@ describe("HomePage redirect", () => {
   it("redirects root traffic to /gastos", async () => {
     const result = await getServerSideProps(createContext({}));
 
-    expect("redirect" in result && result.redirect?.destination).toBe("/gastos");
+    expect("redirect" in result && result.redirect?.destination).toBe("/compromisos");
     expect("redirect" in result).toBe(true);
   });
 
@@ -26,7 +26,7 @@ describe("HomePage redirect", () => {
       tab: "lenders",
     }));
 
-    expect("redirect" in result && result.redirect?.destination).toBe("/gastos");
+    expect("redirect" in result && result.redirect?.destination).toBe("/compromisos");
   });
 
   it("ignores tab=exchange-rates and keeps the canonical /gastos redirect", async () => {
@@ -34,7 +34,7 @@ describe("HomePage redirect", () => {
       tab: "exchange-rates",
     }));
 
-    expect("redirect" in result && result.redirect?.destination).toBe("/gastos");
+    expect("redirect" in result && result.redirect?.destination).toBe("/compromisos");
   });
 
   it("preserves month even when a tab query is sent", async () => {
@@ -44,7 +44,7 @@ describe("HomePage redirect", () => {
     }));
 
     expect("redirect" in result && result.redirect?.destination).toBe(
-      "/gastos?month=2026-03",
+      "/compromisos?month=2026-03",
     );
   });
 
@@ -54,7 +54,7 @@ describe("HomePage redirect", () => {
     }));
 
     expect("redirect" in result && result.redirect?.destination).toBe(
-      "/gastos?month=2026-04",
+      "/compromisos?month=2026-04",
     );
   });
 });

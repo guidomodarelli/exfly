@@ -438,7 +438,7 @@ export default function ReceiptShareTargetPage() {
     }
 
     if (!monthDocument) {
-      setSaveError("Todavia no pudimos cargar los gastos del mes seleccionado.");
+      setSaveError("Todavia no pudimos cargar los compromisos del mes seleccionado.");
       return;
     }
 
@@ -449,7 +449,7 @@ export default function ReceiptShareTargetPage() {
 
     if (isCreatingExpense) {
       if (!newExpenseDescription.trim()) {
-        setSaveError("Completá el nombre del nuevo gasto.");
+        setSaveError("Completá el nombre del nuevo compromiso.");
         return;
       }
 
@@ -466,12 +466,12 @@ export default function ReceiptShareTargetPage() {
       targetExpenseId = createExpenseId();
       targetExpenseDescription = newExpenseDescription.trim();
     } else if (!selectedExpense) {
-      setSaveError("Seleccioná un gasto para asociar el comprobante.");
+      setSaveError("Seleccioná un compromiso para asociar el comprobante.");
       return;
     }
 
     if (remainingReceiptPayments <= 0) {
-      setSaveError("No quedan pagos pendientes para asociar en este gasto.");
+      setSaveError("No quedan pagos pendientes para asociar en este compromiso.");
       return;
     }
 
@@ -553,7 +553,7 @@ export default function ReceiptShareTargetPage() {
       await consumeSharedReceiptPayload();
 
       toast.success("Comprobante guardado correctamente.");
-      await router.push(`/gastos?month=${encodeURIComponent(selectedMonth)}`);
+      await router.push(`/compromisos?month=${encodeURIComponent(selectedMonth)}`);
     } catch (error) {
       setSaveError(getSafeMonthlyExpensesErrorMessage(error));
       toast.error("No pudimos guardar el comprobante.");
@@ -670,7 +670,7 @@ export default function ReceiptShareTargetPage() {
         {!isAuthenticated ? (
           <div className={styles.authCard}>
             <p className={styles.feedbackNeutral}>
-              Conectate con Google para cargar tus gastos del mes y guardar el comprobante.
+              Conectate con Google para cargar tus compromisos del mes y guardar el comprobante.
             </p>
             <Button onClick={handleConnectGoogle} type="button">
               Conectar con Google
@@ -685,12 +685,12 @@ export default function ReceiptShareTargetPage() {
                   onChange={(event) => handleCreateExpenseToggle(event.target.checked)}
                   type="checkbox"
                 />
-                Crear gasto nuevo
+                Crear compromiso nuevo
               </label>
             </div>
 
             {isLoadingMonthDocument ? (
-              <p className={styles.feedbackNeutral}>Cargando gastos del periodo seleccionado...</p>
+              <p className={styles.feedbackNeutral}>Cargando compromisos del periodo seleccionado...</p>
             ) : null}
 
             {documentLoadError ? (
@@ -699,7 +699,7 @@ export default function ReceiptShareTargetPage() {
 
             {!isCreatingExpense ? (
               <div className={styles.fieldGroup}>
-                <Label htmlFor="receipt-target-expense">Gasto existente</Label>
+                <Label htmlFor="receipt-target-expense">Compromiso existente</Label>
                 <select
                   className={styles.selectField}
                   id="receipt-target-expense"
@@ -709,7 +709,7 @@ export default function ReceiptShareTargetPage() {
                   }}
                   value={selectedExpenseId}
                 >
-                  <option value="">Seleccionar gasto</option>
+                  <option value="">Seleccionar compromiso</option>
                   {(monthDocument?.items ?? []).map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.description}
@@ -720,7 +720,7 @@ export default function ReceiptShareTargetPage() {
             ) : (
               <div className={styles.newExpenseGrid}>
                 <div className={styles.fieldGroup}>
-                  <Label htmlFor="new-expense-description">Nombre del gasto</Label>
+                  <Label htmlFor="new-expense-description">Nombre del compromiso</Label>
                   <Input
                     id="new-expense-description"
                     onChange={(event) => setNewExpenseDescription(event.target.value)}
@@ -773,7 +773,7 @@ export default function ReceiptShareTargetPage() {
             <div className={styles.coverageCard}>
               <h3 className={styles.coverageTitle}>Cobertura del comprobante</h3>
               <p className={styles.coverageHint}>
-                Pagos pendientes para este gasto en {selectedMonth}: {remainingReceiptPayments}
+                Pagos pendientes para este compromiso en {selectedMonth}: {remainingReceiptPayments}
               </p>
 
               <RadioGroup

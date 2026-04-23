@@ -84,7 +84,7 @@ export function MonthlyExpensesLoansReport({
   return (
     <section className={styles.content}>
       <p className={styles.description}>
-        Revisá cuánto debés por prestamista y qué gastos están asociados.
+        Revisá cuánto debés por prestamista y qué compromisos están asociados.
       </p>
 
       <div className={styles.summaryGrid}>
@@ -199,7 +199,7 @@ export function MonthlyExpensesLoansReport({
                 </div>
               </div>
               <div className={styles.entryExpenses}>
-                <p className={styles.entryExpensesLabel}>Gastos asociados</p>
+                <p className={styles.entryExpensesLabel}>Compromisos asociados</p>
                 <div className={styles.entryExpenseBadges}>
                   {entry.expenseDescriptions.length > 0 ? (
                     entry.expenseDescriptions.map((description, index) => (
@@ -208,7 +208,7 @@ export function MonthlyExpensesLoansReport({
                       </span>
                     ))
                   ) : (
-                    <span className={styles.entryExpenseEmpty}>Sin gastos asociados</span>
+                    <span className={styles.entryExpenseEmpty}>Sin compromisos asociados</span>
                   )}
                 </div>
               </div>

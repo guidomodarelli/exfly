@@ -72,7 +72,7 @@ export function createMockRouter(
 ) {
   const router = {
     isReady: true,
-    pathname: "/gastos",
+    pathname: "/compromisos",
     query: {},
     push: jest.fn().mockImplementation(async (nextRoute: unknown) => {
       if (

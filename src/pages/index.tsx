@@ -10,7 +10,7 @@ function getRedirectDestination(context: GetServerSidePropsContext): string {
     : context.query.month;
   const normalizedMonth = monthQuery?.trim();
 
-  return normalizedMonth ? `/gastos?month=${encodeURIComponent(normalizedMonth)}` : "/gastos";
+  return normalizedMonth ? `/compromisos?month=${encodeURIComponent(normalizedMonth)}` : "/compromisos";
 }
 
 export const getServerSideProps: GetServerSideProps = async (

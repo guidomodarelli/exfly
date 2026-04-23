@@ -242,7 +242,7 @@ export function createMonthlyExpensesFileName(month: string): string {
     );
   }
 
-  return `gastos-mensuales-${yearValue}-${monthName}.json`;
+  return `compromisos-mensuales-${yearValue}-${monthName}.json`;
 }
 
 export function mapMonthlyExpensesDocumentToGoogleDriveFile(

@@ -29,14 +29,15 @@ type PagePropsWithSession = {
 };
 
 const APP_NAME = "Mes en regla";
-const APP_DESCRIPTION = "Gestiona tus gastos, prestamistas y reportes mensuales.";
+const APP_DESCRIPTION = "Gestiona tus compromisos mensuales: pagos, deudas, cuotas, prestamos, comprobantes y prestamistas, con reportes de seguimiento.";
 const APP_THEME_COLOR = "#121826";
 const PAGE_TITLE_BY_PATHNAME: Record<string, string> = {
   "/": "Inicio",
   "/auth/error": "Error de autenticacion",
   "/auth/signin": "Conectar Google",
   "/cotizaciones": "Cotizaciones del dolar",
-  "/gastos": "Gastos del mes",
+  "/gastos": "Compromisos Mensuales",
+  "/compromisos": "Compromisos Mensuales",
   "/prestamistas": "Prestamistas",
   "/recibir-comprobante": "Recibir comprobante",
   "/reportes/deudas": "Reporte de deudas",

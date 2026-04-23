@@ -240,13 +240,13 @@ function ExpenseSheetContent({
   validationMessage,
 }: ExpenseSheetContentProps) {
   const isCreateMode = mode === "create";
-  const title = mode === "create" ? "Nuevo gasto" : "Editar gasto";
+  const title = mode === "create" ? "Nuevo compromiso" : "Editar compromiso";
   const description =
     mode === "create"
-      ? "Completá y guardá este gasto del mes."
-      : "Editá y guardá los cambios de este gasto.";
+      ? "Completá y guardá este compromiso mensual."
+      : "Editá y guardá los cambios de este compromiso.";
   const loanHelpMessage =
-    "Marcá esta opción si el gasto corresponde a una deuda.";
+    "Marcá esta opción si el compromiso corresponde a una deuda.";
   const hasPendingChanges = changedFields.size > 0;
   const currencyPrefix = draft.currency === "USD" ? "US$" : "$";
   const totalFormulaSubtotalAmount =
@@ -319,7 +319,7 @@ function ExpenseSheetContent({
                 <DialogDescription>{description}</DialogDescription>
               </div>
               <Button
-                aria-label="Cerrar formulario de gasto"
+                aria-label="Cerrar formulario de compromiso"
                 className={styles.closeButton}
                 onClick={onRequestClose}
                 size="icon-sm"
@@ -892,7 +892,7 @@ function ExpenseSheetContent({
               </Button>
             </div>
             <DialogDescription>
-              Tenés cambios sin guardar en este gasto.
+              Tenés cambios sin guardar en este compromiso.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className={styles.unsavedChangesFooter}>

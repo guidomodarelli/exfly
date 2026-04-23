@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { MonthlyExpensesDocumentResult } from "@/modules/monthly-expenses/application/results/monthly-expenses-document-result";
 import { copyMonthlyExpenseTemplatesToMonth } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
-import MonthlyExpensesPage, { getRequestedMonthlyExpensesTab } from "@/pages/gastos";
+import MonthlyExpensesPage, { getRequestedMonthlyExpensesTab } from "@/pages/compromisos";
 
 import {
   basePageProps,
@@ -109,7 +109,7 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-03");
     expect(screen.getByText("Agua")).toBeInTheDocument();
     expect(
-      screen.getByRole("textbox", { name: "Filtrar gastos" }),
+      screen.getByRole("textbox", { name: "Filtrar compromisos" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Guardar gastos" }),
@@ -759,7 +759,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.type(screen.getByRole("textbox", { name: "Filtrar gastos" }), "aa");
+    await user.type(screen.getByRole("textbox", { name: "Filtrar compromisos" }), "aa");
     await user.click(screen.getByRole("button", { name: "Ordenar Subtotal" }));
 
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Aab", "Aaa"]);
@@ -1015,7 +1015,7 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.getByText("Guardá prestamistas para reutilizarlos en tus deudas."),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: "Gastos del mes" }),
+      screen.queryByRole("heading", { name: "Compromisos Mensuales" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1242,7 +1242,7 @@ registerMonthlyExpensesPageDefaultHooks({
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
         {
-          pathname: "/gastos",
+          pathname: "/compromisos",
           query: {
             month: "2026-04",
             tab: "expenses",
@@ -1546,7 +1546,7 @@ registerMonthlyExpensesPageDefaultHooks({
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
         {
-          pathname: "/gastos",
+          pathname: "/compromisos",
           query: {
             month: "2026-04",
             tab: "expenses",
@@ -1670,7 +1670,7 @@ registerMonthlyExpensesPageDefaultHooks({
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
         {
-          pathname: "/gastos",
+          pathname: "/compromisos",
           query: {
             month: "2026-04",
             tab: "expenses",
@@ -2085,7 +2085,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await waitFor(() => {
       expect(mockedToast.error).toHaveBeenCalledWith(
-        "Conectate con Google para cargar tus gastos mensuales.",
+        "Conectate con Google para cargar tus compromisos mensuales.",
       );
     });
     expect(router.push).not.toHaveBeenCalled();
@@ -2133,7 +2133,7 @@ registerMonthlyExpensesPageDefaultHooks({
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(
         {
-          pathname: "/gastos",
+          pathname: "/compromisos",
           query: {
             month: "2026-04",
             tab: "expenses",
@@ -2160,7 +2160,7 @@ registerMonthlyExpensesPageDefaultHooks({
       },
     });
     const loadErrorMessage =
-      "No pudimos cargar los gastos mensuales desde la base de datos.";
+      "No pudimos cargar los compromisos mensuales desde la base de datos.";
     const fetchMock = createMonthlyExpensesFetchMock({
       copyableMonths: {
         defaultSourceMonth: "2026-03",

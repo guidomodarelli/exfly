@@ -10,7 +10,7 @@ import {
   getSafeMonthlyExpensesLoadErrorMessage,
   getSafeMonthlyExpensesErrorMessage,
 } from "@/modules/monthly-expenses/application/queries/get-monthly-expenses-page-feedback";
-import MonthlyExpensesPage, { getReportProviderFilterOptions } from "@/pages/gastos";
+import MonthlyExpensesPage, { getReportProviderFilterOptions } from "@/pages/compromisos";
 
 import {
   basePageProps,
@@ -111,7 +111,7 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(
       getSafeLoansReportErrorMessage("repository.listAll is not a function"),
     ).toBe(
-      "No pudimos actualizar el reporte de deudas en este momento. Igual podés seguir cargando gastos y volver a intentarlo más tarde.",
+      "No pudimos actualizar el reporte de deudas en este momento. Igual podés seguir cargando compromisos y volver a intentarlo más tarde.",
     );
   });
 
@@ -120,7 +120,7 @@ registerMonthlyExpensesPageDefaultHooks({
       getSafeMonthlyExpensesErrorMessage(
         "Google authentication is required before saving monthly expenses to Drive.",
       ),
-    ).toBe("Conectate con Google para guardar tus gastos mensuales en Drive.");
+    ).toBe("Conectate con Google para guardar tus compromisos mensuales en Drive.");
   });
 
   it("maps technical monthly expenses load errors to a user-friendly message", () => {
@@ -128,7 +128,7 @@ registerMonthlyExpensesPageDefaultHooks({
       getSafeMonthlyExpensesLoadErrorMessage(
         "Google authentication is required before loading monthly expenses from Drive.",
       ),
-    ).toBe("Conectate con Google para cargar tus gastos mensuales.");
+    ).toBe("Conectate con Google para cargar tus compromisos mensuales.");
   });
 
   it("maps technical lenders errors to a user-friendly message", () => {
@@ -156,7 +156,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(
       screen.getByText(
-        "No pudimos actualizar el reporte de deudas en este momento. Igual podés seguir cargando gastos y volver a intentarlo más tarde.",
+        "No pudimos actualizar el reporte de deudas en este momento. Igual podés seguir cargando compromisos y volver a intentarlo más tarde.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -197,7 +197,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Agregar gasto" }));
+    await user.click(screen.getByRole("button", { name: "Agregar compromiso" }));
     fireEvent.change(screen.getByLabelText("Descripción"), {
       target: { value: "Expensas" },
     });
@@ -208,7 +208,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(
       await screen.findByText(
-        "Conectate con Google para guardar tus gastos mensuales en Drive.",
+        "Conectate con Google para guardar tus compromisos mensuales en Drive.",
       ),
     ).toBeInTheDocument();
     expect(

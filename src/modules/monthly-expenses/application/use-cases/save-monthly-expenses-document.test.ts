@@ -10,7 +10,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: "https://drive.google.com/file/d/monthly-expenses-file-id/view",
       }),
     };
@@ -70,7 +70,7 @@ describe("saveMonthlyExpensesDocument", () => {
       storedDocument: {
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: "https://drive.google.com/file/d/monthly-expenses-file-id/view",
       },
     });
@@ -109,7 +109,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -202,7 +202,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -286,7 +286,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -367,7 +367,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -511,7 +511,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -577,7 +577,7 @@ describe("saveMonthlyExpensesDocument", () => {
       storedDocument: {
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       },
     });
@@ -619,7 +619,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -741,7 +741,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };
@@ -870,7 +870,7 @@ describe("saveMonthlyExpensesDocument", () => {
       save: jest.fn().mockResolvedValue({
         id: "monthly-expenses-file-id",
         month: "2026-03",
-        name: "gastos-mensuales-2026-marzo.json",
+        name: "compromisos-mensuales-2026-marzo.json",
         viewUrl: null,
       }),
     };

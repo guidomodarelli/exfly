@@ -71,7 +71,7 @@ export function ExpenseReceiptUploadDialog({
     () =>
       expenseDescription.trim().length > 0
         ? `Comprobante para ${expenseDescription.trim()}`
-        : "Comprobante del gasto",
+        : "Comprobante del compromiso",
     [expenseDescription],
   );
 

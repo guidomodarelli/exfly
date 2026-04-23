@@ -129,7 +129,7 @@ const MONTHLY_EXPENSES_TABLE_PREFERENCES_STORAGE_KEY =
 const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
   usd: false,
 };
-const MONTHLY_EXPENSES_EMPTY_MESSAGE = "No hay gastos cargados para este mes.";
+const MONTHLY_EXPENSES_EMPTY_MESSAGE = "No hay compromisos cargados para este mes.";
 const MONTHLY_EXPENSES_FILTERED_EMPTY_MESSAGE =
   "No hay resultados para los filtros actuales.";
 const SORTABLE_COLUMN_IDS = new Set([
@@ -478,7 +478,7 @@ function PaymentLinkActionsMenu({
 }: PaymentLinkActionsMenuProps) {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const normalizedExpenseDescription = expenseDescription.trim() || "gasto";
+  const normalizedExpenseDescription = expenseDescription.trim() || "compromiso";
 
   return (
     <AlertDialog onOpenChange={setIsConfirmDialogOpen} open={isConfirmDialogOpen}>
@@ -560,7 +560,7 @@ function QuickEditActionsMenu({
 }: QuickEditActionsMenuProps) {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const normalizedExpenseDescription = expenseDescription.trim() || "gasto";
+  const normalizedExpenseDescription = expenseDescription.trim() || "compromiso";
   const shouldConfirmDelete =
     Boolean(confirmDeleteActionTitle) && Boolean(confirmDeleteActionDescription);
 
@@ -2419,7 +2419,7 @@ export function MonthlyExpensesTable({
       }
 
       pendingExpenses.push({
-        displayDescription: row.description.trim() || "Gasto sin descripción",
+        displayDescription: row.description.trim() || "Compromiso sin descripción",
         expenseId: row.id,
         rawDescription: row.description,
       });
@@ -2780,7 +2780,7 @@ export function MonthlyExpensesTable({
       {
         accessorKey: "subtotal",
         cell: ({ row }) => {
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
 
           return (
             <div className={styles.quickEditCell}>
@@ -2847,7 +2847,7 @@ export function MonthlyExpensesTable({
       {
         accessorKey: "occurrencesPerMonth",
         cell: ({ row }) => {
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
 
           return (
             <div className={styles.quickEditCell}>
@@ -3026,7 +3026,7 @@ export function MonthlyExpensesTable({
         accessorKey: "paymentLink",
         cell: ({ row }) => {
           const paymentLink = getValidPaymentLinkUrl(row.original.paymentLink);
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
 
           if (!paymentLink) {
             return (
@@ -3127,7 +3127,7 @@ export function MonthlyExpensesTable({
             return null;
           }
 
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
           const isPaymentFullyCompleted = isPaymentCompleted(row.original);
           const statusToneClassName = getReceiptShareStatusToneClassName({
             isPaymentFullyCompleted,
@@ -3238,7 +3238,7 @@ export function MonthlyExpensesTable({
         accessorFn: (row) => getReceiptShareWhatsAppLink(row),
         cell: ({ row }) => {
           const receiptShareLink = getReceiptShareWhatsAppLink(row.original);
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
           const hasReceiptShareTarget =
             row.original.requiresReceiptShare &&
             row.original.receiptSharePhoneDigits.trim().length > 0;
@@ -3438,7 +3438,7 @@ export function MonthlyExpensesTable({
             requiredPayments - coveredPayments,
             0,
           );
-          const expenseDescription = row.original.description.trim() || "gasto";
+          const expenseDescription = row.original.description.trim() || "compromiso";
 
           return (
             <PaymentHistoryCell
@@ -3758,7 +3758,7 @@ export function MonthlyExpensesTable({
               >
                 Cargá, editá y guardá
               </Highlighter>{" "}
-              tus gastos mensuales.
+              tus compromisos mensuales: pagos, deudas, cuotas, prestamos y comprobantes.
             </p>
           </div>
         </div>
@@ -3823,7 +3823,7 @@ export function MonthlyExpensesTable({
                   </Button>
                 </div>
                 <p className={styles.monthHint}>
-                  Copiá gastos guardados de otro mes y revisá antes de guardar.
+                  Copiá compromisos guardados de otro mes y revisá antes de guardar.
                 </p>
               </div>
             ) : null}
@@ -3834,7 +3834,7 @@ export function MonthlyExpensesTable({
               type="button"
               variant="outline"
             >
-              Agregar gasto
+              Agregar compromiso
             </Button>
           </div>
 
@@ -3860,7 +3860,7 @@ export function MonthlyExpensesTable({
           <div className={styles.tableHeader}>
             <h2 className={styles.tableTitle}>Detalle del mes</h2>
             <p className={styles.tableDescription}>
-              Editá cada gasto desde su menú de acciones.
+              Editá cada compromiso desde su menú de acciones.
             </p>
           </div>
 
@@ -3889,7 +3889,7 @@ export function MonthlyExpensesTable({
                           {expense.displayDescription}
                         </span>
                         <Button
-                          aria-label={`Filtrar gasto ${expense.displayDescription}`}
+                          aria-label={`Filtrar compromiso ${expense.displayDescription}`}
                           className={styles.receiptShareSummaryFilterButton}
                           onClick={() => setDescriptionFilter(expense.rawDescription)}
                           type="button"
@@ -3948,7 +3948,7 @@ export function MonthlyExpensesTable({
                   : MONTHLY_EXPENSES_EMPTY_MESSAGE
               }
               excludeFilterLabel="Excluir resultados"
-              excludeFilterPlaceholder="Excluir gastos por descripción"
+              excludeFilterPlaceholder="Excluir compromisos por descripción"
               excludeFilterRowsCountByValue={
                 excludeFilterMetrics.excludeFilterRowsCountByValue
               }
@@ -3957,8 +3957,8 @@ export function MonthlyExpensesTable({
               }
               excludeFilterValues={excludedDescriptionFilters}
               filterColumnId="description"
-              filterLabel="Filtrar gastos"
-              filterPlaceholder="Filtrar gastos por descripción"
+              filterLabel="Filtrar compromisos"
+              filterPlaceholder="Filtrar compromisos por descripción"
               filterValue={descriptionFilter}
               onExcludeFilterValuesChange={setExcludedDescriptionFilters}
               getRowClassName={(row) =>
@@ -4032,7 +4032,7 @@ export function MonthlyExpensesTable({
             <AlertDialogHeader>
               <AlertDialogTitle>Editar subtotal</AlertDialogTitle>
               <AlertDialogDescription>
-                {`Actualizá el subtotal de ${subtotalDialogState?.expenseDescription ?? "este gasto"}.`}
+                {`Actualizá el subtotal de ${subtotalDialogState?.expenseDescription ?? "este compromiso"}.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -4044,7 +4044,7 @@ export function MonthlyExpensesTable({
                 </InputGroupAddon>
                 <InputGroupInput
                   aria-invalid={subtotalDraftError ? "true" : "false"}
-                  aria-label={`Subtotal de ${subtotalDialogState?.expenseDescription ?? "gasto"}`}
+                  aria-label={`Subtotal de ${subtotalDialogState?.expenseDescription ?? "compromiso"}`}
                   autoFocus
                   id="subtotal-dialog-input"
                   inputMode="decimal"
@@ -4116,7 +4116,7 @@ export function MonthlyExpensesTable({
             <AlertDialogHeader>
               <AlertDialogTitle>Editar pagos por mes</AlertDialogTitle>
               <AlertDialogDescription>
-                {`Actualizá la frecuencia mensual de ${occurrencesDialogState?.expenseDescription ?? "este gasto"}.`}
+                {`Actualizá la frecuencia mensual de ${occurrencesDialogState?.expenseDescription ?? "este compromiso"}.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -4124,7 +4124,7 @@ export function MonthlyExpensesTable({
               <Label htmlFor="occurrences-dialog-input">Pagos por mes</Label>
               <Input
                 aria-invalid={occurrencesDraftError ? "true" : "false"}
-                aria-label={`Pagos por mes de ${occurrencesDialogState?.expenseDescription ?? "gasto"}`}
+                aria-label={`Pagos por mes de ${occurrencesDialogState?.expenseDescription ?? "compromiso"}`}
                 autoFocus
                 id="occurrences-dialog-input"
                 inputMode="numeric"
@@ -4196,7 +4196,7 @@ export function MonthlyExpensesTable({
                   : "Editar datos de envío"}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {`Completá WhatsApp y mensaje opcional para ${receiptShareDialogState?.expenseDescription ?? "este gasto"}.`}
+                {`Completá WhatsApp y mensaje opcional para ${receiptShareDialogState?.expenseDescription ?? "este compromiso"}.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -4206,7 +4206,7 @@ export function MonthlyExpensesTable({
               </Label>
               <Input
                 aria-invalid={receiptShareDraftError ? "true" : "false"}
-                aria-label={`Número de WhatsApp de ${receiptShareDialogState?.expenseDescription ?? "gasto"}`}
+                aria-label={`Número de WhatsApp de ${receiptShareDialogState?.expenseDescription ?? "compromiso"}`}
                 autoFocus
                 id="receipt-share-phone-dialog-input"
                 inputMode="numeric"
@@ -4227,7 +4227,7 @@ export function MonthlyExpensesTable({
                 Mensaje opcional
               </Label>
               <Textarea
-                aria-label={`Mensaje opcional de ${receiptShareDialogState?.expenseDescription ?? "gasto"}`}
+                aria-label={`Mensaje opcional de ${receiptShareDialogState?.expenseDescription ?? "compromiso"}`}
                 id="receipt-share-message-dialog-input"
                 onChange={(event) => {
                   setReceiptShareMessageDraftValue(event.target.value);
@@ -4285,7 +4285,7 @@ export function MonthlyExpensesTable({
                   : "Agregar link de pago"}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                {`Completá el link para ${paymentLinkDialogState?.expenseDescription ?? "este gasto"}.`}
+                {`Completá el link para ${paymentLinkDialogState?.expenseDescription ?? "este compromiso"}.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
 
@@ -4293,7 +4293,7 @@ export function MonthlyExpensesTable({
               <Label htmlFor="payment-link-dialog-input">Link de pago</Label>
               <Textarea
                 aria-invalid={paymentLinkDraftError ? "true" : "false"}
-                aria-label={`Link de pago de ${paymentLinkDialogState?.expenseDescription ?? "gasto"}`}
+                aria-label={`Link de pago de ${paymentLinkDialogState?.expenseDescription ?? "compromiso"}`}
                 autoFocus
                 id="payment-link-dialog-input"
                 onChange={(event) => {

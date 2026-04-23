@@ -1,10 +1,10 @@
 {
   "name": "Mes en regla",
   "short_name": "Mes en regla",
-  "description": "Gestiona tus gastos, prestamistas y reportes mensuales.",
+  "description": "Gestiona tus compromisos mensuales: pagos, deudas, cuotas, prestamos, comprobantes y prestamistas, con reportes de seguimiento.",
   "lang": "es-AR",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/compromisos",
   "scope": "/",
   "display": "standalone",
   "background_color": "#121826",

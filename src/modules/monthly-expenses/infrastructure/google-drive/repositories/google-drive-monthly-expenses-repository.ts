@@ -16,7 +16,8 @@ import {
   parseGoogleDriveMonthlyExpensesContent,
 } from "../dto/mapper";
 
-const CURRENT_MONTHLY_EXPENSES_FILE_PREFIX = "gastos-mensuales-";
+const CURRENT_MONTHLY_EXPENSES_FILE_PREFIX = "compromisos-mensuales-";
+const LEGACY_MONTHLY_EXPENSES_FILE_PREFIX = "gastos-mensuales-";
 const DRIVE_FILE_FIELDS = "id,name,mimeType,parents,webViewLink";
 const DRIVE_FILES_CREATE_ENDPOINT = "drive.files.create";
 const DRIVE_FILES_GET_ENDPOINT = "drive.files.get";
@@ -200,11 +201,16 @@ export class GoogleDriveMonthlyExpensesRepository
     }
 
     try {
+      const currentFileName = createMonthlyExpensesFileName(month);
+      const legacyFileName = currentFileName.replace(
+        CURRENT_MONTHLY_EXPENSES_FILE_PREFIX,
+        LEGACY_MONTHLY_EXPENSES_FILE_PREFIX,
+      );
       const response = await this.driveClient.files.list({
         fields: `files(${DRIVE_FILE_FIELDS})`,
         orderBy: "modifiedTime desc",
         pageSize: 1,
-        q: `name = '${escapeGoogleDriveQueryValue(createMonthlyExpensesFileName(month))}' and '${escapeGoogleDriveQueryValue(folderId)}' in parents and trashed = false`,
+        q: `(name = '${escapeGoogleDriveQueryValue(currentFileName)}' or name = '${escapeGoogleDriveQueryValue(legacyFileName)}') and '${escapeGoogleDriveQueryValue(folderId)}' in parents and trashed = false`,
       });
 
       return response.data.files?.[0] ?? null;
@@ -227,7 +233,7 @@ export class GoogleDriveMonthlyExpensesRepository
           orderBy: "name asc",
           pageSize: 100,
           pageToken,
-          q: `name contains '${escapeGoogleDriveQueryValue(CURRENT_MONTHLY_EXPENSES_FILE_PREFIX)}' and '${escapeGoogleDriveQueryValue(folderId)}' in parents and trashed = false`,
+          q: `(name contains '${escapeGoogleDriveQueryValue(CURRENT_MONTHLY_EXPENSES_FILE_PREFIX)}' or name contains '${escapeGoogleDriveQueryValue(LEGACY_MONTHLY_EXPENSES_FILE_PREFIX)}') and '${escapeGoogleDriveQueryValue(folderId)}' in parents and trashed = false`,
         });
 
         files.push(...(response.data.files ?? []));
