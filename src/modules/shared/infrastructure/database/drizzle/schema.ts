@@ -1,4 +1,5 @@
 import {
+  index,
   integer,
   primaryKey,
   real,
@@ -171,3 +172,20 @@ export const monthlyExchangeRatesTable = sqliteTable("monthly_exchange_rates", {
   sourceDateIso: text("source_date_iso").notNull(),
   updatedAtIso: text("updated_at_iso").notNull(),
 });
+
+export const userRegistrationTracesTable = sqliteTable(
+  "user_registration_traces",
+  {
+    authProvider: text("auth_provider").notNull(),
+    lastVerifiedAtIso: text("last_verified_at_iso").notNull(),
+    registeredAtIso: text("registered_at_iso").notNull(),
+    registrationEmail: text("registration_email").notNull(),
+    userSubject: text("user_subject").primaryKey(),
+  },
+  (table) => [
+    index("user_registration_traces_registration_email_idx").on(
+      table.registrationEmail,
+    ),
+    index("user_registration_traces_auth_provider_idx").on(table.authProvider),
+  ],
+);

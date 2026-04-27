@@ -16,10 +16,180 @@ describe("authOptions", () => {
     process.env = originalEnv;
   });
 
-  it("logs when Google token refresh fails in the jwt callback", async () => {
-    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+  it("upserts registration traceability for Google sign-in", async () => {
+    const upsertRegistrationTraceMock = jest.fn().mockResolvedValue(undefined);
+    const getRegistrationTraceByUserSubjectMock = jest.fn();
 
     await jest.isolateModulesAsync(async () => {
+      jest.doMock("../turso/repositories/drizzle-user-registration-traces-repository", () => ({
+        DrizzleUserRegistrationTracesRepository: jest.fn().mockImplementation(() => ({
+          getRegistrationTraceByUserSubject: getRegistrationTraceByUserSubjectMock,
+          upsertRegistrationTrace: upsertRegistrationTraceMock,
+        })),
+      }));
+      jest.doMock("@/modules/shared/infrastructure/database/drizzle/turso-database", () => ({
+        createMigratedTursoDatabase: jest.fn().mockResolvedValue({}),
+      }));
+
+      const { authOptions } = await import("./auth-options");
+
+      const result = await authOptions.callbacks?.jwt?.({
+        account: {
+          access_token: "google-access-token",
+          expires_at: 1_772_000_000,
+          provider: "google",
+          scope: "openid email profile",
+          token_type: "Bearer",
+        } as never,
+        token: {
+          email: "PERSON@EXAMPLE.COM",
+          sub: "google-user-123",
+        },
+        user: {
+          email: "PERSON@EXAMPLE.COM",
+        } as never,
+      });
+
+      expect(upsertRegistrationTraceMock).toHaveBeenCalledWith({
+        authProvider: "google",
+        nowIso: expect.any(String),
+        registrationEmail: "person@example.com",
+        userSubject: "google-user-123",
+      });
+      expect(result).toEqual(
+        expect.objectContaining({
+          registrationTraceVerifiedAtIso: expect.any(String),
+          sub: "google-user-123",
+        }),
+      );
+    });
+  });
+
+  it("invalidates a legacy session when no traceability record exists", async () => {
+    const getRegistrationTraceByUserSubjectMock = jest.fn().mockResolvedValue(null);
+    const upsertRegistrationTraceMock = jest.fn();
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("../turso/repositories/drizzle-user-registration-traces-repository", () => ({
+        DrizzleUserRegistrationTracesRepository: jest.fn().mockImplementation(() => ({
+          getRegistrationTraceByUserSubject: getRegistrationTraceByUserSubjectMock,
+          upsertRegistrationTrace: upsertRegistrationTraceMock,
+        })),
+      }));
+      jest.doMock("@/modules/shared/infrastructure/database/drizzle/turso-database", () => ({
+        createMigratedTursoDatabase: jest.fn().mockResolvedValue({}),
+      }));
+      jest.doMock("../oauth/google-oauth-token", () => {
+        const actual = jest.requireActual("../oauth/google-oauth-token");
+
+        return {
+          ...actual,
+          hasExpiredGoogleAccessToken: jest.fn(() => false),
+        };
+      });
+
+      const { authOptions } = await import("./auth-options");
+
+      const result = await authOptions.callbacks?.jwt?.({
+        account: null,
+        token: {
+          email: "person@example.com",
+          googleAccessToken: "active-access-token",
+          googleAccessTokenExpiresAt: 2_772_000_000,
+          sub: "google-user-123",
+        },
+        user: {
+          id: "google-user-123",
+        } as never,
+      });
+
+      expect(getRegistrationTraceByUserSubjectMock).toHaveBeenCalledWith(
+        "google-user-123",
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          authError: "MissingRegistrationTrace",
+          email: undefined,
+          sub: undefined,
+        }),
+      );
+      expect(upsertRegistrationTraceMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("keeps legacy session valid when traceability record exists", async () => {
+    const getRegistrationTraceByUserSubjectMock = jest.fn().mockResolvedValue({
+      authProvider: "google",
+      lastVerifiedAtIso: "2026-04-27T10:00:00.000Z",
+      registeredAtIso: "2026-04-20T10:00:00.000Z",
+      registrationEmail: "person@example.com",
+      userSubject: "google-user-123",
+    });
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("../turso/repositories/drizzle-user-registration-traces-repository", () => ({
+        DrizzleUserRegistrationTracesRepository: jest.fn().mockImplementation(() => ({
+          getRegistrationTraceByUserSubject: getRegistrationTraceByUserSubjectMock,
+          upsertRegistrationTrace: jest.fn(),
+        })),
+      }));
+      jest.doMock("@/modules/shared/infrastructure/database/drizzle/turso-database", () => ({
+        createMigratedTursoDatabase: jest.fn().mockResolvedValue({}),
+      }));
+      jest.doMock("../oauth/google-oauth-token", () => {
+        const actual = jest.requireActual("../oauth/google-oauth-token");
+
+        return {
+          ...actual,
+          hasExpiredGoogleAccessToken: jest.fn(() => false),
+        };
+      });
+
+      const { authOptions } = await import("./auth-options");
+
+      const result = await authOptions.callbacks?.jwt?.({
+        account: null,
+        token: {
+          email: "person@example.com",
+          googleAccessToken: "active-access-token",
+          googleAccessTokenExpiresAt: 2_772_000_000,
+          sub: "google-user-123",
+        },
+        user: {
+          id: "google-user-123",
+        } as never,
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          authError: undefined,
+          registrationTraceVerifiedAtIso: expect.any(String),
+          sub: "google-user-123",
+        }),
+      );
+    });
+  });
+
+  it("logs when Google token refresh fails in the jwt callback", async () => {
+    const errorSpy = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const getRegistrationTraceByUserSubjectMock = jest.fn().mockResolvedValue({
+      authProvider: "google",
+      lastVerifiedAtIso: "2026-04-27T10:00:00.000Z",
+      registeredAtIso: "2026-04-20T10:00:00.000Z",
+      registrationEmail: "person@example.com",
+      userSubject: "google-user-123",
+    });
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("../turso/repositories/drizzle-user-registration-traces-repository", () => ({
+        DrizzleUserRegistrationTracesRepository: jest.fn().mockImplementation(() => ({
+          getRegistrationTraceByUserSubject: getRegistrationTraceByUserSubjectMock,
+          upsertRegistrationTrace: jest.fn(),
+        })),
+      }));
+      jest.doMock("@/modules/shared/infrastructure/database/drizzle/turso-database", () => ({
+        createMigratedTursoDatabase: jest.fn().mockResolvedValue({}),
+      }));
       jest.doMock("../oauth/google-oauth-token", () => {
         const actual = jest.requireActual("../oauth/google-oauth-token");
 
@@ -40,6 +210,7 @@ describe("authOptions", () => {
           googleAccessToken: "expired-access-token",
           googleAccessTokenExpiresAt: 1,
           googleRefreshToken: "refresh-token",
+          sub: "google-user-123",
         },
         user: {
           id: "google-user-123",

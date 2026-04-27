@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
+import { DrizzleUserRegistrationTracesRepository } from "../turso/repositories/drizzle-user-registration-traces-repository";
 import { getGoogleOAuthServerConfig } from "../oauth/google-oauth-config";
 import {
   buildGoogleSessionToken,
@@ -8,9 +9,11 @@ import {
   refreshGoogleSessionToken,
   type GoogleSessionToken,
 } from "../oauth/google-oauth-token";
+import { createMigratedTursoDatabase } from "@/modules/shared/infrastructure/database/drizzle/turso-database";
 import { appLogger } from "@/modules/shared/infrastructure/observability/app-logger";
 
 const googleOAuthServerConfig = getGoogleOAuthServerConfig();
+const MISSING_REGISTRATION_TRACE_ERROR = "MissingRegistrationTrace";
 
 const googleProvider = googleOAuthServerConfig
   ? GoogleProvider({
@@ -27,24 +30,131 @@ const googleProvider = googleOAuthServerConfig
     })
   : null;
 
+type AuthSessionToken = GoogleSessionToken & {
+  authError?: typeof MISSING_REGISTRATION_TRACE_ERROR;
+  email?: string | null;
+  registrationTraceVerifiedAtIso?: string;
+  sub?: string;
+};
+
+type JwtCallbackParameters = {
+  account?: {
+    provider?: string;
+  } | null;
+  token: AuthSessionToken;
+  user?: {
+    email?: string | null;
+  } | null;
+};
+
+function normalizeRegistrationEmail(email: string | null | undefined): string | null {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  return normalizedEmail ? normalizedEmail : null;
+}
+
+function invalidateSessionToken(token: AuthSessionToken): AuthSessionToken {
+  return {
+    ...token,
+    authError: MISSING_REGISTRATION_TRACE_ERROR,
+    email: undefined,
+    registrationTraceVerifiedAtIso: undefined,
+    sub: undefined,
+  };
+}
+
+async function createRegistrationTracesRepository() {
+  const database = await createMigratedTursoDatabase();
+
+  return new DrizzleUserRegistrationTracesRepository(database);
+}
+
+async function verifyLegacySessionRegistrationTrace(
+  token: AuthSessionToken,
+): Promise<AuthSessionToken> {
+  if (token.registrationTraceVerifiedAtIso) {
+    return token;
+  }
+
+  const userSubject = token.sub?.trim();
+
+  if (!userSubject) {
+    return token;
+  }
+
+  const traceabilityRepository = await createRegistrationTracesRepository();
+  const registrationTrace =
+    await traceabilityRepository.getRegistrationTraceByUserSubject(userSubject);
+
+  if (!registrationTrace) {
+    return invalidateSessionToken(token);
+  }
+
+  return {
+    ...token,
+    authError: undefined,
+    registrationTraceVerifiedAtIso: new Date().toISOString(),
+  };
+}
+
+async function registerGoogleSignInTrace({
+  account,
+  token,
+  user,
+}: JwtCallbackParameters): Promise<AuthSessionToken> {
+  const googleSessionToken = buildGoogleSessionToken({
+    account: account as Parameters<typeof buildGoogleSessionToken>[0]["account"],
+    token,
+  }) as AuthSessionToken;
+  const userSubject = googleSessionToken.sub?.trim();
+  const registrationEmail = normalizeRegistrationEmail(
+    user?.email ?? googleSessionToken.email,
+  );
+
+  if (!userSubject || !registrationEmail) {
+    return invalidateSessionToken(googleSessionToken);
+  }
+
+  const nowIso = new Date().toISOString();
+  const traceabilityRepository = await createRegistrationTracesRepository();
+
+  await traceabilityRepository.upsertRegistrationTrace({
+    authProvider: "google",
+    nowIso,
+    registrationEmail,
+    userSubject,
+  });
+
+  return {
+    ...googleSessionToken,
+    authError: undefined,
+    email: registrationEmail,
+    registrationTraceVerifiedAtIso: nowIso,
+  };
+}
+
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    async jwt({ account, token }) {
+    async jwt(parameters) {
+      const { account, token } = parameters as JwtCallbackParameters;
+
       if (account?.provider === "google") {
-        return buildGoogleSessionToken({ account, token });
+        return registerGoogleSignInTrace(parameters as JwtCallbackParameters);
       }
 
-      const googleSessionToken = token as GoogleSessionToken;
+      const googleSessionToken = await verifyLegacySessionRegistrationTrace(
+        token as AuthSessionToken,
+      );
 
       if (
         !googleSessionToken.googleAccessToken ||
         !googleSessionToken.googleAccessTokenExpiresAt
       ) {
-        return token;
+        return googleSessionToken;
       }
 
       if (!hasExpiredGoogleAccessToken(googleSessionToken)) {
-        return token;
+        return googleSessionToken;
       }
 
       try {
