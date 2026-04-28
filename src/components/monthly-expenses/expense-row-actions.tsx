@@ -154,7 +154,7 @@ export function ExpenseRowActions({
               >
                 <span className={styles.menuItem}>
                   <Folder aria-hidden="true" />
-                  Carpeta mensual
+                  Comprobantes del mes
                 </span>
               </a>
             </DropdownMenuItem>
@@ -169,7 +169,7 @@ export function ExpenseRowActions({
               >
                 <span className={styles.menuItem}>
                   <Folder aria-hidden="true" />
-                  Carpeta histórica de comprobantes
+                  Archivo histórico de comprobantes
                 </span>
               </a>
             </DropdownMenuItem>

@@ -1855,10 +1855,10 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(screen.getByText("Carpetas")).toBeInTheDocument();
 
     const monthlyReceiptFolderMenuItem = screen.getByRole("menuitem", {
-      name: "Carpeta mensual",
+      name: "Comprobantes del mes",
     });
     const allReceiptsFolderMenuItem = screen.getByRole("menuitem", {
-      name: "Carpeta histórica de comprobantes",
+      name: "Archivo histórico de comprobantes",
     });
 
     expect(receiptLink).toHaveAttribute(
@@ -1912,10 +1912,10 @@ registerMonthlyExpensesPageDefaultHooks({
     );
 
     const monthlyReceiptFolderMenuItem = screen.getByRole("menuitem", {
-      name: "Carpeta mensual",
+      name: "Comprobantes del mes",
     });
     const allReceiptsFolderMenuItem = screen.getByRole("menuitem", {
-      name: "Carpeta histórica de comprobantes",
+      name: "Archivo histórico de comprobantes",
     });
 
     expect(monthlyReceiptFolderMenuItem).toHaveAttribute(
