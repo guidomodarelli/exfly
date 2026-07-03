@@ -587,6 +587,10 @@ export function FilterQueryBar({
   onFocusChange,
   trailingAction,
 }: FilterQueryBarProps) {
+  // Ids únicos por instancia: puede haber más de una barra montada a la vez
+  // (p. ej. la barra principal y el editor de un preset guardado).
+  const instanceId = React.useId();
+  const listboxId = `${instanceId}-${LISTBOX_ID}`;
   const inputRef = React.useRef<HTMLInputElement>(null);
   const highlightOverlayRef = React.useRef<HTMLDivElement>(null);
   const pendingCaretRef = React.useRef<number | null>(null);
@@ -808,9 +812,13 @@ export function FilterQueryBar({
         <PopoverAnchor asChild>
           <div className="relative w-full">
             <Input
-              aria-activedescendant={activeSuggestion?.id}
+              aria-activedescendant={
+                activeSuggestion
+                  ? `${instanceId}-${activeSuggestion.id}`
+                  : undefined
+              }
               aria-autocomplete="list"
-              aria-controls={LISTBOX_ID}
+              aria-controls={listboxId}
               aria-expanded={isPopoverOpen}
               aria-label={ariaLabel}
               autoComplete="off"
@@ -890,7 +898,7 @@ export function FilterQueryBar({
                 : KEY_GROUP_LABEL
             }
             className="grid gap-0.5"
-            id={LISTBOX_ID}
+            id={listboxId}
             role="listbox"
           >
             {suggestions.map((suggestion, index) => {
@@ -916,7 +924,7 @@ export function FilterQueryBar({
                         ? "bg-accent text-accent-foreground"
                         : "text-foreground",
                     )}
-                    id={suggestion.id}
+                    id={`${instanceId}-${suggestion.id}`}
                     onMouseDown={(event) => {
                       event.preventDefault();
                       applySuggestion(suggestion);

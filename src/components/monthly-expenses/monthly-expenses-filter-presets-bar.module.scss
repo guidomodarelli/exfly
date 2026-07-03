@@ -11,6 +11,12 @@
   width: 16rem;
 }
 
+.savePopoverCaption {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .savePopoverError {
   margin: 0;
   color: var(--destructive);

@@ -3056,6 +3056,7 @@ export function MonthlyExpensesTable({
                     onDeletePreset={handleDeleteFilterPreset}
                     onUpdatePreset={handleUpdateFilterPreset}
                     presets={filterPresets}
+                    queryFilterConfigs={monthlyExpensesFilterQualifiers}
                   />
                   <div className={styles.completedOrderFilter}>
                     <label className={styles.completedOrderFilterLabel}>

@@ -140,6 +140,36 @@ describe("MonthlyExpensesTable filter presets", () => {
     expect(screen.getAllByText("Luz").length).toBeGreaterThan(0);
   });
 
+  it("offers the unified bar suggestions inside the preset query editor", async () => {
+    persistMonthlyExpensesFilterPresets([
+      { name: "Solo Internet", query: "Internet" },
+    ]);
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Editar filtro guardado Solo Internet",
+      }),
+    );
+
+    const queryInput = await screen.findByLabelText("Búsqueda del filtro");
+
+    await user.clear(queryInput);
+    await user.type(queryInput, "tot");
+
+    expect(
+      await screen.findByRole("option", { name: "Total" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    expect(queryInput).toHaveValue("total:");
+    // Elegir una sugerencia no debe cerrar el popover de edición.
+    expect(screen.getByLabelText("Nombre del filtro")).toBeInTheDocument();
+  });
+
   it("rejects renaming a preset to another existing preset name", async () => {
     persistMonthlyExpensesFilterPresets([
       { name: "Solo Internet", query: "Internet" },

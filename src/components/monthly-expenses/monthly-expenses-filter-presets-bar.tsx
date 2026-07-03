@@ -14,6 +14,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { FilterQueryBar } from "@/components/ui/filter-query-bar";
+import type { FilterQualifierConfig } from "@/components/ui/filter-query-grammar";
 
 import type { MonthlyExpensesFilterPreset } from "./monthly-expenses-filter-presets";
 import styles from "./monthly-expenses-filter-presets-bar.module.scss";
@@ -38,6 +40,8 @@ interface MonthlyExpensesFilterPresetSaveButtonProps {
 
 interface MonthlyExpensesFilterPresetsBarProps {
   presets: MonthlyExpensesFilterPreset[];
+  /** Qualifiers de la barra unificada, para autocompletar al editar la query. */
+  queryFilterConfigs: FilterQualifierConfig[];
   onApplyPreset: (preset: MonthlyExpensesFilterPreset) => void;
   onDeletePreset: (presetName: string) => void;
   /** Replaces the preset named `originalName` with the given name and query. */
@@ -152,6 +156,7 @@ export function MonthlyExpensesFilterPresetSaveButton({
  */
 export function MonthlyExpensesFilterPresetsBar({
   presets,
+  queryFilterConfigs,
   onApplyPreset,
   onDeletePreset,
   onUpdatePreset,
@@ -248,7 +253,22 @@ export function MonthlyExpensesFilterPresetsBar({
                 <Pencil aria-hidden="true" />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="start" className={styles.savePopover}>
+            <PopoverContent
+              align="start"
+              className={styles.savePopover}
+              onInteractOutside={(event) => {
+                // Las sugerencias de la barra de búsqueda se portalean fuera de
+                // este popover: interactuar con ellas no debe cerrarlo.
+                const interactionTarget = event.target;
+
+                if (
+                  interactionTarget instanceof Element &&
+                  interactionTarget.closest('[data-slot="popover-content"]')
+                ) {
+                  event.preventDefault();
+                }
+              }}
+            >
               <Label htmlFor="filter-preset-edit-name-input">
                 Nombre del filtro
               </Label>
@@ -264,25 +284,20 @@ export function MonthlyExpensesFilterPresetsBar({
                 type="text"
                 value={editNameDraft}
               />
-              <Label htmlFor="filter-preset-edit-query-input">
+              <span className={styles.savePopoverCaption}>
                 Búsqueda del filtro
-              </Label>
-              <Input
-                id="filter-preset-edit-query-input"
-                onChange={(event) => {
-                  setEditQueryDraft(event.target.value);
+              </span>
+              <FilterQueryBar
+                ariaLabel="Búsqueda del filtro"
+                configs={queryFilterConfigs}
+                onValueChange={(nextQuery) => {
+                  setEditQueryDraft(nextQuery);
 
                   if (editError) {
                     setEditError(null);
                   }
                 }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleConfirmEdit();
-                  }
-                }}
-                type="text"
+                placeholder="total:>1000 direccion:me-deben"
                 value={editQueryDraft}
               />
               {editError ? (
