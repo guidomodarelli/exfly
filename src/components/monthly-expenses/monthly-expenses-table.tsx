@@ -26,8 +26,10 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -220,6 +222,17 @@ const UNASSIGNED_FOLDER_GROUP_LABEL = "Sin carpeta";
 
 /** Modo de agrupado visual de la tabla; v1 solo soporta carpeta. */
 type MonthlyExpensesGroupByMode = "none" | "folder";
+
+/** Criterio del menú «Ordenar por»; convive con el agrupado (ordena adentro). */
+type MonthlyExpensesSortByField = "none" | "description" | "total";
+
+const SORT_BY_FIELD_LABELS: Record<
+  Exclude<MonthlyExpensesSortByField, "none">,
+  string
+> = {
+  description: "Descripción",
+  total: "Total",
+};
 /**
  * Cantidad máxima de caracteres que se muestran en la descripción de la fila
  * antes de truncar con ellipsis y exponer el texto completo en un tooltip.
@@ -782,6 +795,52 @@ function getRowsMatchingDescriptionFilter(
 }
 
 /**
+ * Ordena las filas por el criterio del menú «Ordenar por». Los valores no
+ * comparables (total sin cotización) quedan al final sin importar la dirección.
+ * Es un sort estable previo al agrupado: aplicado antes de
+ * `getRowsGroupedByFolder`, el resultado queda ordenado dentro de cada grupo.
+ */
+function getRowsSortedByField(
+  rows: MonthlyExpensesEditableRow[],
+  sortByField: Exclude<MonthlyExpensesSortByField, "none">,
+  sortDirection: "asc" | "desc",
+  exchangeRateSnapshot: ExchangeRateSnapshot | null,
+): MonthlyExpensesEditableRow[] {
+  const getSortValue = (row: MonthlyExpensesEditableRow): string | number | null =>
+    sortByField === "description"
+      ? row.description
+      : getArsComparableAmount({
+          exchangeRateSnapshot,
+          rowCurrency: row.currency,
+          value: row.total,
+        });
+
+  return [...rows].sort((leftRow, rightRow) => {
+    const leftValue = getSortValue(leftRow);
+    const rightValue = getSortValue(rightRow);
+
+    if (leftValue == null && rightValue == null) {
+      return 0;
+    }
+
+    if (leftValue == null) {
+      return 1;
+    }
+
+    if (rightValue == null) {
+      return -1;
+    }
+
+    const comparison =
+      typeof leftValue === "string" && typeof rightValue === "string"
+        ? leftValue.localeCompare(rightValue, "es", { sensitivity: "base" })
+        : Number(leftValue) - Number(rightValue);
+
+    return sortDirection === "desc" ? -comparison : comparison;
+  });
+}
+
+/**
  * Reordena las filas por carpeta (en el orden configurado de las carpetas, con
  * "Sin carpeta" al final), preservando el orden relativo dentro de cada grupo.
  */
@@ -1060,6 +1119,11 @@ export function MonthlyExpensesTable({
   );
   const [groupByMode, setGroupByMode] =
     useState<MonthlyExpensesGroupByMode>("none");
+  const [sortByField, setSortByField] =
+    useState<MonthlyExpensesSortByField>("none");
+  const [sortByDirection, setSortByDirection] = useState<"asc" | "desc">(
+    "asc",
+  );
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<
     ReadonlySet<string>
   >(() => new Set<string>());
@@ -1478,25 +1542,40 @@ export function MonthlyExpensesTable({
   ]);
   const hasManualSorting = sorting.length > 0;
   const rowsForTable = useMemo(() => {
-    const orderedRows =
-      !moveCompletedToEnd || hasManualSorting
-        ? rowsMatchingQueryPredicate
-        : getRowsWithCompletedAtEnd(rowsMatchingQueryPredicate);
+    let orderedRows = rowsMatchingQueryPredicate;
 
-    // El agrupado manda el orden entre grupos; dentro de cada grupo se conserva
-    // el orden previo. Con orden manual activo el agrupado queda suspendido
-    // (mismo criterio que "mover completados al final").
-    if (groupByMode !== "folder" || hasManualSorting) {
-      return orderedRows;
+    // "Mover completados al final" solo aplica sin ningún orden explícito: el
+    // menú «Ordenar por» y el orden manual de columnas lo pisan.
+    if (moveCompletedToEnd && !hasManualSorting && sortByField === "none") {
+      orderedRows = getRowsWithCompletedAtEnd(orderedRows);
     }
 
-    return getRowsGroupedByFolder(orderedRows, expenseFolders);
+    if (sortByField !== "none" && !hasManualSorting) {
+      orderedRows = getRowsSortedByField(
+        orderedRows,
+        sortByField,
+        sortByDirection,
+        exchangeRateSnapshot,
+      );
+    }
+
+    // El agrupado manda el orden entre grupos y, al ser un sort estable, el
+    // orden anterior (menú «Ordenar por») se conserva dentro de cada grupo.
+    // Con orden manual de columnas todo esto queda suspendido.
+    if (groupByMode === "folder" && !hasManualSorting) {
+      orderedRows = getRowsGroupedByFolder(orderedRows, expenseFolders);
+    }
+
+    return orderedRows;
   }, [
+    exchangeRateSnapshot,
     expenseFolders,
     groupByMode,
     hasManualSorting,
     moveCompletedToEnd,
     rowsMatchingQueryPredicate,
+    sortByDirection,
+    sortByField,
   ]);
   const selectedExpenseIdsInCurrentRows = useMemo(() => {
     const availableExpenseIds = new Set(rows.map((row) => row.id));
@@ -3224,7 +3303,7 @@ export function MonthlyExpensesTable({
               columnVisibilityMenuExtraContent={
                 <DropdownMenuCheckboxItem
                   checked={moveCompletedToEnd}
-                  disabled={hasManualSorting}
+                  disabled={hasManualSorting || sortByField !== "none"}
                   onCheckedChange={(nextChecked) => {
                     setMoveCompletedToEnd(Boolean(nextChecked));
                   }}
@@ -3234,7 +3313,7 @@ export function MonthlyExpensesTable({
                 >
                   <span className={styles.viewMenuOption}>
                     {MOVE_COMPLETED_TO_END_LABEL}
-                    {hasManualSorting ? (
+                    {hasManualSorting || sortByField !== "none" ? (
                       <span className={styles.viewMenuOptionHint}>
                         {MANUAL_SORTING_DISABLED_HELPER_TEXT}
                       </span>
@@ -3303,6 +3382,87 @@ export function MonthlyExpensesTable({
               rowGroups={rowGroups}
               toolbarActions={
                 <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline">
+                        {sortByField === "none"
+                          ? "Ordenar por"
+                          : `Ordenar por: ${SORT_BY_FIELD_LABELS[sortByField]}`}
+                        <ChevronDown aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuRadioGroup
+                        onValueChange={(nextValue) => {
+                          setSortByField(
+                            nextValue === "description" || nextValue === "total"
+                              ? nextValue
+                              : "none",
+                          );
+                        }}
+                        value={sortByField}
+                      >
+                        <DropdownMenuRadioItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="none"
+                        >
+                          Sin ordenar
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem
+                          disabled={hasManualSorting}
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="description"
+                        >
+                          Descripción
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem
+                          disabled={hasManualSorting}
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="total"
+                        >
+                          Total
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                      {hasManualSorting ? (
+                        <p className={styles.sortMenuHint}>
+                          {MANUAL_SORTING_DISABLED_HELPER_TEXT}
+                        </p>
+                      ) : null}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Dirección</DropdownMenuLabel>
+                      <DropdownMenuRadioGroup
+                        onValueChange={(nextValue) => {
+                          setSortByDirection(
+                            nextValue === "desc" ? "desc" : "asc",
+                          );
+                        }}
+                        value={sortByDirection}
+                      >
+                        <DropdownMenuRadioItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="asc"
+                        >
+                          Ascendente
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="desc"
+                        >
+                          Descendente
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="outline">

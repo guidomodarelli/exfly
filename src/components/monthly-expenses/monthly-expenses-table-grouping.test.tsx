@@ -35,16 +35,6 @@ const ROWS = [
   }),
 ];
 
-/** Posición de cada texto dentro del cuerpo de la tabla, en orden de documento. */
-function getTableTextOrder(texts: string[]): string[] {
-  const tableElement = screen.getAllByRole("table")[0];
-  const content = tableElement.textContent ?? "";
-
-  return [...texts].sort(
-    (leftText, rightText) => content.indexOf(leftText) - content.indexOf(rightText),
-  );
-}
-
 async function selectGroupByFolder(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: /^Agrupar por/ }));
   await user.click(
