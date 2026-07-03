@@ -84,6 +84,10 @@ export type DataTableColumnFilterValue =
  * fuera (p. ej. al clickear un chip de carpeta).
  */
 export interface DataTableQueryFilterControls {
+  /** Devuelve el texto actual de la barra unificada. */
+  getQueryText: () => string;
+  /** Reemplaza el texto completo de la barra y aplica los filtros parseados. */
+  setQueryText: (query: string) => void;
   /**
    * Reemplaza los filtros de carpeta de la barra: deja un único `carpeta:<id>`
    * (o ninguno si `folderId` es `null`), preservando el resto de los filtros.
@@ -629,12 +633,21 @@ export function DataTable<TData, TValue>({
       return;
     }
 
-    queryFilterControlsRef.current = { setSingleFolderFilter };
+    queryFilterControlsRef.current = {
+      getQueryText: () => filterQueryDraft,
+      setQueryText: handleQueryFilterChange,
+      setSingleFolderFilter,
+    };
 
     return () => {
       queryFilterControlsRef.current = null;
     };
-  }, [queryFilterControlsRef, setSingleFolderFilter]);
+  }, [
+    filterQueryDraft,
+    handleQueryFilterChange,
+    queryFilterControlsRef,
+    setSingleFolderFilter,
+  ]);
 
   const addExcludeFilterValue = React.useCallback(
     (

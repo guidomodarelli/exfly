@@ -101,6 +101,12 @@ import {
   getAdjacentYearMonth,
   getCurrentYearMonth,
 } from "./month-navigation";
+import {
+  getPersistedMonthlyExpensesFilterPresets,
+  persistMonthlyExpensesFilterPresets,
+  type MonthlyExpensesFilterPreset,
+} from "./monthly-expenses-filter-presets";
+import { MonthlyExpensesFilterPresetsBar } from "./monthly-expenses-filter-presets-bar";
 import type { LenderOption } from "./lender-picker";
 import {
   ExpenseFolderPicker,
@@ -1035,6 +1041,64 @@ export function MonthlyExpensesTable({
   }, [queryAppliedFilters]);
   const queryFilterControlsRef = useRef<DataTableQueryFilterControls | null>(
     null,
+  );
+  const [filterPresets, setFilterPresets] = useState<
+    MonthlyExpensesFilterPreset[]
+  >([]);
+
+  useEffect(() => {
+    // Igual que la restauración de preferencias: fuera del cuerpo del efecto
+    // para no disparar renders en cascada (react-hooks/set-state-in-effect).
+    const restoreFrameId = window.requestAnimationFrame(() => {
+      setFilterPresets(getPersistedMonthlyExpensesFilterPresets());
+    });
+
+    return () => {
+      window.cancelAnimationFrame(restoreFrameId);
+    };
+  }, []);
+
+  // Cada mutación persiste explícitamente: no hace falta un efecto con guard
+  // de primer render como el de las preferencias de tabla.
+  const updateFilterPresets = useCallback(
+    (nextFilterPresets: MonthlyExpensesFilterPreset[]) => {
+      setFilterPresets(nextFilterPresets);
+      persistMonthlyExpensesFilterPresets(nextFilterPresets);
+    },
+    [],
+  );
+  const handleSaveFilterPreset = useCallback(
+    (presetName: string): boolean => {
+      const query = queryFilterControlsRef.current?.getQueryText().trim() ?? "";
+
+      if (!query) {
+        return false;
+      }
+
+      // Upsert por nombre: guardar con un nombre existente reemplaza su query.
+      const nextFilterPresets = [
+        ...filterPresets.filter((preset) => preset.name !== presetName),
+        { name: presetName, query },
+      ];
+
+      updateFilterPresets(nextFilterPresets);
+      return true;
+    },
+    [filterPresets, updateFilterPresets],
+  );
+  const handleApplyFilterPreset = useCallback(
+    (preset: MonthlyExpensesFilterPreset) => {
+      queryFilterControlsRef.current?.setQueryText(preset.query);
+    },
+    [],
+  );
+  const handleDeleteFilterPreset = useCallback(
+    (presetName: string) => {
+      updateFilterPresets(
+        filterPresets.filter((preset) => preset.name !== presetName),
+      );
+    },
+    [filterPresets, updateFilterPresets],
   );
   // Clickear un chip de carpeta escribe en la barra (única fuente de verdad):
   // reemplaza todos los `carpeta:`/`-carpeta:` por el elegido (o ninguno para
@@ -2934,25 +2998,34 @@ export function MonthlyExpensesTable({
               excludeFilterValues={excludedDescriptionFilters}
               filterColumnId="description"
               filterExtraContent={(
-                <div className={styles.completedOrderFilter}>
-                  <label className={styles.completedOrderFilterLabel}>
-                    <input
-                      checked={moveCompletedToEnd}
-                      className={styles.completedOrderFilterCheckbox}
-                      disabled={hasManualSorting}
-                      onChange={(event) => {
-                        setMoveCompletedToEnd(event.target.checked);
-                      }}
-                      type="checkbox"
-                    />
-                    <span>{MOVE_COMPLETED_TO_END_LABEL}</span>
-                  </label>
-                  {hasManualSorting ? (
-                    <p className={styles.completedOrderFilterHint}>
-                      {MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT}
-                    </p>
-                  ) : null}
-                </div>
+                <>
+                  <MonthlyExpensesFilterPresetsBar
+                    canSaveCurrentQuery={hasActiveFiltering}
+                    onApplyPreset={handleApplyFilterPreset}
+                    onDeletePreset={handleDeleteFilterPreset}
+                    onSaveCurrentQuery={handleSaveFilterPreset}
+                    presets={filterPresets}
+                  />
+                  <div className={styles.completedOrderFilter}>
+                    <label className={styles.completedOrderFilterLabel}>
+                      <input
+                        checked={moveCompletedToEnd}
+                        className={styles.completedOrderFilterCheckbox}
+                        disabled={hasManualSorting}
+                        onChange={(event) => {
+                          setMoveCompletedToEnd(event.target.checked);
+                        }}
+                        type="checkbox"
+                      />
+                      <span>{MOVE_COMPLETED_TO_END_LABEL}</span>
+                    </label>
+                    {hasManualSorting ? (
+                      <p className={styles.completedOrderFilterHint}>
+                        {MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT}
+                      </p>
+                    ) : null}
+                  </div>
+                </>
               )}
               filterLabel="Filtrar gastos"
               filterPlaceholder="Filtrar gastos por descripción"

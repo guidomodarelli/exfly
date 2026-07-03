@@ -1,0 +1,70 @@
+.presetsBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.saveButton {
+  flex-shrink: 0;
+}
+
+.savePopover {
+  display: grid;
+  gap: 0.5rem;
+  width: 16rem;
+}
+
+.savePopoverError {
+  margin: 0;
+  color: var(--destructive);
+  font-size: 0.75rem;
+}
+
+.presetChip {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.presetApplyButton {
+  padding: 0.35rem 0.25rem 0.35rem 0.65rem;
+  max-width: 12rem;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--primary);
+  }
+}
+
+.presetDeleteButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.5rem 0.35rem 0.15rem;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+
+  svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--destructive);
+  }
+}
