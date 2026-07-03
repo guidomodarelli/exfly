@@ -2884,7 +2884,7 @@ export function MonthlyExpensesTable({
                       onMonthChange(previousYearMonth);
                     }
                   }}
-                  size="icon-sm"
+                  size="icon"
                   type="button"
                   variant="outline"
                 >
@@ -2906,7 +2906,7 @@ export function MonthlyExpensesTable({
                       onMonthChange(nextYearMonth);
                     }
                   }}
-                  size="icon-sm"
+                  size="icon"
                   type="button"
                   variant="outline"
                 >
@@ -2916,7 +2916,6 @@ export function MonthlyExpensesTable({
                   aria-label="Ir al mes actual"
                   disabled={isMonthTransitionPending || isCurrentMonthVisible}
                   onClick={() => onMonthChange(currentYearMonth)}
-                  size="sm"
                   type="button"
                   variant="outline"
                 >
