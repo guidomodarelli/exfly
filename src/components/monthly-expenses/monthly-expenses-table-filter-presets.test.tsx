@@ -88,6 +88,90 @@ describe("MonthlyExpensesTable filter presets", () => {
     expect(screen.getAllByText("Internet").length).toBeGreaterThan(0);
   });
 
+  it("edits the name and query of a saved preset", async () => {
+    persistMonthlyExpensesFilterPresets([
+      { name: "Solo Internet", query: "Internet" },
+    ]);
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Editar filtro guardado Solo Internet",
+      }),
+    );
+
+    const nameInput = await screen.findByLabelText("Nombre del filtro");
+    const queryInput = screen.getByLabelText("Búsqueda del filtro");
+
+    expect(nameInput).toHaveValue("Solo Internet");
+    expect(queryInput).toHaveValue("Internet");
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Solo Luz");
+    await user.clear(queryInput);
+    await user.type(queryInput, "Luz");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar cambios del filtro" }),
+    );
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Aplicar filtro guardado Solo Luz",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Aplicar filtro guardado Solo Internet",
+      }),
+    ).not.toBeInTheDocument();
+    expect(getPersistedMonthlyExpensesFilterPresets()).toEqual([
+      { name: "Solo Luz", query: "Luz" },
+    ]);
+
+    await user.click(
+      screen.getByRole("button", { name: "Aplicar filtro guardado Solo Luz" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Internet")).not.toBeInTheDocument();
+    });
+    expect(screen.getAllByText("Luz").length).toBeGreaterThan(0);
+  });
+
+  it("rejects renaming a preset to another existing preset name", async () => {
+    persistMonthlyExpensesFilterPresets([
+      { name: "Solo Internet", query: "Internet" },
+      { name: "Solo Luz", query: "Luz" },
+    ]);
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Editar filtro guardado Solo Internet",
+      }),
+    );
+
+    const nameInput = await screen.findByLabelText("Nombre del filtro");
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Solo Luz");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar cambios del filtro" }),
+    );
+
+    expect(
+      await screen.findByText("Ya existe un filtro con ese nombre."),
+    ).toBeInTheDocument();
+    expect(getPersistedMonthlyExpensesFilterPresets()).toEqual([
+      { name: "Solo Internet", query: "Internet" },
+      { name: "Solo Luz", query: "Luz" },
+    ]);
+  });
+
   it("deletes a saved preset", async () => {
     persistMonthlyExpensesFilterPresets([
       { name: "Solo Internet", query: "Internet" },

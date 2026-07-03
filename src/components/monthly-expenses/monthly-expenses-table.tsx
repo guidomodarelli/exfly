@@ -1092,6 +1092,25 @@ export function MonthlyExpensesTable({
     },
     [],
   );
+  const handleUpdateFilterPreset = useCallback(
+    ({
+      name,
+      originalName,
+      query,
+    }: {
+      name: string;
+      originalName: string;
+      query: string;
+    }) => {
+      // Map (y no remove+append) para conservar la posición del chip.
+      updateFilterPresets(
+        filterPresets.map((preset) =>
+          preset.name === originalName ? { name, query } : preset,
+        ),
+      );
+    },
+    [filterPresets, updateFilterPresets],
+  );
   const handleDeleteFilterPreset = useCallback(
     (presetName: string) => {
       updateFilterPresets(
@@ -3004,6 +3023,7 @@ export function MonthlyExpensesTable({
                     onApplyPreset={handleApplyFilterPreset}
                     onDeletePreset={handleDeleteFilterPreset}
                     onSaveCurrentQuery={handleSaveFilterPreset}
+                    onUpdatePreset={handleUpdateFilterPreset}
                     presets={filterPresets}
                   />
                   <div className={styles.completedOrderFilter}>

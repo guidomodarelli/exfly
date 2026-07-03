@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bookmark, X } from "lucide-react";
+import { Bookmark, Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,10 @@ import styles from "./monthly-expenses-filter-presets-bar.module.scss";
 const EMPTY_PRESET_NAME_ERROR_MESSAGE = "Ingresá un nombre para el filtro.";
 const EMPTY_QUERY_ERROR_MESSAGE =
   "Escribí una búsqueda en la barra antes de guardarla.";
+const EMPTY_PRESET_QUERY_ERROR_MESSAGE =
+  "Ingresá una búsqueda para el filtro.";
+const DUPLICATE_PRESET_NAME_ERROR_MESSAGE =
+  "Ya existe un filtro con ese nombre.";
 
 interface MonthlyExpensesFilterPresetsBarProps {
   /** Whether the unified filter bar currently has filters worth saving. */
@@ -28,6 +32,12 @@ interface MonthlyExpensesFilterPresetsBarProps {
    * there is no query to save.
    */
   onSaveCurrentQuery: (presetName: string) => boolean;
+  /** Replaces the preset named `originalName` with the given name and query. */
+  onUpdatePreset: (args: {
+    name: string;
+    originalName: string;
+    query: string;
+  }) => void;
 }
 
 /**
@@ -40,10 +50,17 @@ export function MonthlyExpensesFilterPresetsBar({
   onApplyPreset,
   onDeletePreset,
   onSaveCurrentQuery,
+  onUpdatePreset,
 }: MonthlyExpensesFilterPresetsBarProps) {
   const [isSavePopoverOpen, setIsSavePopoverOpen] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState("");
   const [presetNameError, setPresetNameError] = useState<string | null>(null);
+  const [editingPresetName, setEditingPresetName] = useState<string | null>(
+    null,
+  );
+  const [editNameDraft, setEditNameDraft] = useState("");
+  const [editQueryDraft, setEditQueryDraft] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleSavePopoverOpenChange = (nextOpen: boolean) => {
     setIsSavePopoverOpen(nextOpen);
@@ -68,6 +85,59 @@ export function MonthlyExpensesFilterPresetsBar({
     }
 
     handleSavePopoverOpenChange(false);
+  };
+
+  const handleEditPopoverOpenChange = (
+    preset: MonthlyExpensesFilterPreset,
+    nextOpen: boolean,
+  ) => {
+    if (!nextOpen) {
+      setEditingPresetName(null);
+      setEditError(null);
+      return;
+    }
+
+    setEditingPresetName(preset.name);
+    setEditNameDraft(preset.name);
+    setEditQueryDraft(preset.query);
+    setEditError(null);
+  };
+
+  const handleConfirmEdit = () => {
+    if (editingPresetName === null) {
+      return;
+    }
+
+    const normalizedName = editNameDraft.trim();
+    const normalizedQuery = editQueryDraft.trim();
+
+    if (!normalizedName) {
+      setEditError(EMPTY_PRESET_NAME_ERROR_MESSAGE);
+      return;
+    }
+
+    if (!normalizedQuery) {
+      setEditError(EMPTY_PRESET_QUERY_ERROR_MESSAGE);
+      return;
+    }
+
+    const isNameTakenByAnotherPreset = presets.some(
+      (preset) =>
+        preset.name === normalizedName && preset.name !== editingPresetName,
+    );
+
+    if (isNameTakenByAnotherPreset) {
+      setEditError(DUPLICATE_PRESET_NAME_ERROR_MESSAGE);
+      return;
+    }
+
+    onUpdatePreset({
+      name: normalizedName,
+      originalName: editingPresetName,
+      query: normalizedQuery,
+    });
+    setEditingPresetName(null);
+    setEditError(null);
   };
 
   return (
@@ -136,6 +206,73 @@ export function MonthlyExpensesFilterPresetsBar({
           >
             {preset.name}
           </button>
+          <Popover
+            onOpenChange={(nextOpen) =>
+              handleEditPopoverOpenChange(preset, nextOpen)
+            }
+            open={editingPresetName === preset.name}
+          >
+            <PopoverTrigger asChild>
+              <button
+                aria-label={`Editar filtro guardado ${preset.name}`}
+                className={styles.presetEditButton}
+                type="button"
+              >
+                <Pencil aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className={styles.savePopover}>
+              <Label htmlFor="filter-preset-edit-name-input">
+                Nombre del filtro
+              </Label>
+              <Input
+                id="filter-preset-edit-name-input"
+                onChange={(event) => {
+                  setEditNameDraft(event.target.value);
+
+                  if (editError) {
+                    setEditError(null);
+                  }
+                }}
+                type="text"
+                value={editNameDraft}
+              />
+              <Label htmlFor="filter-preset-edit-query-input">
+                Búsqueda del filtro
+              </Label>
+              <Input
+                id="filter-preset-edit-query-input"
+                onChange={(event) => {
+                  setEditQueryDraft(event.target.value);
+
+                  if (editError) {
+                    setEditError(null);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleConfirmEdit();
+                  }
+                }}
+                type="text"
+                value={editQueryDraft}
+              />
+              {editError ? (
+                <p className={styles.savePopoverError} role="alert">
+                  {editError}
+                </p>
+              ) : null}
+              <Button
+                aria-label="Guardar cambios del filtro"
+                onClick={handleConfirmEdit}
+                size="sm"
+                type="button"
+              >
+                Guardar
+              </Button>
+            </PopoverContent>
+          </Popover>
           <button
             aria-label={`Eliminar filtro guardado ${preset.name}`}
             className={styles.presetDeleteButton}
