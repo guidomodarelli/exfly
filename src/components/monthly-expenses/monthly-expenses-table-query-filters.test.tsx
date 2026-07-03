@@ -24,12 +24,12 @@ describe("MonthlyExpensesTable unified bar qualifiers", () => {
 
     renderMonthlyExpensesTable([
       createRow({
-        description: "Pagado",
+        description: "Luz al día",
         id: "expense-1",
         manualCoveredPayments: "1",
       }),
       createRow({
-        description: "Adeudado",
+        description: "Internet adeudado",
         id: "expense-2",
         manualCoveredPayments: "0",
       }),
@@ -38,9 +38,9 @@ describe("MonthlyExpensesTable unified bar qualifiers", () => {
     await typeQuery(user, "estado:pendiente");
 
     await waitFor(() => {
-      expect(screen.queryByText("Pagado")).not.toBeInTheDocument();
+      expect(screen.queryByText("Luz al día")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("Adeudado")).toBeInTheDocument();
+    expect(screen.getByText("Internet adeudado")).toBeInTheDocument();
   });
 
   it("filters by currency with moneda:", async () => {

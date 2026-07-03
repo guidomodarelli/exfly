@@ -423,9 +423,9 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(
       screen.queryByRole("columnheader", { name: "USD" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/^Dólar oficial:/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Oficial:/i)).toBeInTheDocument();
     expect(screen.getByText("$ 1.200")).toBeInTheDocument();
-    expect(screen.getByText(/^Dólar solidario:/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Solidario:/i)).toBeInTheDocument();
     expect(screen.getByText("$ 1.476")).toBeInTheDocument();
     expect(screen.getAllByText("$ 14.760,00").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText(/US\$\s*10,00/).length).toBeGreaterThanOrEqual(1);

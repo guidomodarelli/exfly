@@ -12,10 +12,10 @@
   gap: 0.5rem;
 }
 
-.filterHint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
+.chipRowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
 }
 
 .chip {

@@ -5,6 +5,9 @@ import {
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
+import { Settings } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -13,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import type { ExpenseFolderOption } from "./expense-folder-picker";
+import { LoanInfoPopover } from "./loan-info-popover";
 import {
   ExpenseFolderIconGlyph,
   resolveExpenseFolderColorHex,
@@ -295,6 +299,8 @@ function ExpenseFolderChip({
 
 interface ExpenseFolderFilterBarProps {
   folders: ExpenseFolderOption[];
+  /** Abre el administrador de carpetas desde la fila de chips. */
+  onManageFolders: () => void;
   onMoveExpenseToFolder: (args: {
     expenseId: string;
     folderId: string | null;
@@ -323,6 +329,7 @@ const EMPTY_FILTER_ID_SET: ReadonlySet<string> = new Set();
  */
 export function ExpenseFolderFilterBar({
   folders,
+  onManageFolders,
   onMoveExpenseToFolder,
   onReorderFolders,
   onSelectFilter,
@@ -461,12 +468,24 @@ export function ExpenseFolderFilterBar({
             reorderableFolderId={folder.id}
           />
         ))}
-      </div>
 
-      <p className={styles.filterHint}>
-        Arrastrá la etiqueta de carpeta de un gasto hacia un chip para moverlo, o
-        arrastrá un chip de carpeta sobre otro para reordenarlos.
-      </p>
+        <span className={styles.chipRowActions}>
+          <LoanInfoPopover
+            closeLabel="Cerrar ayuda sobre carpetas"
+            message="Arrastrá la etiqueta de carpeta de un gasto hacia un chip para moverlo, o arrastrá un chip de carpeta sobre otro para reordenarlos."
+            triggerLabel="Ayuda sobre carpetas"
+          />
+          <Button
+            aria-label="Administrar carpetas"
+            onClick={onManageFolders}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <Settings aria-hidden="true" />
+          </Button>
+        </span>
+      </div>
     </div>
   );
 }

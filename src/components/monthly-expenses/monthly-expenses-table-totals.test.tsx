@@ -39,14 +39,18 @@ describe("MonthlyExpensesTable totals footer", () => {
   it("shows the month total with a paid versus pending breakdown", () => {
     renderMonthlyExpensesTable([PAID_ROW, PENDING_ROW]);
 
+    // El resumen del encabezado repite los montos: acotar al footer (tfoot).
+    const rowGroups = screen.getAllByRole("rowgroup");
+    const footer = within(rowGroups[rowGroups.length - 1]);
+
     expect(
-      screen.getByText(formatExpectedAmount("ARS", 3000)),
+      footer.getByText(formatExpectedAmount("ARS", 3000)),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`Pagado: ${formatExpectedAmount("ARS", 1000)}`),
+      footer.getByText(`Pagado: ${formatExpectedAmount("ARS", 1000)}`),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`),
+      footer.getByText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`),
     ).toBeInTheDocument();
   });
 

@@ -1,5 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import {
   ExpenseFolderFilterBar,
@@ -11,21 +13,60 @@ const SAMPLE_FOLDERS = [
   { color: "green" as const, icon: "cart" as const, id: "folder-2", name: "Compras" },
 ];
 
-function renderFilterBar() {
+function renderFilterBar(
+  overrides: Partial<Parameters<typeof ExpenseFolderFilterBar>[0]> = {},
+) {
   return render(
-    <ExpenseFolderFilterBar
-      countsByFolderId={{ "folder-1": 3, "folder-2": 5 }}
-      folders={SAMPLE_FOLDERS}
-      onMoveExpenseToFolder={jest.fn()}
-      onReorderFolders={jest.fn()}
-      onSelectFilter={jest.fn()}
-      totalCount={8}
-      unassignedCount={2}
-    />,
+    <TooltipProvider>
+      <ExpenseFolderFilterBar
+        countsByFolderId={{ "folder-1": 3, "folder-2": 5 }}
+        folders={SAMPLE_FOLDERS}
+        onManageFolders={jest.fn()}
+        onMoveExpenseToFolder={jest.fn()}
+        onReorderFolders={jest.fn()}
+        onSelectFilter={jest.fn()}
+        totalCount={8}
+        unassignedCount={2}
+        {...overrides}
+      />
+    </TooltipProvider>,
   );
 }
 
 describe("ExpenseFolderFilterBar", () => {
+  it("shows the drag help inside a popover instead of permanent text", async () => {
+    const user = userEvent.setup();
+
+    renderFilterBar();
+
+    expect(
+      screen.queryByText(/Arrastrá la etiqueta de carpeta/),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ayuda sobre carpetas" }),
+    );
+
+    // Radix Tooltip duplica el contenido en un nodo oculto para lectores de
+    // pantalla, así que puede haber más de una coincidencia.
+    expect(
+      (await screen.findAllByText(/Arrastrá la etiqueta de carpeta/)).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("opens the folders manager from the chips row", async () => {
+    const user = userEvent.setup();
+    const onManageFolders = jest.fn();
+
+    renderFilterBar({ onManageFolders });
+
+    await user.click(
+      screen.getByRole("button", { name: "Administrar carpetas" }),
+    );
+
+    expect(onManageFolders).toHaveBeenCalledTimes(1);
+  });
+
   it("renders the unassigned chip right after the all-folders chip", () => {
     renderFilterBar();
 
@@ -40,19 +81,10 @@ describe("ExpenseFolderFilterBar", () => {
   });
 
   it("highlights folders included from the bar and marks excluded ones", () => {
-    render(
-      <ExpenseFolderFilterBar
-        countsByFolderId={{ "folder-1": 3, "folder-2": 5 }}
-        excludedFilterIds={new Set(["folder-2"])}
-        folders={SAMPLE_FOLDERS}
-        includedFilterIds={new Set(["folder-1"])}
-        onMoveExpenseToFolder={jest.fn()}
-        onReorderFolders={jest.fn()}
-        onSelectFilter={jest.fn()}
-        totalCount={8}
-        unassignedCount={2}
-      />,
-    );
+    renderFilterBar({
+      excludedFilterIds: new Set(["folder-2"]),
+      includedFilterIds: new Set(["folder-1"]),
+    });
 
     expect(screen.getByRole("button", { name: /Hogar/ })).toHaveClass(
       "chipSelected",
@@ -66,18 +98,6 @@ describe("ExpenseFolderFilterBar", () => {
     );
   });
 
-  it("shows the drag-and-drop hint below the chips", () => {
-    renderFilterBar();
-
-    const hint = screen.getByText(/arrastrá un chip de carpeta sobre otro/i);
-    const filterBar = hint.parentElement as HTMLElement;
-    const filterBarChildren = Array.from(filterBar.children);
-
-    expect(filterBarChildren[0]).toHaveTextContent("Todas");
-    expect(filterBarChildren.at(-1)).toBe(hint);
-    expect(within(filterBarChildren[0] as HTMLElement).getByText("Todas"))
-      .toBeInTheDocument();
-  });
 });
 
 describe("ExpenseFolderRowBadge", () => {

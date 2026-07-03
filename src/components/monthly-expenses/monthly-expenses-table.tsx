@@ -861,6 +861,41 @@ function isBrokenDriveStatus(
 }
 
 /**
+ * Total del mes con desglose pagado vs. pendiente (según `isPaymentCompleted`)
+ * ya formateado en la moneda pedida. Un subconjunto vacío es un total de 0 (no
+ * "sin datos convertibles").
+ */
+function formatMonthlyTotalsBreakdown({
+  currency,
+  exchangeRateSnapshot,
+  rows,
+}: {
+  currency: MonthlyExpenseCurrency;
+  exchangeRateSnapshot: ExchangeRateSnapshot | null;
+  rows: MonthlyExpensesEditableRow[];
+}): { paid: string; pending: string; total: string } {
+  const paidRows = rows.filter((row) => isPaymentCompleted(row));
+  const pendingRows = rows.filter((row) => !isPaymentCompleted(row));
+  const formatTotalForRows = (totalRows: MonthlyExpensesEditableRow[]) =>
+    formatConvertedAmount(
+      currency,
+      totalRows.length === 0
+        ? 0
+        : getConvertedTotalAmount({
+            currency,
+            exchangeRateSnapshot,
+            rows: totalRows,
+          }),
+    );
+
+  return {
+    paid: formatTotalForRows(paidRows),
+    pending: formatTotalForRows(pendingRows),
+    total: formatTotalForRows(rows),
+  };
+}
+
+/**
  * Footer de totales por moneda: total de las filas visibles (según filtros
  * activos) más el desglose pagado vs. pendiente derivado de
  * `isPaymentCompleted`.
@@ -874,29 +909,20 @@ function MonthlyTotalsFooter({
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
   rows: MonthlyExpensesEditableRow[];
 }) {
-  const paidRows = rows.filter((row) => isPaymentCompleted(row));
-  const pendingRows = rows.filter((row) => !isPaymentCompleted(row));
-  // Un subconjunto vacío es un total de 0 (no "sin datos convertibles").
-  const formatTotalForRows = (totalRows: MonthlyExpensesEditableRow[]) =>
-    formatConvertedAmount(
-      currency,
-      totalRows.length === 0
-        ? 0
-        : getConvertedTotalAmount({
-            currency,
-            exchangeRateSnapshot,
-            rows: totalRows,
-          }),
-    );
+  const totals = formatMonthlyTotalsBreakdown({
+    currency,
+    exchangeRateSnapshot,
+    rows,
+  });
 
   return (
     <span className={styles.totalFooterCell}>
-      <span className={styles.totalFooterValue}>{formatTotalForRows(rows)}</span>
+      <span className={styles.totalFooterValue}>{totals.total}</span>
       <span className={styles.totalFooterBreakdownLine}>
-        {`Pagado: ${formatTotalForRows(paidRows)}`}
+        {`Pagado: ${totals.paid}`}
       </span>
       <span className={styles.totalFooterBreakdownLine}>
-        {`Pendiente: ${formatTotalForRows(pendingRows)}`}
+        {`Pendiente: ${totals.pending}`}
       </span>
     </span>
   );
@@ -1432,6 +1458,19 @@ export function MonthlyExpensesTable({
     [effectiveVisibleExpenseIds, selectedExpenseIdsInCurrentRows],
   );
   const selectedVisibleCount = selectedVisibleExpenseIds.length;
+  const visibleSummaryRows = useMemo(
+    () => rowsForTable.filter((row) => effectiveVisibleExpenseIds.has(row.id)),
+    [effectiveVisibleExpenseIds, rowsForTable],
+  );
+  const monthSummaryTotals = useMemo(
+    () =>
+      formatMonthlyTotalsBreakdown({
+        currency: "ARS",
+        exchangeRateSnapshot,
+        rows: visibleSummaryRows,
+      }),
+    [exchangeRateSnapshot, visibleSummaryRows],
+  );
   const hasVisibleRows = effectiveVisibleExpenseIds.size > 0;
   const areAllVisibleRowsSelected =
     hasVisibleRows && selectedVisibleCount === effectiveVisibleExpenseIds.size;
@@ -2885,6 +2924,29 @@ export function MonthlyExpensesTable({
                 </Button>
               </div>
             </div>
+            {exchangeRateSnapshot ? (
+              <p className={styles.exchangeRateInline}>
+                <span className={styles.exchangeRateInlineItem}>
+                  Oficial:
+                  <span className={styles.exchangeRateValue}>
+                    {formatExchangeRateAmount(exchangeRateSnapshot.officialRate)}
+                  </span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span className={styles.exchangeRateInlineItem}>
+                  Solidario:
+                  <span className={styles.exchangeRateValue}>
+                    {formatExchangeRateAmount(
+                      exchangeRateSnapshot.solidarityRate,
+                    )}
+                  </span>
+                </span>
+              </p>
+            ) : exchangeRateLoadError ? (
+              <p className={styles.exchangeRateFallback}>
+                {exchangeRateLoadError}
+              </p>
+            ) : null}
           </div>
           {showCopyFromControls ? (
             <div className={styles.copyField}>
@@ -2903,46 +2965,58 @@ export function MonthlyExpensesTable({
             </div>
           ) : null}
 
-          {exchangeRateSnapshot ? (
-            <div className={styles.exchangeRateSummary}>
-              <p className={styles.exchangeRateLine}>
-                Dólar oficial:
-                <span className={styles.exchangeRateValue}>
-                  {formatExchangeRateAmount(exchangeRateSnapshot.officialRate)}
-                </span>
-              </p>
-              <p className={styles.exchangeRateLine}>
-                Dólar solidario:
-                <span className={styles.exchangeRateValue}>
-                  {formatExchangeRateAmount(exchangeRateSnapshot.solidarityRate)}
-                </span>
-              </p>
-            </div>
-          ) : exchangeRateLoadError ? (
-            <p className={styles.exchangeRateFallback}>{exchangeRateLoadError}</p>
-          ) : null}
-
           <div className={styles.tableHeader}>
             <h2 className={styles.tableTitle}>Detalle del mes</h2>
-            <p className={styles.tableDescription}>
-              Editá cada gasto desde su menú de acciones.
-            </p>
+            <section
+              aria-label="Resumen del mes"
+              className={styles.monthSummary}
+            >
+              <div className={styles.monthSummaryCard}>
+                <span className={styles.monthSummaryLabel}>Total</span>
+                <span className={styles.monthSummaryValue}>
+                  {monthSummaryTotals.total}
+                </span>
+              </div>
+              <div className={styles.monthSummaryCard}>
+                <span className={styles.monthSummaryLabel}>Pendiente</span>
+                <span
+                  className={cn(
+                    styles.monthSummaryValue,
+                    "text-yellow-700 dark:text-yellow-300",
+                  )}
+                >
+                  {monthSummaryTotals.pending}
+                </span>
+              </div>
+              <div className={styles.monthSummaryCard}>
+                <span className={styles.monthSummaryLabel}>Pagado</span>
+                <span
+                  className={cn(
+                    styles.monthSummaryValue,
+                    "text-green-700 dark:text-green-300",
+                  )}
+                >
+                  {monthSummaryTotals.paid}
+                </span>
+              </div>
+            </section>
             <div className={styles.tableAddAction}>
               <Button
                 disabled={actionDisabled || isMonthTransitionPending}
                 onClick={onAddExpense}
                 type="button"
-                variant="outline"
               >
                 Agregar gasto
               </Button>
-              <Button
-                onClick={onManageFolders}
-                type="button"
-                variant="outline"
-              >
-                Administrar carpetas
-              </Button>
+              {expenseFolders.length === 0 ? (
+                <Button
+                  onClick={onManageFolders}
+                  type="button"
+                  variant="outline"
+                >
+                  Administrar carpetas
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -3020,6 +3094,7 @@ export function MonthlyExpensesTable({
               excludedFilterIds={folderBarSelection.excluded}
               folders={expenseFolders}
               includedFilterIds={folderBarSelection.included}
+              onManageFolders={onManageFolders}
               onMoveExpenseToFolder={onMoveExpenseToFolder}
               onReorderFolders={onReorderFolders}
               onSelectFilter={handleFolderChipSelect}
