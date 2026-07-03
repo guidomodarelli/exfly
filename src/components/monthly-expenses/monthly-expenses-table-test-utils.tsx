@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -54,6 +54,20 @@ export function createRow(
     total: "1000",
     ...overrides,
   };
+}
+
+/**
+ * Returns the given texts sorted by their position inside the table body, to
+ * assert on-screen row/group order.
+ */
+export function getTableTextOrder(texts: string[]): string[] {
+  const tableElement = screen.getAllByRole("table")[0];
+  const content = tableElement.textContent ?? "";
+
+  return [...texts].sort(
+    (leftText, rightText) =>
+      content.indexOf(leftText) - content.indexOf(rightText),
+  );
 }
 
 /**

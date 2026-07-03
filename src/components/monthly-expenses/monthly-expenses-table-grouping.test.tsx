@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import {
   createRow,
+  getTableTextOrder,
   renderMonthlyExpensesTable,
 } from "./monthly-expenses-table-test-utils";
 
