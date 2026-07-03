@@ -13,12 +13,13 @@ export async function selectDropdownSubmenuItem(
   user: UserEvent,
   submenuTriggerName: string,
   itemName: string,
+  itemRole: "menuitem" | "menuitemradio" | "menuitemcheckbox" = "menuitem",
 ): Promise<void> {
   await user.click(
     screen.getByRole("menuitem", { name: submenuTriggerName }),
   );
 
-  const submenuItem = await screen.findByRole("menuitem", { name: itemName });
+  const submenuItem = await screen.findByRole(itemRole, { name: itemName });
 
   submenuItem.focus();
   await user.keyboard("{Enter}");

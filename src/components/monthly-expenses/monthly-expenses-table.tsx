@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   ColumnDef,
   SortingState,
@@ -30,6 +30,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -242,6 +245,8 @@ const SORTING_BADGE_IGNORED_COLUMN_IDS: ReadonlySet<string> = new Set([
 /**
  * Etiquetas de criterio para el menú «Ordenar por», en el orden en que se
  * listan sus opciones (espejo del orden de las columnas de la tabla).
+ * «Deuda / cuotas» no está acá: se ofrece como submenú con sus tres criterios
+ * reales (cuotas pagadas/restantes/totales) y su etiqueta sale del modo activo.
  */
 const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   description: "Descripción",
@@ -249,7 +254,6 @@ const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   usd: "USD",
   paymentsProgress: "Pagos",
   paymentHistory: "Registros",
-  [LOAN_SORT_COLUMN_ID]: "Deuda / cuotas",
   lenderName: "Prestamista",
   [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
 };
@@ -3378,9 +3382,11 @@ export function MonthlyExpensesTable({
                       <Button type="button" variant="outline">
                         {primaryUserSortingEntry
                           ? `Ordenar por: ${
-                              SORT_LABELS_BY_COLUMN_ID[
-                                primaryUserSortingEntry.id
-                              ] ?? primaryUserSortingEntry.id
+                              primaryUserSortingEntry.id === LOAN_SORT_COLUMN_ID
+                                ? getLoanSortModeLabel(loanSortMode)
+                                : SORT_LABELS_BY_COLUMN_ID[
+                                    primaryUserSortingEntry.id
+                                  ] ?? primaryUserSortingEntry.id
                             }`
                           : "Ordenar por"}
                         <ChevronDown aria-hidden="true" />
@@ -3412,15 +3418,58 @@ export function MonthlyExpensesTable({
                           Sin ordenar
                         </DropdownMenuRadioItem>
                         {SORT_MENU_OPTIONS.map((sortMenuOption) => (
-                          <DropdownMenuRadioItem
-                            key={sortMenuOption.id}
-                            onSelect={(event) => {
-                              event.preventDefault();
-                            }}
-                            value={sortMenuOption.id}
-                          >
-                            {sortMenuOption.label}
-                          </DropdownMenuRadioItem>
+                          <Fragment key={sortMenuOption.id}>
+                            <DropdownMenuRadioItem
+                              onSelect={(event) => {
+                                event.preventDefault();
+                              }}
+                              value={sortMenuOption.id}
+                            >
+                              {sortMenuOption.label}
+                            </DropdownMenuRadioItem>
+                            {sortMenuOption.id === "paymentHistory" ? (
+                              <DropdownMenuSub>
+                                <DropdownMenuSubTrigger>
+                                  Deuda / cuotas
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuSubContent>
+                                  <DropdownMenuRadioGroup
+                                    onValueChange={(nextLoanSortMode) => {
+                                      setLoanSortMode(
+                                        nextLoanSortMode as LoanSortMode,
+                                      );
+                                      applyUserSorting([
+                                        {
+                                          desc:
+                                            primaryUserSortingEntry?.desc ??
+                                            false,
+                                          id: LOAN_SORT_COLUMN_ID,
+                                        },
+                                      ]);
+                                    }}
+                                    value={
+                                      primaryUserSortingEntry?.id ===
+                                      LOAN_SORT_COLUMN_ID
+                                        ? loanSortMode
+                                        : ""
+                                    }
+                                  >
+                                    {LOAN_SORT_OPTIONS.map((loanSortOption) => (
+                                      <DropdownMenuRadioItem
+                                        key={loanSortOption.value}
+                                        onSelect={(event) => {
+                                          event.preventDefault();
+                                        }}
+                                        value={loanSortOption.value}
+                                      >
+                                        {loanSortOption.label}
+                                      </DropdownMenuRadioItem>
+                                    ))}
+                                  </DropdownMenuRadioGroup>
+                                </DropdownMenuSubContent>
+                              </DropdownMenuSub>
+                            ) : null}
+                          </Fragment>
                         ))}
                       </DropdownMenuRadioGroup>
                       <DropdownMenuSeparator />

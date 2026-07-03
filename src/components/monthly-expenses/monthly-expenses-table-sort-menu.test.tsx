@@ -1,6 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
+
 import {
   createRow,
   getTableTextOrder,
@@ -149,7 +151,6 @@ describe("MonthlyExpensesTable sort menu", () => {
       "USD",
       "Pagos",
       "Registros",
-      "Deuda / cuotas",
       "Prestamista",
       "Vigencia",
     ]) {
@@ -157,6 +158,71 @@ describe("MonthlyExpensesTable sort menu", () => {
         screen.getByRole("menuitemradio", { name: optionName }),
       ).toBeInTheDocument();
     }
+
+    // Deuda / cuotas es un submenú con sus tres criterios reales.
+    await user.click(
+      screen.getByRole("menuitem", { name: "Deuda / cuotas" }),
+    );
+
+    for (const loanOptionName of [
+      "Cuotas pagadas",
+      "Cuotas restantes",
+      "Total de cuotas",
+    ]) {
+      expect(
+        await screen.findByRole("menuitemradio", { name: loanOptionName }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("sorts by remaining installments from the loan submenu", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({
+          description: "Préstamo largo",
+          id: "expense-1",
+          isLoan: true,
+          loanRemainingInstallments: 8,
+        }),
+        createRow({
+          description: "Préstamo corto",
+          id: "expense-2",
+          isLoan: true,
+          loanRemainingInstallments: 2,
+        }),
+        createRow({
+          description: "Gasto común",
+          id: "expense-3",
+          isLoan: false,
+        }),
+      ],
+      { expenseFolders: FOLDERS },
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Ordenar por/ }));
+    await selectDropdownSubmenuItem(
+      user,
+      "Deuda / cuotas",
+      "Cuotas restantes",
+      "menuitemradio",
+    );
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(
+        getTableTextOrder([
+          "Préstamo corto",
+          "Préstamo largo",
+          "Gasto común",
+        ]),
+      ).toEqual(["Préstamo corto", "Préstamo largo", "Gasto común"]);
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Ordenar por: Cuotas restantes" }),
+    ).toBeInTheDocument();
   });
 
   it("sorts by covered payments from the dropdown", async () => {
