@@ -239,17 +239,26 @@ const SORTING_BADGE_IGNORED_COLUMN_IDS: ReadonlySet<string> = new Set([
   GROUP_POSITION_COLUMN_ID,
 ]);
 
-/** Etiqueta del criterio activo para el botón «Ordenar por». */
+/**
+ * Etiquetas de criterio para el menú «Ordenar por», en el orden en que se
+ * listan sus opciones (espejo del orden de las columnas de la tabla).
+ */
 const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   description: "Descripción",
-  [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
-  [LOAN_SORT_COLUMN_ID]: "Deuda / cuotas",
-  lenderName: "Prestamista",
-  paymentHistory: "Registros",
-  paymentsProgress: "Pagos",
   total: "Total",
   usd: "USD",
+  paymentsProgress: "Pagos",
+  paymentHistory: "Registros",
+  [LOAN_SORT_COLUMN_ID]: "Deuda / cuotas",
+  lenderName: "Prestamista",
+  [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
 };
+
+const SORT_MENU_OPTIONS: ReadonlyArray<{ id: string; label: string }> =
+  Object.entries(SORT_LABELS_BY_COLUMN_ID).map(([columnId, label]) => ({
+    id: columnId,
+    label,
+  }));
 /**
  * Cantidad máxima de caracteres que se muestran en la descripción de la fila
  * antes de truncar con ellipsis y exponer el texto completo en un tooltip.
@@ -3380,10 +3389,7 @@ export function MonthlyExpensesTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuRadioGroup
                         onValueChange={(nextValue) => {
-                          if (
-                            nextValue !== "description" &&
-                            nextValue !== "total"
-                          ) {
+                          if (!(nextValue in SORT_LABELS_BY_COLUMN_ID)) {
                             applyUserSorting([]);
                             return;
                           }
@@ -3405,22 +3411,17 @@ export function MonthlyExpensesTable({
                         >
                           Sin ordenar
                         </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                          }}
-                          value="description"
-                        >
-                          Descripción
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                          }}
-                          value="total"
-                        >
-                          Total
-                        </DropdownMenuRadioItem>
+                        {SORT_MENU_OPTIONS.map((sortMenuOption) => (
+                          <DropdownMenuRadioItem
+                            key={sortMenuOption.id}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                            }}
+                            value={sortMenuOption.id}
+                          >
+                            {sortMenuOption.label}
+                          </DropdownMenuRadioItem>
+                        ))}
                       </DropdownMenuRadioGroup>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Dirección</DropdownMenuLabel>

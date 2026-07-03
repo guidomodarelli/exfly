@@ -135,6 +135,70 @@ describe("MonthlyExpensesTable sort menu", () => {
     });
   });
 
+  it("offers every sortable column as a criterion", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS, { expenseFolders: FOLDERS });
+
+    await user.click(screen.getByRole("button", { name: /^Ordenar por/ }));
+
+    for (const optionName of [
+      "Sin ordenar",
+      "Descripción",
+      "Total",
+      "USD",
+      "Pagos",
+      "Registros",
+      "Deuda / cuotas",
+      "Prestamista",
+      "Vigencia",
+    ]) {
+      expect(
+        screen.getByRole("menuitemradio", { name: optionName }),
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("sorts by covered payments from the dropdown", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({
+          description: "Sin pagos",
+          id: "expense-1",
+          manualCoveredPayments: "0",
+          occurrencesPerMonth: "3",
+        }),
+        createRow({
+          description: "Dos pagos",
+          id: "expense-2",
+          manualCoveredPayments: "2",
+          occurrencesPerMonth: "3",
+        }),
+        createRow({
+          description: "Un pago",
+          id: "expense-3",
+          manualCoveredPayments: "1",
+          occurrencesPerMonth: "3",
+        }),
+      ],
+      { expenseFolders: FOLDERS },
+    );
+
+    await selectSortBy(user, "Pagos");
+
+    await waitFor(() => {
+      expect(
+        getTableTextOrder(["Sin pagos", "Un pago", "Dos pagos"]),
+      ).toEqual(["Sin pagos", "Un pago", "Dos pagos"]);
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Ordenar por: Pagos" }),
+    ).toBeInTheDocument();
+  });
+
   it("syncs the dropdown with a column header sort", async () => {
     const user = userEvent.setup();
 
