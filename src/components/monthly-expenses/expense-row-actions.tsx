@@ -1,11 +1,14 @@
 import { useState } from "react";
 import {
   CalendarX2,
+  Copy,
   Folder,
   FolderX,
+  Link2,
   MoreVertical,
   Pencil,
   Plus,
+  Repeat,
   RotateCcw,
   Trash2,
 } from "lucide-react";
@@ -25,8 +28,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -49,6 +54,8 @@ interface ExpenseRowActionsProps {
   onDelete: () => void;
   onDeleteMonthlyFolderReference: () => void;
   onDeletePaymentLink: () => void;
+  /** Opens the expense sheet in create mode prefilled with this expense. */
+  onDuplicate: () => void;
   onEdit: () => void;
   onManagePaymentLink: () => void;
   onReactivateRecurrence: () => void;
@@ -69,6 +76,7 @@ export function ExpenseRowActions({
   onDelete,
   onDeleteMonthlyFolderReference,
   onDeletePaymentLink,
+  onDuplicate,
   onEdit,
   onManagePaymentLink,
   onReactivateRecurrence,
@@ -179,6 +187,17 @@ export function ExpenseRowActions({
           <DropdownMenuItem
             onSelect={() => {
               setIsMenuOpen(false);
+              onDuplicate();
+            }}
+          >
+            <span className={styles.menuItem}>
+              <Copy aria-hidden="true" />
+              Duplicar
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              setIsMenuOpen(false);
               setConfirmActionType("deleteExpense");
             }}
             variant="destructive"
@@ -188,147 +207,168 @@ export function ExpenseRowActions({
               Eliminar
             </span>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           {isRecurring ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Recurrencia</DropdownMenuLabel>
-              {isRecurrenceCancelled ? (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setIsMenuOpen(false);
-                    window.setTimeout(() => {
-                      onReactivateRecurrence();
-                    }, 0);
-                  }}
-                >
-                  <span className={styles.menuItem}>
-                    <RotateCcw aria-hidden="true" />
-                    Reactivar recurrencia
-                  </span>
-                </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <span className={styles.menuItem}>
+                  <Repeat aria-hidden="true" />
+                  Recurrencia
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {isRecurrenceCancelled ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      window.setTimeout(() => {
+                        onReactivateRecurrence();
+                      }, 0);
+                    }}
+                  >
+                    <span className={styles.menuItem}>
+                      <RotateCcw aria-hidden="true" />
+                      Reactivar recurrencia
+                    </span>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      setConfirmActionType("cancelRecurrence");
+                    }}
+                  >
+                    <span className={styles.menuItem}>
+                      <CalendarX2 aria-hidden="true" />
+                      Cancelar recurrencia
+                    </span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : null}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <span className={styles.menuItem}>
+                <Link2 aria-hidden="true" />
+                Link de pago
+              </span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {hasPaymentLink ? (
+                <>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      window.setTimeout(() => {
+                        onManagePaymentLink();
+                      }, 0);
+                    }}
+                  >
+                    <span className={styles.menuItem}>
+                      <Pencil aria-hidden="true" />
+                      Editar link de pago
+                    </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      setConfirmActionType("deletePaymentLink");
+                    }}
+                    variant="destructive"
+                  >
+                    <span className={styles.menuItem}>
+                      <Trash2 aria-hidden="true" className={styles.destructiveIcon} />
+                      Eliminar link de pago
+                    </span>
+                  </DropdownMenuItem>
+                </>
               ) : (
                 <DropdownMenuItem
                   onSelect={() => {
                     setIsMenuOpen(false);
-                    setConfirmActionType("cancelRecurrence");
+                    window.setTimeout(() => {
+                      onManagePaymentLink();
+                    }, 0);
                   }}
                 >
                   <span className={styles.menuItem}>
-                    <CalendarX2 aria-hidden="true" />
-                    Cancelar recurrencia
+                    <Plus aria-hidden="true" />
+                    Agregar link de pago
                   </span>
                 </DropdownMenuItem>
               )}
-            </>
-          ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Link de pago</DropdownMenuLabel>
-          {hasPaymentLink ? (
-            <>
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  window.setTimeout(() => {
-                    onManagePaymentLink();
-                  }, 0);
-                }}
-              >
-                <span className={styles.menuItem}>
-                  <Pencil aria-hidden="true" />
-                  Editar link de pago
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  setIsMenuOpen(false);
-                  setConfirmActionType("deletePaymentLink");
-                }}
-                variant="destructive"
-              >
-                <span className={styles.menuItem}>
-                  <Trash2 aria-hidden="true" className={styles.destructiveIcon} />
-                  Eliminar link de pago
-                </span>
-              </DropdownMenuItem>
-            </>
-          ) : (
-            <DropdownMenuItem
-              onSelect={() => {
-                setIsMenuOpen(false);
-                window.setTimeout(() => {
-                  onManagePaymentLink();
-                }, 0);
-              }}
-            >
-              <span className={styles.menuItem}>
-                <Plus aria-hidden="true" />
-                Agregar link de pago
-              </span>
-            </DropdownMenuItem>
-          )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           {shouldRenderFoldersSection ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Carpetas</DropdownMenuLabel>
-            </>
-          ) : null}
-          {monthlyFolderViewUrl ? (
-            <DropdownMenuItem asChild>
-              <a
-                href={monthlyFolderViewUrl}
-                onClick={() => setIsMenuOpen(false)}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
                 <span className={styles.menuItem}>
                   <Folder aria-hidden="true" />
-                  Comprobantes del mes
+                  Carpetas
                 </span>
-              </a>
-            </DropdownMenuItem>
-          ) : null}
-          {allReceiptsFolderViewUrl ? (
-            <DropdownMenuItem asChild>
-              <a
-                href={allReceiptsFolderViewUrl}
-                onClick={() => setIsMenuOpen(false)}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                <span className={styles.menuItem}>
-                  <Folder aria-hidden="true" />
-                  Archivo histórico de comprobantes
-                </span>
-              </a>
-            </DropdownMenuItem>
-          ) : null}
-          {canDeleteMonthlyFolderReference ? (
-            <DropdownMenuItem
-              onSelect={() => {
-                setIsMenuOpen(false);
-                setConfirmActionType("deleteMonthlyFolderReference");
-              }}
-              variant="destructive"
-            >
-              <span className={styles.menuItem}>
-                <FolderX aria-hidden="true" className={styles.destructiveIcon} />
-                Quitar referencia de carpeta del mes actual
-              </span>
-            </DropdownMenuItem>
-          ) : null}
-          {canDeleteAllReceiptsFolderReference ? (
-            <DropdownMenuItem
-              onSelect={() => {
-                setIsMenuOpen(false);
-                setConfirmActionType("deleteAllReceiptsFolderReference");
-              }}
-              variant="destructive"
-            >
-              <span className={styles.menuItem}>
-                <FolderX aria-hidden="true" className={styles.destructiveIcon} />
-                Quitar referencia de carpeta de comprobantes
-              </span>
-            </DropdownMenuItem>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {monthlyFolderViewUrl ? (
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={monthlyFolderViewUrl}
+                      onClick={() => setIsMenuOpen(false)}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      <span className={styles.menuItem}>
+                        <Folder aria-hidden="true" />
+                        Comprobantes del mes
+                      </span>
+                    </a>
+                  </DropdownMenuItem>
+                ) : null}
+                {allReceiptsFolderViewUrl ? (
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={allReceiptsFolderViewUrl}
+                      onClick={() => setIsMenuOpen(false)}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      <span className={styles.menuItem}>
+                        <Folder aria-hidden="true" />
+                        Archivo histórico de comprobantes
+                      </span>
+                    </a>
+                  </DropdownMenuItem>
+                ) : null}
+                {canDeleteMonthlyFolderReference ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      setConfirmActionType("deleteMonthlyFolderReference");
+                    }}
+                    variant="destructive"
+                  >
+                    <span className={styles.menuItem}>
+                      <FolderX aria-hidden="true" className={styles.destructiveIcon} />
+                      Quitar referencia de carpeta del mes actual
+                    </span>
+                  </DropdownMenuItem>
+                ) : null}
+                {canDeleteAllReceiptsFolderReference ? (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setIsMenuOpen(false);
+                      setConfirmActionType("deleteAllReceiptsFolderReference");
+                    }}
+                    variant="destructive"
+                  >
+                    <span className={styles.menuItem}>
+                      <FolderX aria-hidden="true" className={styles.destructiveIcon} />
+                      Quitar referencia de carpeta de comprobantes
+                    </span>
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>

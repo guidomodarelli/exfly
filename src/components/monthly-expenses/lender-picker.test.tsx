@@ -230,9 +230,12 @@ describe("LenderPicker", () => {
     const lenderOption = screen.getByRole("button", {
       name: /Adrián Saúl Modarelli/i,
     });
-    const notesElement = screen.getByText(
+    // Varios ancestros comparten el mismo textContent; el último en orden de
+    // documento es el nodo más interno, que contiene los <mark> resaltados.
+    const notesElements = screen.getAllByText(
       (_, element) => element?.textContent === "Crédito ágil mensual",
     );
+    const notesElement = notesElements[notesElements.length - 1];
     const highlightedText = Array.from(
       notesElement.querySelectorAll("mark"),
       (element) => element.textContent ?? "",

@@ -1142,8 +1142,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
     await user.keyboard("{Escape}");
 
-    expect(screen.getByText(/\$\s*390,00/)).toBeInTheDocument();
-    expect(screen.getByText(/US\$\s*3,25/)).toBeInTheDocument();
+    // El total del footer también aparece en la línea "Pendiente:" del desglose.
+    expect(screen.getAllByText(/\$\s*390,00/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/US\$\s*3,25/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Pagado:\s*\$\s*0,00/)).toBeInTheDocument();
   });
 
   it("falls back to the expenses tab for invalid query values", () => {

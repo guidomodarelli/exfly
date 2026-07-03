@@ -1,137 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ComponentProps } from "react";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
 
 import {
-  MonthlyExpensesTable,
-  type MonthlyExpensesEditableRow,
-} from "./monthly-expenses-table";
-
-function createRow(overrides: Partial<MonthlyExpensesEditableRow> = {}): MonthlyExpensesEditableRow {
-  return {
-    allReceiptsFolderId: "",
-    allReceiptsFolderViewUrl: "",
-    currency: "ARS",
-    description: "Internet",
-    expenseFolderId: "",
-    sortOrder: null,
-    id: "expense-1",
-    installmentCount: "",
-    isLoan: false,
-    lenderId: "",
-    lenderName: "",
-    loanEndMonth: "",
-    loanPaidInstallments: null,
-    loanProgress: "",
-    loanRemainingInstallments: null,
-    loanTotalInstallments: null,
-    manualCoveredPayments: "0",
-    monthlyFolderId: "",
-    monthlyFolderViewUrl: "",
-    occurrencesPerMonth: "1",
-    occurrencesUnit: "",
-    isRecurring: false,
-    recurrenceStartMonth: "",
-    recurrenceEndMonth: "",
-    recurrenceIsActive: false,
-    paymentLink: "",
-    receiptShareMessage: "",
-    receiptSharePhoneDigits: "",
-    requiresReceiptShare: false,
-    receipts: [],
-    startMonth: "",
-    subtotal: "1000",
-    subtotalUnit: "occurrence",
-    total: "1000",
-    ...overrides,
-  };
-}
-
-function renderMonthlyExpensesTable(
-  rows: MonthlyExpensesEditableRow[],
-  overrides: Partial<
-    Pick<
-      ComponentProps<typeof MonthlyExpensesTable>,
-      | "onUpdateExpenseDetails"
-      | "onUpdatePaymentRecordSendStatus"
-      | "expenseFolders"
-    >
-  > = {},
-) {
-  return render(
-    <TooltipProvider>
-      <MonthlyExpensesTable
-        actionDisabled={false}
-        changedFields={new Set()}
-        draft={null}
-        exchangeRateLoadError={null}
-        exchangeRateSnapshot={null}
-        expenseFolders={[]}
-        feedbackMessage=""
-        feedbackTone="default"
-        isCopyFromDisabled={false}
-        isExpenseSheetOpen={false}
-        isMonthTransitionPending={false}
-        isSubmitting={false}
-        lenders={[]}
-        loadError={null}
-        month="2026-04"
-        onAddExpense={jest.fn()}
-        onAddLender={jest.fn()}
-        onCopyFromMonth={jest.fn()}
-        onCopyFromMonthDialogOpenChange={jest.fn()}
-        onConfirmCopyFromMonth={jest.fn()}
-        onToggleAllReplicableOptions={jest.fn()}
-        onToggleReplicableOption={jest.fn()}
-        onDeleteAllReceiptsFolderReference={jest.fn()}
-        onDeleteExpense={jest.fn()}
-        onDeleteExpenses={jest.fn().mockResolvedValue(true)}
-        onDeleteExpenseReceiptShare={jest.fn()}
-        onDeleteMonthlyFolderReference={jest.fn()}
-        onDeletePaymentLink={jest.fn()}
-        onDeleteReceipt={jest.fn()}
-        onDeleteManualPaymentRecord={jest.fn()}
-        onEditExpense={jest.fn()}
-        onEditManualPaymentRecord={jest.fn()}
-        onEditReceiptCoverage={jest.fn()}
-        onExpenseFieldChange={jest.fn()}
-        onExpenseFolderSelect={jest.fn()}
-        onManageFolders={jest.fn()}
-        onMoveExpenseToFolder={jest.fn()}
-        onReorderFolders={jest.fn()}
-        onExpenseLenderSelect={jest.fn()}
-        onExpenseLoanToggle={jest.fn()}
-        onExpenseRecurringToggle={jest.fn()}
-        onCancelRecurrence={jest.fn()}
-        onReactivateRecurrence={jest.fn()}
-        onExpenseReceiptShareToggle={jest.fn()}
-        onMonthChange={jest.fn()}
-        onRegisterPaymentRecord={jest.fn().mockResolvedValue(true)}
-        onRequestCloseExpenseSheet={jest.fn()}
-        onSaveExpense={jest.fn()}
-        onSaveUnsavedChanges={jest.fn()}
-        onUnsavedChangesClose={jest.fn()}
-        onUnsavedChangesDiscard={jest.fn()}
-        onUpdateExpenseDetails={jest.fn()}
-        onUpdateExpenseReceiptShare={jest.fn()}
-        onUpdatePaymentLink={jest.fn()}
-        onUpdatePaymentRecordSendStatus={jest.fn()}
-        {...overrides}
-        pendingMonth={null}
-        replicateFromPreviousMonthDialogOpen={false}
-        replicateFromPreviousMonthOptions={[]}
-        rows={rows}
-        selectedReplicableOptionIds={[]}
-        sheetMode="create"
-        showCopyFromControls={false}
-        showUnsavedChangesDialog={false}
-        validationMessage={null}
-      />
-    </TooltipProvider>,
-  );
-}
+  createRow,
+  renderMonthlyExpensesTable,
+} from "./monthly-expenses-table-test-utils";
 
 async function openQuickEditDialog({
   triggerLabel,
@@ -343,10 +218,15 @@ describe("MonthlyExpensesTable dialog autofocus", () => {
   it("focuses payment link input when opening payment link dialog", async () => {
     renderMonthlyExpensesTable([createRow()]);
 
-    await openQuickEditDialog({
-      menuItemLabel: "Agregar link de pago",
-      triggerLabel: "Abrir acciones para Internet",
-    });
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Internet" }),
+    );
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Agregar link de pago",
+    );
 
     await waitFor(() => {
       expect(screen.getByLabelText("Link de pago de Internet")).toHaveFocus();
@@ -360,10 +240,15 @@ describe("MonthlyExpensesTable dialog autofocus", () => {
       }),
     ]);
 
-    await openQuickEditDialog({
-      menuItemLabel: "Editar link de pago",
-      triggerLabel: "Abrir acciones para Internet",
-    });
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Internet" }),
+    );
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Editar link de pago",
+    );
 
     await waitFor(() => {
       const paymentLinkTextarea = screen.getByLabelText(

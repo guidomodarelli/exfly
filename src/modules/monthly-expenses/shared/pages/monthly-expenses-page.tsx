@@ -2646,6 +2646,31 @@ export default function MonthlyExpensesPage({
     });
   };
 
+  const handleMoveExpensesToFolderInBulk = async ({
+    expenseIds,
+    folderId,
+  }: {
+    expenseIds: string[];
+    folderId: string | null;
+  }): Promise<boolean> => {
+    if (expenseIds.length === 0) {
+      return false;
+    }
+
+    const expenseIdSet = new Set(expenseIds);
+    const normalizedFolderId = folderId ?? "";
+    const nextRows = formState.rows.map((row) =>
+      expenseIdSet.has(row.id)
+        ? { ...row, expenseFolderId: normalizedFolderId }
+        : row,
+    );
+
+    return persistMonthlyExpensesRows(nextRows, {
+      loading: "Moviendo gastos seleccionados de carpeta...",
+      success: "Gastos movidos de carpeta correctamente.",
+    });
+  };
+
   const handleCancelRecurrence = async (expenseId: string) => {
     const targetRow = formState.rows.find((row) => row.id === expenseId);
 
@@ -2810,6 +2835,49 @@ export default function MonthlyExpensesPage({
       isOpen: true,
       mode: "edit",
       originalRow: { ...row },
+      showUnsavedChangesDialog: false,
+    }));
+  };
+
+  const handleDuplicateExpense = (expenseId: string) => {
+    const row = formState.rows.find((currentRow) => currentRow.id === expenseId);
+
+    if (!row) {
+      toast.warning("No pudimos encontrar el gasto que querés duplicar.");
+      return;
+    }
+
+    // The duplicate copies the user-editable definition of the expense but
+    // starts with a fresh id and no payment history, receipts, or Drive
+    // folder references.
+    const draft: MonthlyExpensesEditableRow = {
+      ...createEmptyRow(),
+      currency: row.currency,
+      description: row.description,
+      expenseFolderId: row.expenseFolderId,
+      installmentCount: row.installmentCount,
+      isLoan: row.isLoan,
+      isRecurring: row.isRecurring,
+      lenderId: row.lenderId,
+      lenderName: row.lenderName,
+      loanDirection: row.loanDirection,
+      occurrencesPerMonth: row.occurrencesPerMonth,
+      occurrencesUnit: row.occurrencesUnit,
+      paymentLink: row.paymentLink,
+      receiptShareMessage: row.receiptShareMessage,
+      receiptSharePhoneDigits: row.receiptSharePhoneDigits,
+      requiresReceiptShare: row.requiresReceiptShare,
+      startMonth: row.startMonth,
+      subtotal: row.subtotal,
+      subtotalUnit: row.subtotalUnit,
+      total: row.total,
+    };
+
+    updateExpenseSheetState(() => ({
+      draft,
+      isOpen: true,
+      mode: "create",
+      originalRow: { ...draft },
       showUnsavedChangesDialog: false,
     }));
   };
@@ -4833,11 +4901,13 @@ export default function MonthlyExpensesPage({
                 onDeleteMonthlyFolderReference={handleDeleteMonthlyFolderReference}
                 onDeleteReceipt={handleDeleteExpenseReceipt}
                 onEditReceiptCoverage={handleOpenReceiptCoverageEditor}
+                onDuplicateExpense={handleDuplicateExpense}
                 onEditExpense={handleEditExpense}
                 onExpenseFieldChange={handleExpenseFieldChange}
                 onExpenseFolderSelect={handleExpenseFolderSelect}
                 onManageFolders={handleOpenFoldersManager}
                 onMoveExpenseToFolder={handleMoveExpenseToFolder}
+                onMoveExpensesToFolder={handleMoveExpensesToFolderInBulk}
                 onReorderFolders={handleReorderExpenseFolders}
                 onExpenseLenderSelect={handleExpenseLenderSelect}
                 onExpenseLoanToggle={handleExpenseLoanToggle}

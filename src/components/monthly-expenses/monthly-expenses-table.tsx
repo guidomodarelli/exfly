@@ -72,6 +72,8 @@ import {
   ArrowUp,
   ArrowUpDown,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Link2,
   MoreVertical,
@@ -95,8 +97,15 @@ import {
   normalizeCurrencyInput,
 } from "./currency-input-format";
 import { LoanInfoPopover } from "./loan-info-popover";
+import {
+  getAdjacentYearMonth,
+  getCurrentYearMonth,
+} from "./month-navigation";
 import type { LenderOption } from "./lender-picker";
-import type { ExpenseFolderOption } from "./expense-folder-picker";
+import {
+  ExpenseFolderPicker,
+  type ExpenseFolderOption,
+} from "./expense-folder-picker";
 import {
   ExpenseFolderFilterBar,
   ExpenseFolderRowBadge,
@@ -461,6 +470,7 @@ interface MonthlyExpensesTableProps {
   onDeleteExpenseReceiptShare: (expenseId: string) => void | Promise<void>;
   onDeletePaymentLink: (expenseId: string) => void | Promise<void>;
   onDeleteMonthlyFolderReference: (expenseId: string) => void;
+  onDuplicateExpense: (expenseId: string) => void;
   onEditExpense: (expenseId: string) => void;
   onExpenseFieldChange: (
     fieldName: ExpenseEditableFieldName,
@@ -472,6 +482,10 @@ interface MonthlyExpensesTableProps {
     expenseId: string;
     folderId: string | null;
   }) => void;
+  onMoveExpensesToFolder: (args: {
+    expenseIds: string[];
+    folderId: string | null;
+  }) => Promise<boolean>;
   onReorderFolders: (orderedFolderIds: string[]) => void;
   onExpenseLenderSelect: (lenderId: string | null) => void;
   onExpenseLoanToggle: (checked: boolean) => void;
@@ -836,6 +850,48 @@ function isBrokenDriveStatus(
 }
 
 /**
+ * Footer de totales por moneda: total de las filas visibles (según filtros
+ * activos) más el desglose pagado vs. pendiente derivado de
+ * `isPaymentCompleted`.
+ */
+function MonthlyTotalsFooter({
+  currency,
+  exchangeRateSnapshot,
+  rows,
+}: {
+  currency: MonthlyExpenseCurrency;
+  exchangeRateSnapshot: ExchangeRateSnapshot | null;
+  rows: MonthlyExpensesEditableRow[];
+}) {
+  const paidRows = rows.filter((row) => isPaymentCompleted(row));
+  const pendingRows = rows.filter((row) => !isPaymentCompleted(row));
+  // Un subconjunto vacío es un total de 0 (no "sin datos convertibles").
+  const formatTotalForRows = (totalRows: MonthlyExpensesEditableRow[]) =>
+    formatConvertedAmount(
+      currency,
+      totalRows.length === 0
+        ? 0
+        : getConvertedTotalAmount({
+            currency,
+            exchangeRateSnapshot,
+            rows: totalRows,
+          }),
+    );
+
+  return (
+    <span className={styles.totalFooterCell}>
+      <span className={styles.totalFooterValue}>{formatTotalForRows(rows)}</span>
+      <span className={styles.totalFooterBreakdownLine}>
+        {`Pagado: ${formatTotalForRows(paidRows)}`}
+      </span>
+      <span className={styles.totalFooterBreakdownLine}>
+        {`Pendiente: ${formatTotalForRows(pendingRows)}`}
+      </span>
+    </span>
+  );
+}
+
+/**
  * Clase de fila para gastos completados. Se define a nivel de módulo (referencia
  * estable) para no recrearla en cada render: una función inline invalidaría la
  * memo del cuerpo de la tabla en `DataTable` y forzaría un re-render completo de
@@ -871,6 +927,7 @@ export function MonthlyExpensesTable({
   onExpenseFolderSelect,
   onManageFolders,
   onMoveExpenseToFolder,
+  onMoveExpensesToFolder,
   onReorderFolders,
   onCopyFromMonth,
   onCopyFromMonthDialogOpenChange,
@@ -885,6 +942,7 @@ export function MonthlyExpensesTable({
   onDeleteExpenseReceiptShare,
   onDeletePaymentLink,
   onDeleteMonthlyFolderReference,
+  onDuplicateExpense,
   onEditExpense,
   onExpenseFieldChange,
   onExpenseLenderSelect,
@@ -1018,7 +1076,16 @@ export function MonthlyExpensesTable({
     null,
   );
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkMoveToFolderDialogOpen, setIsBulkMoveToFolderDialogOpen] =
+    useState(false);
+  const [bulkMoveTargetFolderId, setBulkMoveTargetFolderId] = useState<
+    string | null
+  >(null);
   const [isBulkActionsMenuOpen, setIsBulkActionsMenuOpen] = useState(false);
+  const previousYearMonth = getAdjacentYearMonth(month, -1);
+  const nextYearMonth = getAdjacentYearMonth(month, 1);
+  const currentYearMonth = getCurrentYearMonth();
+  const isCurrentMonthVisible = month === currentYearMonth;
   const handleDialogInputAutoFocus = useCallback(
     (event: Event, inputId: string) => {
       event.preventDefault();
@@ -1371,6 +1438,38 @@ export function MonthlyExpensesTable({
     });
     setIsBulkDeleteDialogOpen(false);
   }, [onDeleteExpenses, selectedVisibleExpenseIds]);
+  const handleBulkMoveToFolderDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setIsBulkMoveToFolderDialogOpen(nextOpen);
+
+      if (!nextOpen) {
+        setBulkMoveTargetFolderId(null);
+      }
+    },
+    [],
+  );
+  const handleConfirmBulkMoveToFolder = useCallback(async () => {
+    if (selectedVisibleExpenseIds.length === 0) {
+      handleBulkMoveToFolderDialogOpenChange(false);
+      return;
+    }
+
+    const wasSaved = await onMoveExpensesToFolder({
+      expenseIds: selectedVisibleExpenseIds,
+      folderId: bulkMoveTargetFolderId,
+    });
+
+    if (!wasSaved) {
+      return;
+    }
+
+    handleBulkMoveToFolderDialogOpenChange(false);
+  }, [
+    bulkMoveTargetFolderId,
+    handleBulkMoveToFolderDialogOpenChange,
+    onMoveExpensesToFolder,
+    selectedVisibleExpenseIds,
+  ]);
   const completedPendingReceiptShareCount = useMemo(() => {
     let pendingCount = 0;
 
@@ -1875,6 +1974,7 @@ export function MonthlyExpensesTable({
               onDeleteMonthlyFolderReference={() =>
                 onDeleteMonthlyFolderReference(row.original.id)}
               onDeletePaymentLink={() => onDeletePaymentLink(row.original.id)}
+              onDuplicate={() => onDuplicateExpense(row.original.id)}
               onEdit={() => onEditExpense(row.original.id)}
               onReactivateRecurrence={() =>
                 onReactivateRecurrence(row.original.id)}
@@ -2074,19 +2174,13 @@ export function MonthlyExpensesTable({
             </div>
           );
         },
-        footer: ({ table }) => {
-          const arsTotal = getConvertedTotalAmount({
-            currency: "ARS",
-            exchangeRateSnapshot,
-            rows: table.getFilteredRowModel().rows.map((row) => row.original),
-          });
-
-          return (
-            <span className={styles.totalFooterValue}>
-              {formatConvertedAmount("ARS", arsTotal)}
-            </span>
-          );
-        },
+        footer: ({ table }) => (
+          <MonthlyTotalsFooter
+            currency="ARS"
+            exchangeRateSnapshot={exchangeRateSnapshot}
+            rows={table.getFilteredRowModel().rows.map((row) => row.original)}
+          />
+        ),
         filterFn: (row, _columnId, filterValue) =>
           matchesAdvancedNumberRangeFilter(
             filterValue,
@@ -2147,19 +2241,13 @@ export function MonthlyExpensesTable({
               total: Number(row.original.total),
             }),
           ),
-        footer: ({ table }) => {
-          const usdTotal = getConvertedTotalAmount({
-            currency: "USD",
-            exchangeRateSnapshot,
-            rows: table.getFilteredRowModel().rows.map((row) => row.original),
-          });
-
-          return (
-            <span className={styles.totalFooterValue}>
-              {formatConvertedAmount("USD", usdTotal)}
-            </span>
-          );
-        },
+        footer: ({ table }) => (
+          <MonthlyTotalsFooter
+            currency="USD"
+            exchangeRateSnapshot={exchangeRateSnapshot}
+            rows={table.getFilteredRowModel().rows.map((row) => row.original)}
+          />
+        ),
         header: getSortableHeader("USD"),
         meta: { label: "USD" },
         sortingFn: (rowA, rowB) => {
@@ -2558,6 +2646,7 @@ export function MonthlyExpensesTable({
       onDeleteMonthlyFolderReference,
       onDeleteReceipt,
       onDeleteManualPaymentRecord,
+      onDuplicateExpense,
       onEditReceiptCoverage,
       onEditManualPaymentRecord,
       onEditExpense,
@@ -2630,13 +2719,54 @@ export function MonthlyExpensesTable({
                   triggerLabel="Información sobre el campo Mes"
                 />
               </div>
-              <Input
-                disabled={isMonthTransitionPending}
-                id="monthly-expenses-month"
-                onChange={(event) => onMonthChange(event.target.value)}
-                type="month"
-                value={month}
-              />
+              <div className={styles.monthNavRow}>
+                <Button
+                  aria-label="Mes anterior"
+                  disabled={isMonthTransitionPending || !previousYearMonth}
+                  onClick={() => {
+                    if (previousYearMonth) {
+                      onMonthChange(previousYearMonth);
+                    }
+                  }}
+                  size="icon-sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronLeft aria-hidden="true" />
+                </Button>
+                <Input
+                  className={styles.monthInput}
+                  disabled={isMonthTransitionPending}
+                  id="monthly-expenses-month"
+                  onChange={(event) => onMonthChange(event.target.value)}
+                  type="month"
+                  value={month}
+                />
+                <Button
+                  aria-label="Mes siguiente"
+                  disabled={isMonthTransitionPending || !nextYearMonth}
+                  onClick={() => {
+                    if (nextYearMonth) {
+                      onMonthChange(nextYearMonth);
+                    }
+                  }}
+                  size="icon-sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronRight aria-hidden="true" />
+                </Button>
+                <Button
+                  aria-label="Ir al mes actual"
+                  disabled={isMonthTransitionPending || isCurrentMonthVisible}
+                  onClick={() => onMonthChange(currentYearMonth)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Hoy
+                </Button>
+              </div>
             </div>
           </div>
           {showCopyFromControls ? (
@@ -2872,6 +3002,15 @@ export function MonthlyExpensesTable({
                       disabled={isBulkActionsDisabled}
                       onSelect={(event) => {
                         event.preventDefault();
+                        setIsBulkMoveToFolderDialogOpen(true);
+                      }}
+                    >
+                      Mover a carpeta
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={isBulkActionsDisabled}
+                      onSelect={(event) => {
+                        event.preventDefault();
                         setIsBulkDeleteDialogOpen(true);
                       }}
                     >
@@ -2926,6 +3065,44 @@ export function MonthlyExpensesTable({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog
+          onOpenChange={handleBulkMoveToFolderDialogOpenChange}
+          open={isBulkMoveToFolderDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Mover gastos a una carpeta</DialogTitle>
+              <DialogDescription>
+                {`Se moverán ${selectedVisibleCount} gasto${selectedVisibleCount === 1 ? " seleccionado" : "s seleccionados"} a la carpeta elegida.`}
+              </DialogDescription>
+            </DialogHeader>
+            <ExpenseFolderPicker
+              onManageFolders={onManageFolders}
+              onSelect={setBulkMoveTargetFolderId}
+              options={expenseFolders}
+              selectedFolderId={bulkMoveTargetFolderId ?? ""}
+            />
+            <DialogFooter>
+              <Button
+                onClick={() => handleBulkMoveToFolderDialogOpenChange(false)}
+                type="button"
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={actionDisabled || isSubmitting}
+                onClick={() => {
+                  void handleConfirmBulkMoveToFolder();
+                }}
+                type="button"
+              >
+                Mover
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog
           onOpenChange={onCopyFromMonthDialogOpenChange}

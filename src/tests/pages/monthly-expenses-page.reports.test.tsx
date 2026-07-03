@@ -11,6 +11,7 @@ import {
   getSafeMonthlyExpensesErrorMessage,
 } from "@/modules/monthly-expenses/application/queries/get-monthly-expenses-page-feedback";
 import MonthlyExpensesPage, { getReportProviderFilterOptions } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
+import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
 
 import {
   basePageProps,
@@ -1052,7 +1053,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /registros/i }));
+    await user.click(screen.getByRole("button", { name: /\d+ registros?/ }));
 
     await user.click(
       screen.getByRole("button", {
@@ -1973,7 +1974,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /registros/i }));
+    await user.click(screen.getByRole("button", { name: /\d+ registros?/ }));
 
     const registerPaymentButton = screen.getByRole("button", {
       name: "Agregar nuevo registro de pago para Internet",
@@ -2084,7 +2085,9 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(screen.getByText("Carpetas")).toBeInTheDocument();
 
-    const monthlyReceiptFolderMenuItem = screen.getByRole("menuitem", {
+    await user.click(screen.getByRole("menuitem", { name: "Carpetas" }));
+
+    const monthlyReceiptFolderMenuItem = await screen.findByRole("menuitem", {
       name: "Comprobantes del mes",
     });
     const allReceiptsFolderMenuItem = screen.getByRole("menuitem", {
@@ -2141,7 +2144,9 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
 
-    const monthlyReceiptFolderMenuItem = screen.getByRole("menuitem", {
+    await user.click(screen.getByRole("menuitem", { name: "Carpetas" }));
+
+    const monthlyReceiptFolderMenuItem = await screen.findByRole("menuitem", {
       name: "Comprobantes del mes",
     });
     const allReceiptsFolderMenuItem = screen.getByRole("menuitem", {
@@ -2207,10 +2212,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta del mes actual",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta del mes actual",
     );
 
     expect(
@@ -2234,10 +2239,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta del mes actual",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta del mes actual",
     );
     await user.click(
       screen.getByRole("button", {
@@ -2316,10 +2321,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta del mes actual",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta del mes actual",
     );
     await user.click(
       screen.getByRole("button", {
@@ -2389,10 +2394,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta de comprobantes",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta de comprobantes",
     );
 
     expect(
@@ -2416,10 +2421,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta de comprobantes",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta de comprobantes",
     );
     await user.click(
       screen.getByRole("button", {
@@ -2495,10 +2500,10 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Internet" }),
     );
-    await user.click(
-      screen.getByRole("menuitem", {
-        name: "Quitar referencia de carpeta de comprobantes",
-      }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Carpetas",
+      "Quitar referencia de carpeta de comprobantes",
     );
     await user.click(
       screen.getByRole("button", {

@@ -5,6 +5,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import MonthlyExpensesPage from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
+import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
 
 import {
   basePageProps,
@@ -206,6 +207,71 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(
       screen.queryByRole("link", { name: "Abrir archivo mensual en Drive" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("duplicates an expense into a prefilled create sheet and saves it as a new item", async () => {
+    const user = userEvent.setup();
+    const fetchMock = createMonthlyExpensesFetchMock();
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Electricidad",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              paymentLink: null,
+              subtotal: 45,
+              total: 45,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Electricidad" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Duplicar" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Nuevo gasto" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Descripción")).toHaveValue("Electricidad");
+    expect(screen.getByLabelText("Subtotal")).toHaveValue("45");
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => {
+      expect(getMonthlyExpensesSavePayload(fetchMock).items).toHaveLength(2);
+    });
+
+    const savedItems = getMonthlyExpensesSavePayload(fetchMock).items;
+
+    expect(savedItems[1]).toEqual(
+      expect.objectContaining({
+        description: "Electricidad",
+        subtotal: 45,
+      }),
+    );
+    expect(savedItems[1]?.id).not.toBe("expense-1");
   });
 
   it("saves a new expense when pressing Enter inside the expense sheet", async () => {
@@ -533,10 +599,15 @@ registerMonthlyExpensesPageDefaultHooks({
         name: "Abrir acciones para Electricidad",
       }),
     );
-    await user.click(
-      screen.getByRole("menuitem", { name: "Agregar link de pago" }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Agregar link de pago",
     );
-    await user.type(screen.getByLabelText("Link de pago de Electricidad"), "google.com");
+    await user.type(
+      await screen.findByLabelText("Link de pago de Electricidad"),
+      "google.com",
+    );
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => {
@@ -602,10 +673,14 @@ registerMonthlyExpensesPageDefaultHooks({
         name: "Abrir acciones para Electricidad",
       }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Editar link de pago" }));
-    expect(screen.getByLabelText("Link de pago de Electricidad").tagName).toBe(
-      "TEXTAREA",
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Editar link de pago",
     );
+    expect(
+      (await screen.findByLabelText("Link de pago de Electricidad")).tagName,
+    ).toBe("TEXTAREA");
     await user.clear(screen.getByLabelText("Link de pago de Electricidad"));
     await user.type(
       screen.getByLabelText("Link de pago de Electricidad"),
@@ -672,7 +747,11 @@ registerMonthlyExpensesPageDefaultHooks({
         name: "Abrir acciones para Electricidad",
       }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Eliminar link de pago" }));
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Eliminar link de pago",
+    );
 
     expect(
       screen.getByText("¿Querés eliminar este link de pago?"),
@@ -718,8 +797,10 @@ registerMonthlyExpensesPageDefaultHooks({
       }),
     );
 
+    await user.click(screen.getByRole("menuitem", { name: "Link de pago" }));
+
     expect(
-      screen.getByRole("menuitem", { name: "Agregar link de pago" }),
+      await screen.findByRole("menuitem", { name: "Agregar link de pago" }),
     ).toBeInTheDocument();
   });
 
@@ -765,7 +846,11 @@ registerMonthlyExpensesPageDefaultHooks({
         name: "Abrir acciones para Electricidad",
       }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Eliminar link de pago" }));
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Eliminar link de pago",
+    );
 
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
 
@@ -824,10 +909,15 @@ registerMonthlyExpensesPageDefaultHooks({
         name: "Abrir acciones para Electricidad",
       }),
     );
-    await user.click(
-      screen.getByRole("menuitem", { name: "Agregar link de pago" }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Agregar link de pago",
     );
-    await user.type(screen.getByLabelText("Link de pago de Electricidad"), "asdads");
+    await user.type(
+      await screen.findByLabelText("Link de pago de Electricidad"),
+      "asdads",
+    );
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     expect(

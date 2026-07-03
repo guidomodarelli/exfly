@@ -38,13 +38,24 @@
 .monthField {
   display: grid;
   gap: 0.4rem;
-  width: min(15rem, 100%);
+  width: min(21rem, 100%);
 }
 
 .monthLabelRow {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.monthNavRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.monthInput {
+  flex: 1;
+  min-width: 0;
 }
 
 .copyField {
@@ -659,10 +670,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+.totalFooterCell {
+  display: grid;
+  gap: 0.15rem;
+  justify-items: start;
+}
+
 .totalFooterValue {
   display: inline-flex;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+.totalFooterBreakdownLine {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .loanCell {

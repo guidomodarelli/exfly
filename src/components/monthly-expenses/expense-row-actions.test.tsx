@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
 
 import { ExpenseRowActions } from "./expense-row-actions";
 
@@ -23,6 +25,7 @@ function renderExpenseRowActions(
     onDelete: jest.fn(),
     onDeleteMonthlyFolderReference: jest.fn(),
     onDeletePaymentLink: jest.fn(),
+    onDuplicate: jest.fn(),
     onEdit: jest.fn(),
     onManagePaymentLink: jest.fn(),
     onReactivateRecurrence: jest.fn(),
@@ -45,16 +48,88 @@ async function openActionsMenu() {
 }
 
 describe("ExpenseRowActions", () => {
-  it("does not offer recurrence actions for a non-recurring expense", async () => {
+  it("keeps edit and delete at the menu root", async () => {
+    renderExpenseRowActions();
+    await openActionsMenu();
+
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Eliminar" }),
+    ).toBeInTheDocument();
+  });
+
+  it("duplicates the expense from the menu root", async () => {
+    const onDuplicate = jest.fn();
+    renderExpenseRowActions({ onDuplicate });
+
+    const user = await openActionsMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Duplicar" }));
+
+    expect(onDuplicate).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer a recurrence submenu for a non-recurring expense", async () => {
     renderExpenseRowActions({ isRecurring: false });
     await openActionsMenu();
 
     expect(
-      screen.queryByRole("menuitem", { name: "Cancelar recurrencia" }),
+      screen.queryByRole("menuitem", { name: "Recurrencia" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("groups payment link actions in a submenu", async () => {
+    const onManagePaymentLink = jest.fn();
+    renderExpenseRowActions({ hasPaymentLink: true, onManagePaymentLink });
+
+    const user = await openActionsMenu();
+
     expect(
-      screen.queryByRole("menuitem", { name: "Reactivar recurrencia" }),
+      screen.queryByRole("menuitem", { name: "Editar link de pago" }),
     ).not.toBeInTheDocument();
+
+    await selectDropdownSubmenuItem(user, "Link de pago", "Editar link de pago");
+
+    await waitFor(() => {
+      expect(onManagePaymentLink).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("offers adding a payment link from the submenu when there is none", async () => {
+    const onManagePaymentLink = jest.fn();
+    renderExpenseRowActions({ hasPaymentLink: false, onManagePaymentLink });
+
+    const user = await openActionsMenu();
+    await selectDropdownSubmenuItem(
+      user,
+      "Link de pago",
+      "Agregar link de pago",
+    );
+
+    await waitFor(() => {
+      expect(onManagePaymentLink).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not offer a folders submenu without folder references", async () => {
+    renderExpenseRowActions();
+    await openActionsMenu();
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Carpetas" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("groups folder actions in a submenu", async () => {
+    renderExpenseRowActions({
+      monthlyFolderViewUrl: "https://drive.google.com/folder/abc",
+    });
+
+    const user = await openActionsMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Carpetas" }));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Comprobantes del mes" }),
+    ).toBeInTheDocument();
   });
 
   it("cancels an active recurrence after confirming", async () => {
@@ -66,11 +141,9 @@ describe("ExpenseRowActions", () => {
     });
 
     const user = await openActionsMenu();
+    await selectDropdownSubmenuItem(user, "Recurrencia", "Cancelar recurrencia");
     await user.click(
-      screen.getByRole("menuitem", { name: "Cancelar recurrencia" }),
-    );
-    await user.click(
-      screen.getByRole("button", {
+      await screen.findByRole("button", {
         name: "Confirmar cancelación de la recurrencia para Alquiler",
       }),
     );
@@ -87,13 +160,14 @@ describe("ExpenseRowActions", () => {
     });
 
     const user = await openActionsMenu();
-    await user.click(
-      screen.getByRole("menuitem", { name: "Reactivar recurrencia" }),
+    await selectDropdownSubmenuItem(
+      user,
+      "Recurrencia",
+      "Reactivar recurrencia",
     );
 
-    expect(onReactivateRecurrence).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("menuitem", { name: "Cancelar recurrencia" }),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(onReactivateRecurrence).toHaveBeenCalledTimes(1);
+    });
   });
 });
