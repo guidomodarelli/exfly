@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  // Mismo espaciado (0.5rem) que el gap del toolbar entre la barra de búsqueda
+  // y los dropdowns de Acciones masivas / Vista, para una separación uniforme.
+  margin-bottom: 0.5rem;
 }
 
 .chipRow {
