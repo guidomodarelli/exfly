@@ -26,6 +26,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -121,7 +123,11 @@ import {
   ExpenseFolderFilterBar,
   ExpenseFolderRowBadge,
 } from "./expense-folder-organizer";
-import { UNASSIGNED_EXPENSE_FOLDER_FILTER_ID } from "./expense-folder-visuals";
+import {
+  ExpenseFolderIconGlyph,
+  resolveExpenseFolderColorHex,
+  UNASSIGNED_EXPENSE_FOLDER_FILTER_ID,
+} from "./expense-folder-visuals";
 import {
   formatReceiptSharePhoneDisplay,
   normalizeReceiptSharePhoneDigits,
@@ -208,8 +214,12 @@ export type {
 } from "./monthly-expenses-table.types";
 const YEAR_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MOVE_COMPLETED_TO_END_LABEL = "Mover completados al final";
-const MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT =
+const MANUAL_SORTING_DISABLED_HELPER_TEXT =
   "Desactivado mientras haya un orden manual.";
+const UNASSIGNED_FOLDER_GROUP_LABEL = "Sin carpeta";
+
+/** Modo de agrupado visual de la tabla; v1 solo soporta carpeta. */
+type MonthlyExpensesGroupByMode = "none" | "folder";
 /**
  * Cantidad máxima de caracteres que se muestran en la descripción de la fila
  * antes de truncar con ellipsis y exponer el texto completo en un tooltip.
@@ -771,6 +781,28 @@ function getRowsMatchingDescriptionFilter(
   );
 }
 
+/**
+ * Reordena las filas por carpeta (en el orden configurado de las carpetas, con
+ * "Sin carpeta" al final), preservando el orden relativo dentro de cada grupo.
+ */
+function getRowsGroupedByFolder(
+  rows: MonthlyExpensesEditableRow[],
+  folders: ExpenseFolderOption[],
+): MonthlyExpensesEditableRow[] {
+  const positionByFolderId = new Map(
+    folders.map((folder, folderIndex) => [folder.id, folderIndex]),
+  );
+  const unassignedPosition = folders.length;
+  const getGroupPosition = (row: MonthlyExpensesEditableRow) =>
+    positionByFolderId.get(row.expenseFolderId) ?? unassignedPosition;
+
+  // Array.prototype.sort es estable: conserva el orden relativo dentro del grupo.
+  return [...rows].sort(
+    (leftRow, rightRow) =>
+      getGroupPosition(leftRow) - getGroupPosition(rightRow),
+  );
+}
+
 function getRowsWithCompletedAtEnd(
   rows: MonthlyExpensesEditableRow[],
 ): MonthlyExpensesEditableRow[] {
@@ -1026,6 +1058,24 @@ export function MonthlyExpensesTable({
   const [moveCompletedToEnd, setMoveCompletedToEnd] = useState(
     DEFAULT_MOVE_COMPLETED_TO_END,
   );
+  const [groupByMode, setGroupByMode] =
+    useState<MonthlyExpensesGroupByMode>("none");
+  const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<
+    ReadonlySet<string>
+  >(() => new Set<string>());
+  const handleGroupToggle = useCallback((groupKey: string) => {
+    setCollapsedGroupKeys((previousCollapsedGroupKeys) => {
+      const nextCollapsedGroupKeys = new Set(previousCollapsedGroupKeys);
+
+      if (nextCollapsedGroupKeys.has(groupKey)) {
+        nextCollapsedGroupKeys.delete(groupKey);
+      } else {
+        nextCollapsedGroupKeys.add(groupKey);
+      }
+
+      return nextCollapsedGroupKeys;
+    });
+  }, []);
   const [isRestoringTablePreferences, setIsRestoringTablePreferences] =
     useState(true);
   const [descriptionFilter, setDescriptionFilter] = useState("");
@@ -1428,12 +1478,26 @@ export function MonthlyExpensesTable({
   ]);
   const hasManualSorting = sorting.length > 0;
   const rowsForTable = useMemo(() => {
-    if (!moveCompletedToEnd || hasManualSorting) {
-      return rowsMatchingQueryPredicate;
+    const orderedRows =
+      !moveCompletedToEnd || hasManualSorting
+        ? rowsMatchingQueryPredicate
+        : getRowsWithCompletedAtEnd(rowsMatchingQueryPredicate);
+
+    // El agrupado manda el orden entre grupos; dentro de cada grupo se conserva
+    // el orden previo. Con orden manual activo el agrupado queda suspendido
+    // (mismo criterio que "mover completados al final").
+    if (groupByMode !== "folder" || hasManualSorting) {
+      return orderedRows;
     }
 
-    return getRowsWithCompletedAtEnd(rowsMatchingQueryPredicate);
-  }, [hasManualSorting, moveCompletedToEnd, rowsMatchingQueryPredicate]);
+    return getRowsGroupedByFolder(orderedRows, expenseFolders);
+  }, [
+    expenseFolders,
+    groupByMode,
+    hasManualSorting,
+    moveCompletedToEnd,
+    rowsMatchingQueryPredicate,
+  ]);
   const selectedExpenseIdsInCurrentRows = useMemo(() => {
     const availableExpenseIds = new Set(rows.map((row) => row.id));
 
@@ -1949,6 +2013,55 @@ export function MonthlyExpensesTable({
 
     return folderMap;
   }, [expenseFolders]);
+  // Config de grupos para el DataTable. Memoizada para no invalidar la memo del
+  // cuerpo de la tabla en cada render; `undefined` desactiva el agrupado.
+  const rowGroups = useMemo(() => {
+    if (groupByMode !== "folder" || hasManualSorting) {
+      return undefined;
+    }
+
+    return {
+      collapsedGroupKeys,
+      onGroupToggle: handleGroupToggle,
+      getGroupKey: (row: MonthlyExpensesEditableRow) =>
+        row.expenseFolderId && foldersById.has(row.expenseFolderId)
+          ? row.expenseFolderId
+          : "",
+      renderGroupHeader: (groupKey: string, groupRowCount: number) => {
+        const folder = groupKey ? foldersById.get(groupKey) ?? null : null;
+        const folderName = folder?.name ?? UNASSIGNED_FOLDER_GROUP_LABEL;
+        const groupRowCountLabel = `${groupRowCount} gasto${groupRowCount === 1 ? "" : "s"}`;
+
+        return (
+          <span
+            aria-label={`Grupo ${folderName}: ${groupRowCountLabel}`}
+            className={styles.groupHeaderPill}
+            role="img"
+          >
+            {folder ? (
+              <span
+                aria-hidden="true"
+                className={styles.groupHeaderSwatch}
+                style={{
+                  backgroundColor: resolveExpenseFolderColorHex(folder.color),
+                }}
+              >
+                <ExpenseFolderIconGlyph icon={folder.icon} size={12} stroke={2} />
+              </span>
+            ) : null}
+            <span>{folderName}</span>
+            <span className={styles.groupHeaderCount}>{groupRowCount}</span>
+          </span>
+        );
+      },
+    };
+  }, [
+    collapsedGroupKeys,
+    foldersById,
+    groupByMode,
+    handleGroupToggle,
+    hasManualSorting,
+  ]);
   const folderCounts = useMemo(() => {
     const countsByFolderId: Record<string, number> = {};
     let unassignedCount = 0;
@@ -3123,7 +3236,7 @@ export function MonthlyExpensesTable({
                     {MOVE_COMPLETED_TO_END_LABEL}
                     {hasManualSorting ? (
                       <span className={styles.viewMenuOptionHint}>
-                        {MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT}
+                        {MANUAL_SORTING_DISABLED_HELPER_TEXT}
                       </span>
                     ) : null}
                   </span>
@@ -3187,11 +3300,58 @@ export function MonthlyExpensesTable({
                 [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: `Vigencia (${getVigenciaSortModeLabel(vigenciaSortMode)})`,
               }}
               sorting={sorting}
+              rowGroups={rowGroups}
               toolbarActions={
-                <DropdownMenu
-                  onOpenChange={setIsBulkActionsMenuOpen}
-                  open={isBulkActionsMenuOpen}
-                >
+                <>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline">
+                        {groupByMode === "folder"
+                          ? "Agrupar por: Carpeta"
+                          : "Agrupar por"}
+                        <ChevronDown aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuRadioGroup
+                        onValueChange={(nextValue) => {
+                          setGroupByMode(
+                            nextValue === "folder" ? "folder" : "none",
+                          );
+                        }}
+                        value={groupByMode}
+                      >
+                        <DropdownMenuRadioItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="none"
+                        >
+                          Sin agrupar
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem
+                          disabled={hasManualSorting}
+                          onSelect={(event) => {
+                            event.preventDefault();
+                          }}
+                          value="folder"
+                        >
+                          <span className={styles.viewMenuOption}>
+                            Carpeta
+                            {hasManualSorting ? (
+                              <span className={styles.viewMenuOptionHint}>
+                                {MANUAL_SORTING_DISABLED_HELPER_TEXT}
+                              </span>
+                            ) : null}
+                          </span>
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <DropdownMenu
+                    onOpenChange={setIsBulkActionsMenuOpen}
+                    open={isBulkActionsMenuOpen}
+                  >
                   <DropdownMenuTrigger asChild>
                     <Button
                       aria-label="Acciones masivas"
@@ -3227,7 +3387,8 @@ export function MonthlyExpensesTable({
                       Eliminar
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
+                </>
               }
             />
           </div>

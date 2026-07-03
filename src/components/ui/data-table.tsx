@@ -15,7 +15,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CircleAlert, ChevronDown, Ellipsis, Eraser, X } from "lucide-react";
+import {
+  CircleAlert,
+  ChevronDown,
+  ChevronRight,
+  Ellipsis,
+  Eraser,
+  X,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +144,23 @@ interface DataTableProps<TData, TValue> {
   queryFilterControlsRef?: React.MutableRefObject<DataTableQueryFilterControls | null>;
   /** Acción opcional dentro del input de la barra unificada, al final derecho. */
   queryFilterTrailingAction?: React.ReactNode;
+  /**
+   * Agrupa visualmente las filas por adyacencia: cuando la clave de grupo de una
+   * fila difiere de la anterior se intercala una fila de encabezado. Las filas
+   * deben venir pre-ordenadas por grupo. El objeto debe ser memoizado por el
+   * consumidor (invalida la memo del cuerpo de la tabla).
+   */
+  rowGroups?: {
+    getGroupKey: (row: TData) => string;
+    renderGroupHeader: (groupKey: string, groupRowCount: number) => React.ReactNode;
+    /** Grupos cuyas filas están colapsadas (solo se ve su encabezado). */
+    collapsedGroupKeys?: ReadonlySet<string>;
+    /**
+     * Colapsa/expande el grupo desde su encabezado (estilo accordion). Sin este
+     * callback los encabezados no son interactivos.
+     */
+    onGroupToggle?: (groupKey: string) => void;
+  };
   showExcludeFilterToggle?: boolean;
   excludeFilterValues?: string[];
   onExcludeFilterValuesChange?: (values: string[]) => void;
@@ -369,6 +393,7 @@ export function DataTable<TData, TValue>({
   onAppliedFiltersChange,
   queryFilterControlsRef,
   queryFilterTrailingAction,
+  rowGroups,
   showExcludeFilterToggle = false,
   excludeFilterValues: controlledExcludeFilterValues,
   onExcludeFilterValuesChange,
@@ -937,10 +962,76 @@ export function DataTable<TData, TValue>({
   // del cuerpo y colgaba la página. Se sigue el patrón de memoización de
   // TanStack: no se depende de la identidad de `table`, que cambia en cada render.
   const tableBodyRows = React.useMemo(() => {
-    return tableRowModelRows.map((row) => {
+    // Con agrupado activo, el conteo por grupo se calcula sobre el row model
+    // visible (post filtros/orden) para que el encabezado refleje lo que se ve.
+    const groupRowCounts = new Map<string, number>();
+
+    if (rowGroups) {
+      for (const row of tableRowModelRows) {
+        const groupKey = rowGroups.getGroupKey(row.original);
+
+        groupRowCounts.set(groupKey, (groupRowCounts.get(groupKey) ?? 0) + 1);
+      }
+    }
+
+    const renderedRows: React.ReactNode[] = [];
+    let previousGroupKey: string | null = null;
+
+    for (const row of tableRowModelRows) {
+      if (rowGroups) {
+        const groupKey = rowGroups.getGroupKey(row.original);
+        const isGroupCollapsed =
+          rowGroups.collapsedGroupKeys?.has(groupKey) ?? false;
+
+        if (groupKey !== previousGroupKey) {
+          const groupHeaderContent = rowGroups.renderGroupHeader(
+            groupKey,
+            groupRowCounts.get(groupKey) ?? 0,
+          );
+          const handleGroupToggle = rowGroups.onGroupToggle;
+
+          renderedRows.push(
+            <TableRow
+              className="hover:bg-transparent"
+              data-slot="table-group-header-row"
+              key={`group-header-${groupKey}-${row.id}`}
+            >
+              <TableCell
+                className="bg-muted/40"
+                colSpan={Math.max(visibleLeafColumnsCount, 1)}
+              >
+                {handleGroupToggle ? (
+                  <button
+                    aria-expanded={!isGroupCollapsed}
+                    className="flex w-full items-center gap-1.5 text-left"
+                    onClick={() => handleGroupToggle(groupKey)}
+                    type="button"
+                  >
+                    {isGroupCollapsed ? (
+                      <ChevronRight aria-hidden="true" className="size-4 shrink-0" />
+                    ) : (
+                      <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+                    )}
+                    {groupHeaderContent}
+                  </button>
+                ) : (
+                  groupHeaderContent
+                )}
+              </TableCell>
+            </TableRow>,
+          );
+          previousGroupKey = groupKey;
+        }
+
+        // Grupo colapsado: solo queda el encabezado; sus filas no se renderizan.
+        if (isGroupCollapsed) {
+          continue;
+        }
+      }
+
       const rowClassName = getRowClassName?.(row.original);
 
-      return (
+      renderedRows.push(
         <TableRow className={rowClassName} key={row.id}>
           {row.getVisibleCells().map((cell) => {
             const columnMeta = cell.column.columnDef.meta as
@@ -964,9 +1055,11 @@ export function DataTable<TData, TValue>({
               </TableCell>
             );
           })}
-        </TableRow>
+        </TableRow>,
       );
-    });
+    }
+
+    return renderedRows;
     // `columnVisibility` se incluye a propósito: alterna qué celdas devuelve
     // `row.getVisibleCells()` sin cambiar la referencia de `tableRowModelRows`,
     // por lo que es necesaria para invalidar la memo al mostrar/ocultar columnas
@@ -975,7 +1068,14 @@ export function DataTable<TData, TValue>({
     // de "sin filtro" a "con filtro" y, si estuviera acá, invalidaría la memo y
     // re-renderizaría todas las filas en la primera tecla aunque no cambien.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnVisibility, getRowClassName, onCellClick, tableRowModelRows]);
+  }, [
+    columnVisibility,
+    getRowClassName,
+    onCellClick,
+    rowGroups,
+    tableRowModelRows,
+    visibleLeafColumnsCount,
+  ]);
 
   const tableBodyContent = tableBodyRows.length ? (
     tableBodyRows
