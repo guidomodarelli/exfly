@@ -2965,30 +2965,32 @@ export function MonthlyExpensesTable({
           ) : null}
 
           <div className={styles.tableHeader}>
-            <div className={styles.tableHeaderTopRow}>
-              <h2 className={styles.tableTitle}>Detalle del mes</h2>
-              <div className={styles.tableAddAction}>
+            <h2 className={cn(styles.tableTitle, styles.tableHeaderTitle)}>
+              Detalle del mes
+            </h2>
+            <div className={cn(styles.tableAddAction, styles.tableHeaderAction)}>
+              <Button
+                className={styles.tableHeaderActionButton}
+                disabled={actionDisabled || isMonthTransitionPending}
+                onClick={onAddExpense}
+                type="button"
+              >
+                Agregar gasto
+              </Button>
+              {expenseFolders.length === 0 ? (
                 <Button
-                  disabled={actionDisabled || isMonthTransitionPending}
-                  onClick={onAddExpense}
+                  className={styles.tableHeaderActionButton}
+                  onClick={onManageFolders}
                   type="button"
+                  variant="outline"
                 >
-                  Agregar gasto
+                  Administrar carpetas
                 </Button>
-                {expenseFolders.length === 0 ? (
-                  <Button
-                    onClick={onManageFolders}
-                    type="button"
-                    variant="outline"
-                  >
-                    Administrar carpetas
-                  </Button>
-                ) : null}
-              </div>
+              ) : null}
             </div>
             <section
               aria-label="Resumen del mes"
-              className={styles.monthSummary}
+              className={cn(styles.monthSummary, styles.tableHeaderSummary)}
             >
               <div className={styles.monthSummaryCard}>
                 <span className={styles.monthSummaryLabel}>Total</span>

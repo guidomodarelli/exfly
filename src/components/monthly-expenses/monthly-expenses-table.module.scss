@@ -137,15 +137,29 @@
 
 .tableHeader {
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "title action"
+    "summary summary";
+  align-items: center;
+  gap: 0.75rem;
+  // Separador hairline que delimita el bloque "Detalle del mes" de la barra de
+  // mes de arriba. El padding da aire entre la línea y el contenido.
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
 }
 
-.tableHeaderTopRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+.tableHeaderTitle {
+  grid-area: title;
+}
+
+.tableHeaderAction {
+  grid-area: action;
+  justify-content: flex-end;
+}
+
+.tableHeaderSummary {
+  grid-area: summary;
 }
 
 .tableTitle {
@@ -221,7 +235,10 @@
   --selection-column-width: 3.75rem;
 
   position: relative;
-  padding-top: 0.25rem;
+  // Separador hairline que delimita la zona de carpetas/filtro/tabla del bloque
+  // "Detalle del mes" de arriba.
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
   overflow: visible;
 }
 
@@ -1324,6 +1341,23 @@
 
   .tableAddAction {
     width: 100%;
+  }
+
+  /* --- Encabezado apilado: título, resumen y luego la acción principal --- */
+  .tableHeader {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "summary"
+      "action";
+  }
+
+  .tableHeaderAction {
+    justify-content: stretch;
+  }
+
+  .tableHeaderActionButton {
+    flex: 1 1 100%;
   }
 
   /* --- Tabla -> cards --- */
