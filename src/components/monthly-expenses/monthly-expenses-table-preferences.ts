@@ -22,14 +22,18 @@ export const DEFAULT_MOVE_COMPLETED_TO_END = true;
 export const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
   // Columna fantasma del agrupado: nunca se muestra ni se puede mostrar.
   [GROUP_POSITION_COLUMN_ID]: false,
+  // Registros vive unificado dentro de la columna Pagos; la columna queda
+  // oculta solo como soporte de orden y filtros.
+  paymentHistory: false,
   usd: false,
 };
 
 // Column ids accepted when restoring persisted sorting/visibility.
+// `paymentHistory` no se acepta: dejó de ser ordenable al unificarse en "Pagos"
+// y un orden viejo persistido no tendría forma visible de quitarse.
 const SORTABLE_COLUMN_IDS = new Set([
   "description",
   "paymentsProgress",
-  "paymentHistory",
   "subtotal",
   "total",
   "usd",
@@ -38,9 +42,10 @@ const SORTABLE_COLUMN_IDS = new Set([
   LOAN_INSTALLMENT_RANGE_COLUMN_ID,
 ]);
 
+// `paymentHistory` no se acepta: quedó unificada dentro de "Pagos" y una
+// preferencia vieja persistida no debe volver a mostrarla.
 const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
   "paymentsProgress",
-  "paymentHistory",
   "subtotal",
   "total",
   "usd",

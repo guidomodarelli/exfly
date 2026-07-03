@@ -253,7 +253,6 @@ const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   total: "Total",
   usd: "USD",
   paymentsProgress: "Pagos",
-  paymentHistory: "Registros",
   lenderName: "Prestamista",
   [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
 };
@@ -2637,19 +2636,44 @@ export function MonthlyExpensesTable({
             requiredPayments > 0
               ? normalizedCoveredPayments / requiredPayments
               : 0;
+          const maxManualCoveredPayments = Math.max(
+            requiredPayments - coveredPayments,
+            0,
+          );
+          const expenseDescription = row.original.description.trim() || "gasto";
 
           return (
-            <span
-              className={cn(
-                styles.paymentProgressPlain,
-                isComplete
-                  ? "text-green-700 dark:text-green-300"
-                  : "text-yellow-700 dark:text-yellow-300",
-              )}
-            >
-              <PaymentProgressRing fraction={completionFraction} />
-              {normalizedCoveredPayments} / {requiredPayments}
-            </span>
+            <div className={styles.paymentsCell}>
+              <span
+                className={cn(
+                  styles.paymentProgressPlain,
+                  isComplete
+                    ? "text-green-700 dark:text-green-300"
+                    : "text-yellow-700 dark:text-yellow-300",
+                )}
+              >
+                <PaymentProgressRing fraction={completionFraction} />
+                {normalizedCoveredPayments} / {requiredPayments}
+              </span>
+              <PaymentHistoryCell
+                actionDisabled={actionDisabled}
+                expenseDescription={expenseDescription}
+                expenseId={row.original.id}
+                maxPaymentsPerRecord={maxManualCoveredPayments}
+                onRegisterPaymentRecord={onRegisterPaymentRecord}
+                onDeleteManualPaymentRecord={onDeleteManualPaymentRecord}
+                onDeleteReceipt={onDeleteReceipt}
+                onDeleteExpenseReceiptShare={onDeleteExpenseReceiptShare}
+                onEditManualPaymentRecord={onEditManualPaymentRecord}
+                onEditReceiptCoverage={onEditReceiptCoverage}
+                onOpenReceiptShareDialog={handleOpenReceiptShareDialog}
+                onUpdatePaymentRecordSendStatus={onUpdatePaymentRecordSendStatus}
+                paymentRecords={row.original.paymentRecords ?? []}
+                receiptShareMessage={row.original.receiptShareMessage}
+                receiptSharePhoneDigits={row.original.receiptSharePhoneDigits}
+                requiresReceiptShare={row.original.requiresReceiptShare}
+              />
+            </div>
           );
         },
         filterFn: (row, _columnId, filterValue) => {
@@ -2694,61 +2718,21 @@ export function MonthlyExpensesTable({
         },
       },
       {
+        // Columna oculta: su celda vive unificada dentro de "Pagos", pero la
+        // columna sigue existiendo (invisible, no ocultable y sin orden) solo
+        // para que el qualifier `registros:` de la barra pueda filtrar.
         id: "paymentHistory",
         accessorFn: (row) => (row.paymentRecords ?? []).length,
-        cell: ({ row }) => {
-          const { coveredPayments, requiredPayments } = getPaymentProgress(
-            row.original,
-          );
-          const maxManualCoveredPayments = Math.max(
-            requiredPayments - coveredPayments,
-            0,
-          );
-          const expenseDescription = row.original.description.trim() || "gasto";
-
-          return (
-            <PaymentHistoryCell
-              actionDisabled={actionDisabled}
-              expenseDescription={expenseDescription}
-              expenseId={row.original.id}
-              maxPaymentsPerRecord={maxManualCoveredPayments}
-              onRegisterPaymentRecord={onRegisterPaymentRecord}
-              onDeleteManualPaymentRecord={onDeleteManualPaymentRecord}
-              onDeleteReceipt={onDeleteReceipt}
-              onDeleteExpenseReceiptShare={onDeleteExpenseReceiptShare}
-              onEditManualPaymentRecord={onEditManualPaymentRecord}
-              onEditReceiptCoverage={onEditReceiptCoverage}
-              onOpenReceiptShareDialog={handleOpenReceiptShareDialog}
-              onUpdatePaymentRecordSendStatus={onUpdatePaymentRecordSendStatus}
-              paymentRecords={row.original.paymentRecords ?? []}
-              receiptShareMessage={row.original.receiptShareMessage}
-              receiptSharePhoneDigits={row.original.receiptSharePhoneDigits}
-              requiresReceiptShare={row.original.requiresReceiptShare}
-            />
-          );
-        },
+        cell: () => null,
+        enableHiding: false,
+        enableSorting: false,
         filterFn: (row, _columnId, filterValue) =>
           matchesAdvancedNumberRangeFilter(
             filterValue,
             (row.original.paymentRecords ?? []).length,
           ),
-        header: getSortableHeader("Registros"),
+        header: () => null,
         meta: { label: "Registros" },
-        sortingFn: (rowA, rowB) => {
-          const relevanceComparison = compareRowsByDescriptionFilterRelevance(
-            rowA.original,
-            rowB.original,
-          );
-
-          if (relevanceComparison !== 0) {
-            return relevanceComparison;
-          }
-
-          return (
-            (rowA.original.paymentRecords ?? []).length -
-            (rowB.original.paymentRecords ?? []).length
-          );
-        },
       },
       {
         accessorKey: "loanProgress",
@@ -3427,7 +3411,7 @@ export function MonthlyExpensesTable({
                             >
                               {sortMenuOption.label}
                             </DropdownMenuRadioItem>
-                            {sortMenuOption.id === "paymentHistory" ? (
+                            {sortMenuOption.id === "paymentsProgress" ? (
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   Deuda / cuotas

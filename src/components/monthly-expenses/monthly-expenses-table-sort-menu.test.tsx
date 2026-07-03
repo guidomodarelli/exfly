@@ -150,7 +150,6 @@ describe("MonthlyExpensesTable sort menu", () => {
       "Total",
       "USD",
       "Pagos",
-      "Registros",
       "Prestamista",
       "Vigencia",
     ]) {
@@ -158,6 +157,12 @@ describe("MonthlyExpensesTable sort menu", () => {
         screen.getByRole("menuitemradio", { name: optionName }),
       ).toBeInTheDocument();
     }
+
+    // Registros ya no es criterio de orden: quedó solo como filtro
+    // (`registros:`) sobre la columna oculta.
+    expect(
+      screen.queryByRole("menuitemradio", { name: "Registros" }),
+    ).not.toBeInTheDocument();
 
     // Deuda / cuotas es un submenú con sus tres criterios reales.
     await user.click(

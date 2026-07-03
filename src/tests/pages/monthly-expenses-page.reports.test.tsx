@@ -496,11 +496,15 @@ registerMonthlyExpensesPageDefaultHooks({
     const headers = screen
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
-    const paidHeaderIndex = headers.indexOf("Pagos");
-    const paymentHistoryHeaderIndex = headers.indexOf("Registros");
 
-    expect(paymentHistoryHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(paidHeaderIndex).toBe(paymentHistoryHeaderIndex - 1);
+    // Los registros viven unificados dentro de la columna Pagos.
+    expect(headers).toContain("Pagos");
+    expect(headers).not.toContain("Registros");
+    expect(
+      screen.getByRole("button", {
+        name: "Agregar nuevo registro de pago para Agua",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("shows pending payments as a covered/total yellow badge when no manual or receipt coverage exists", () => {
@@ -2021,13 +2025,12 @@ registerMonthlyExpensesPageDefaultHooks({
     const headers = screen
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
-    const paidHeaderIndex = headers.indexOf("Pagos");
-    const paymentHistoryHeaderIndex = headers.indexOf("Registros");
 
     expect(headers).not.toContain("Estado de envío");
     expect(headers).not.toContain("Enviar");
-    expect(paidHeaderIndex).toBeGreaterThanOrEqual(0);
-    expect(paymentHistoryHeaderIndex).toBe(paidHeaderIndex + 1);
+    expect(headers).toContain("Pagos");
+    // Los registros viven unificados dentro de la columna Pagos.
+    expect(headers).not.toContain("Registros");
     expect(headers).not.toContain("Link");
     expect(headers).not.toContain("Carpeta del mes actual");
     expect(headers).not.toContain("Carpeta de comprobantes");
