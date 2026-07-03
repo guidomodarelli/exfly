@@ -3117,7 +3117,7 @@ export default function MonthlyExpensesPage({
     }
 
     updateExpenseReceiptCoverageEditState(() => ({
-      canManageReceipt: false,
+      canManageReceipt: true,
       currentCoveredPayments: manualRecord.coveredPayments,
       error: null,
       expenseDescription: expenseRow.description,
