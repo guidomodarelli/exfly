@@ -136,18 +136,21 @@
 }
 
 .tableHeader {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tableHeaderTopRow {
   display: flex;
   flex-wrap: wrap;
-  // Todo apoyado sobre la misma línea de base: el título centrado verticalmente
-  // contra las tarjetas (más altas) quedaba flotando en el medio.
-  align-items: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
 }
 
 .tableTitle {
   margin: 0;
-  padding-bottom: 0.35rem;
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 
@@ -181,7 +184,6 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-start;
-  margin-left: auto;
 }
 
 .viewMenuOption {
