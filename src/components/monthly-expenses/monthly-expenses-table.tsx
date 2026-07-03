@@ -78,6 +78,7 @@ import {
   Link2,
   MoreVertical,
   Pencil,
+  Repeat,
 } from "lucide-react";
 import { ExpenseRowActions } from "@/components/monthly-expenses/expense-row-actions";
 import {
@@ -2108,14 +2109,43 @@ export function MonthlyExpensesTable({
             descriptionContent
           );
 
-          const descriptionTextContent = paymentLinkAnchor ? (
-            <span className={styles.descriptionTextRow}>
-              {descriptionTextNode}
-              {paymentLinkAnchor}
-            </span>
-          ) : (
-            descriptionTextNode
+          const isRecurrenceCancelled = Boolean(
+            row.original.recurrenceEndMonth,
           );
+          const recurrenceIndicatorLabel = isRecurrenceCancelled
+            ? "Recurrencia cancelada"
+            : "Gasto recurrente";
+          // Sin placeholder para gastos no recurrentes: las filas comunes no
+          // reservan el espacio del ícono.
+          const recurrenceIndicator = row.original.isRecurring ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  aria-label={recurrenceIndicatorLabel}
+                  className={cn(
+                    styles.recurrenceIndicator,
+                    isRecurrenceCancelled &&
+                      styles.recurrenceIndicatorCancelled,
+                  )}
+                  role="img"
+                >
+                  <Repeat aria-hidden="true" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{recurrenceIndicatorLabel}</TooltipContent>
+            </Tooltip>
+          ) : null;
+
+          const descriptionTextContent =
+            paymentLinkAnchor || recurrenceIndicator ? (
+              <span className={styles.descriptionTextRow}>
+                {recurrenceIndicator}
+                {descriptionTextNode}
+                {paymentLinkAnchor}
+              </span>
+            ) : (
+              descriptionTextNode
+            );
 
           const expenseInformation = folderBadge ? (
             <span className={styles.descriptionInfo}>
