@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/data-table";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -3027,8 +3028,29 @@ export function MonthlyExpensesTable({
             />
             <DataTable
               columnVisibility={columnVisibility}
-              columnVisibilityButtonLabel="Columnas"
-              columnVisibilityMenuLabel="Mostrar columnas"
+              columnVisibilityButtonLabel="Vista"
+              columnVisibilityMenuLabel="Columnas"
+              columnVisibilityMenuExtraContent={
+                <DropdownMenuCheckboxItem
+                  checked={moveCompletedToEnd}
+                  disabled={hasManualSorting}
+                  onCheckedChange={(nextChecked) => {
+                    setMoveCompletedToEnd(Boolean(nextChecked));
+                  }}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                  }}
+                >
+                  <span className={styles.viewMenuOption}>
+                    {MOVE_COMPLETED_TO_END_LABEL}
+                    {hasManualSorting ? (
+                      <span className={styles.viewMenuOptionHint}>
+                        {MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT}
+                      </span>
+                    ) : null}
+                  </span>
+                </DropdownMenuCheckboxItem>
+              }
               columns={columns}
               hideableColumnsDefaultVisibility={
                 MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY
@@ -3050,34 +3072,13 @@ export function MonthlyExpensesTable({
               excludeFilterValues={excludedDescriptionFilters}
               filterColumnId="description"
               filterExtraContent={(
-                <>
-                  <MonthlyExpensesFilterPresetsBar
-                    onApplyPreset={handleApplyFilterPreset}
-                    onDeletePreset={handleDeleteFilterPreset}
-                    onUpdatePreset={handleUpdateFilterPreset}
-                    presets={filterPresets}
-                    queryFilterConfigs={monthlyExpensesFilterQualifiers}
-                  />
-                  <div className={styles.completedOrderFilter}>
-                    <label className={styles.completedOrderFilterLabel}>
-                      <input
-                        checked={moveCompletedToEnd}
-                        className={styles.completedOrderFilterCheckbox}
-                        disabled={hasManualSorting}
-                        onChange={(event) => {
-                          setMoveCompletedToEnd(event.target.checked);
-                        }}
-                        type="checkbox"
-                      />
-                      <span>{MOVE_COMPLETED_TO_END_LABEL}</span>
-                    </label>
-                    {hasManualSorting ? (
-                      <p className={styles.completedOrderFilterHint}>
-                        {MOVE_COMPLETED_TO_END_WITH_SORTING_HELPER_TEXT}
-                      </p>
-                    ) : null}
-                  </div>
-                </>
+                <MonthlyExpensesFilterPresetsBar
+                  onApplyPreset={handleApplyFilterPreset}
+                  onDeletePreset={handleDeleteFilterPreset}
+                  onUpdatePreset={handleUpdateFilterPreset}
+                  presets={filterPresets}
+                  queryFilterConfigs={monthlyExpensesFilterQualifiers}
+                />
               )}
               filterLabel="Filtrar gastos"
               filterPlaceholder="Filtrar gastos por descripción"

@@ -258,9 +258,9 @@ registerMonthlyExpensesPageDefaultHooks({
     );
 
     expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Columnas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Vista" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
 
     expect(
       screen.queryByRole("menuitemcheckbox", { name: "Descripción" }),
@@ -409,7 +409,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitem", { name: "Ocultar todas" }));
 
     await user.keyboard("{Escape}");
@@ -417,7 +417,7 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(screen.getByRole("columnheader", { name: "Descripción" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Total" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitem", { name: "Restablecer" }));
 
     await user.keyboard("{Escape}");
@@ -452,14 +452,14 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Total" }));
     expect(screen.getAllByText("Columna deseleccionada").length).toBeGreaterThan(0);
     await user.keyboard("{Escape}");
 
     expect(screen.getByText("Columnas modificadas")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitem", { name: "Restablecer" }));
     await user.keyboard("{Escape}");
 
@@ -467,7 +467,7 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     expect(screen.getAllByText("Columna deseleccionada")).toHaveLength(1);
     await user.keyboard("{Escape}");
   });
@@ -515,7 +515,7 @@ registerMonthlyExpensesPageDefaultHooks({
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/Ordenado por:/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     expect(
       screen.queryByRole("menuitem", { name: /Quitar orden/i }),
     ).not.toBeInTheDocument();
@@ -531,7 +531,7 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(screen.queryByText("Columnas modificadas")).not.toBeInTheDocument();
     expect(screen.getByText("Ordenado por: Total ↑")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     expect(
       screen.queryByRole("menuitem", { name: /Quitar orden/i }),
     ).not.toBeInTheDocument();
@@ -550,7 +550,7 @@ registerMonthlyExpensesPageDefaultHooks({
       screen.queryByText("Columnas modificadas"),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     expect(
       screen.queryByRole("menuitem", { name: /Quitar orden/i }),
     ).not.toBeInTheDocument();
@@ -604,11 +604,16 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    const moveCompletedToEndCheckbox = screen.getByRole("checkbox", {
-      name: "Mover completados al final",
-    });
+    await user.click(screen.getByRole("button", { name: "Vista" }));
 
-    expect(moveCompletedToEndCheckbox).toBeChecked();
+    expect(
+      screen.getByRole("menuitemcheckbox", {
+        name: /Mover completados al final/,
+      }),
+    ).toBeChecked();
+
+    await user.keyboard("{Escape}");
+
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
       "Agua",
       "Gas",
@@ -618,21 +623,37 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
 
-    expect(moveCompletedToEndCheckbox).toBeDisabled();
-    expect(
-      screen.getByText("Desactivado mientras haya un orden manual."),
-    ).toBeInTheDocument();
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
       "Internet",
       "Agua",
       "Gas",
       "Luz",
     ]);
-    expect(moveCompletedToEndCheckbox).toBeChecked();
 
+    await user.click(screen.getByRole("button", { name: "Vista" }));
+
+    const disabledMoveCompletedItem = screen.getByRole("menuitemcheckbox", {
+      name: /Mover completados al final/,
+    });
+
+    expect(disabledMoveCompletedItem).toHaveAttribute("aria-disabled", "true");
+    expect(disabledMoveCompletedItem).toBeChecked();
+    expect(
+      screen.getByText("Desactivado mientras haya un orden manual."),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Quitar orden" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
 
-    expect(moveCompletedToEndCheckbox).toBeEnabled();
+    expect(
+      screen.getByRole("menuitemcheckbox", {
+        name: /Mover completados al final/,
+      }),
+    ).not.toHaveAttribute("aria-disabled");
+
+    await user.keyboard("{Escape}");
+
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual([
       "Agua",
       "Gas",
@@ -663,13 +684,15 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    const moveCompletedToEndCheckbox = screen.getByRole("checkbox", {
-      name: "Mover completados al final",
+    await user.click(screen.getByRole("button", { name: "Vista" }));
+
+    const moveCompletedToEndItem = screen.getByRole("menuitemcheckbox", {
+      name: /Mover completados al final/,
     });
 
-    expect(moveCompletedToEndCheckbox).toBeChecked();
+    expect(moveCompletedToEndItem).toBeChecked();
 
-    await user.click(moveCompletedToEndCheckbox);
+    await user.click(moveCompletedToEndItem);
 
     await waitFor(() => {
       const persistedTablePreferences = getPersistedTablePreferences();
@@ -698,10 +721,12 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
+    await user.click(screen.getByRole("button", { name: "Vista" }));
+
     await waitFor(() => {
       expect(
-        screen.getByRole("checkbox", {
-          name: "Mover completados al final",
+        screen.getByRole("menuitemcheckbox", {
+          name: /Mover completados al final/,
         }),
       ).not.toBeChecked();
     });
@@ -745,13 +770,19 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Vista" }));
+
     await waitFor(() => {
       expect(
-        screen.getByRole("checkbox", {
-          name: "Mover completados al final",
+        screen.getByRole("menuitemcheckbox", {
+          name: /Mover completados al final/,
         }),
       ).toBeChecked();
     });
+
+    await user.keyboard("{Escape}");
 
     expect(getMonthlyExpensesDescriptionsOrder()).toEqual(["Agua", "Luz"]);
   });
@@ -859,7 +890,7 @@ registerMonthlyExpensesPageDefaultHooks({
     );
 
     await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: "Total" }));
 
     await waitFor(() => {
@@ -1080,7 +1111,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
     await user.keyboard("{Escape}");
 
@@ -1138,7 +1169,7 @@ registerMonthlyExpensesPageDefaultHooks({
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /USD/i }));
     await user.keyboard("{Escape}");
 

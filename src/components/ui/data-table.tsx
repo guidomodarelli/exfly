@@ -148,6 +148,11 @@ interface DataTableProps<TData, TValue> {
   showColumnVisibilityToggle?: boolean;
   columnVisibilityButtonLabel?: string;
   columnVisibilityMenuLabel?: string;
+  /**
+   * Ítems extra al tope del menú de columnas (p. ej. preferencias de vista);
+   * se separan de la sección de columnas con un separador.
+   */
+  columnVisibilityMenuExtraContent?: React.ReactNode;
   sortingBadgeLabelOverrides?: Record<string, string>;
   selectAllColumnsLabel?: string;
   deselectAllColumnsLabel?: string;
@@ -375,6 +380,7 @@ export function DataTable<TData, TValue>({
   showColumnVisibilityToggle = false,
   columnVisibilityButtonLabel = "Columnas",
   columnVisibilityMenuLabel = "Mostrar columnas",
+  columnVisibilityMenuExtraContent,
   sortingBadgeLabelOverrides,
   selectAllColumnsLabel = "Mostrar todas",
   deselectAllColumnsLabel = "Ocultar todas",
@@ -1255,6 +1261,12 @@ export function DataTable<TData, TValue>({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {columnVisibilityMenuExtraContent ? (
+                        <>
+                          {columnVisibilityMenuExtraContent}
+                          <DropdownMenuSeparator />
+                        </>
+                      ) : null}
                       <DropdownMenuLabel>{columnVisibilityMenuLabel}</DropdownMenuLabel>
                       <DropdownMenuItem
                         disabled={areHideableColumnsAtDefaultVisibility}

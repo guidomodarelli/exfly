@@ -89,7 +89,7 @@ describe("MonthlyExpensesTable totals footer", () => {
       },
     });
 
-    await user.click(screen.getByRole("button", { name: "Columnas" }));
+    await user.click(screen.getByRole("button", { name: "Vista" }));
     await user.click(screen.getByRole("menuitemcheckbox", { name: /^USD/ }));
 
     expect(

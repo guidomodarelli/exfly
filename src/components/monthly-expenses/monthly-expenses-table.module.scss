@@ -154,23 +154,16 @@
   justify-content: flex-start;
 }
 
-.completedOrderFilter {
+.viewMenuOption {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.15rem;
 }
 
-.completedOrderFilterLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.82rem;
+.viewMenuOptionHint {
+  max-width: 14rem;
+  font-size: 0.72rem;
   color: var(--muted-foreground);
-}
-
-.completedOrderFilterCheckbox {
-  width: 0.95rem;
-  height: 0.95rem;
-  accent-color: var(--primary);
+  white-space: normal;
 }
 
 .selectionCell {
@@ -191,12 +184,6 @@
   accent-color: var(--primary);
 }
 
-.completedOrderFilterHint {
-  margin: 0;
-  padding-left: 1.4rem;
-  font-size: 0.75rem;
-  color: var(--muted-foreground);
-}
 
 .tableWrapper {
   --selection-column-width: 3.75rem;
