@@ -107,7 +107,10 @@ import {
   persistMonthlyExpensesFilterPresets,
   type MonthlyExpensesFilterPreset,
 } from "./monthly-expenses-filter-presets";
-import { MonthlyExpensesFilterPresetsBar } from "./monthly-expenses-filter-presets-bar";
+import {
+  MonthlyExpensesFilterPresetSaveButton,
+  MonthlyExpensesFilterPresetsBar,
+} from "./monthly-expenses-filter-presets-bar";
 import type { LenderOption } from "./lender-picker";
 import {
   ExpenseFolderPicker,
@@ -3049,10 +3052,8 @@ export function MonthlyExpensesTable({
               filterExtraContent={(
                 <>
                   <MonthlyExpensesFilterPresetsBar
-                    canSaveCurrentQuery={hasActiveFiltering}
                     onApplyPreset={handleApplyFilterPreset}
                     onDeletePreset={handleDeleteFilterPreset}
-                    onSaveCurrentQuery={handleSaveFilterPreset}
                     onUpdatePreset={handleUpdateFilterPreset}
                     presets={filterPresets}
                   />
@@ -3085,6 +3086,12 @@ export function MonthlyExpensesTable({
               onCellClick={handleTableCellClick}
               onAppliedFiltersChange={setQueryAppliedFilters}
               queryFilterControlsRef={queryFilterControlsRef}
+              queryFilterTrailingAction={
+                <MonthlyExpensesFilterPresetSaveButton
+                  canSaveCurrentQuery={hasActiveFiltering}
+                  onSaveCurrentQuery={handleSaveFilterPreset}
+                />
+              }
               onFilterValueChange={setDescriptionFilter}
               onVisibleRowsChange={handleVisibleRowsChange}
               onColumnVisibilityChange={setColumnVisibility}

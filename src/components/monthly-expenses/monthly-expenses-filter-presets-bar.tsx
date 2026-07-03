@@ -9,6 +9,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import type { MonthlyExpensesFilterPreset } from "./monthly-expenses-filter-presets";
 import styles from "./monthly-expenses-filter-presets-bar.module.scss";
@@ -21,17 +26,20 @@ const EMPTY_PRESET_QUERY_ERROR_MESSAGE =
 const DUPLICATE_PRESET_NAME_ERROR_MESSAGE =
   "Ya existe un filtro con ese nombre.";
 
-interface MonthlyExpensesFilterPresetsBarProps {
+interface MonthlyExpensesFilterPresetSaveButtonProps {
   /** Whether the unified filter bar currently has filters worth saving. */
   canSaveCurrentQuery: boolean;
-  presets: MonthlyExpensesFilterPreset[];
-  onApplyPreset: (preset: MonthlyExpensesFilterPreset) => void;
-  onDeletePreset: (presetName: string) => void;
   /**
    * Saves the current bar query under the given name. Returns `false` when
    * there is no query to save.
    */
   onSaveCurrentQuery: (presetName: string) => boolean;
+}
+
+interface MonthlyExpensesFilterPresetsBarProps {
+  presets: MonthlyExpensesFilterPreset[];
+  onApplyPreset: (preset: MonthlyExpensesFilterPreset) => void;
+  onDeletePreset: (presetName: string) => void;
   /** Replaces the preset named `originalName` with the given name and query. */
   onUpdatePreset: (args: {
     name: string;
@@ -41,26 +49,16 @@ interface MonthlyExpensesFilterPresetsBarProps {
 }
 
 /**
- * Chips de filtros guardados de la barra unificada: guardar la query actual
- * con un nombre, aplicarla con un click y eliminarla.
+ * Botón compacto para guardar la query actual como preset con nombre. Pensado
+ * para el slot de acción dentro del input de la barra unificada.
  */
-export function MonthlyExpensesFilterPresetsBar({
+export function MonthlyExpensesFilterPresetSaveButton({
   canSaveCurrentQuery,
-  presets,
-  onApplyPreset,
-  onDeletePreset,
   onSaveCurrentQuery,
-  onUpdatePreset,
-}: MonthlyExpensesFilterPresetsBarProps) {
+}: MonthlyExpensesFilterPresetSaveButtonProps) {
   const [isSavePopoverOpen, setIsSavePopoverOpen] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState("");
   const [presetNameError, setPresetNameError] = useState<string | null>(null);
-  const [editingPresetName, setEditingPresetName] = useState<string | null>(
-    null,
-  );
-  const [editNameDraft, setEditNameDraft] = useState("");
-  const [editQueryDraft, setEditQueryDraft] = useState("");
-  const [editError, setEditError] = useState<string | null>(null);
 
   const handleSavePopoverOpenChange = (nextOpen: boolean) => {
     setIsSavePopoverOpen(nextOpen);
@@ -86,6 +84,84 @@ export function MonthlyExpensesFilterPresetsBar({
 
     handleSavePopoverOpenChange(false);
   };
+
+  return (
+    <Popover
+      onOpenChange={handleSavePopoverOpenChange}
+      open={isSavePopoverOpen}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              aria-label="Guardar filtro"
+              className="active:-translate-y-0"
+              disabled={!canSaveCurrentQuery}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <Bookmark aria-hidden="true" />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Guardar filtro</TooltipContent>
+      </Tooltip>
+      <PopoverContent align="end" className={styles.savePopover}>
+        <Label htmlFor="filter-preset-name-input">Nombre del filtro</Label>
+        <Input
+          id="filter-preset-name-input"
+          onChange={(event) => {
+            setPresetNameDraft(event.target.value);
+
+            if (presetNameError) {
+              setPresetNameError(null);
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleConfirmSave();
+            }
+          }}
+          placeholder="Deudas grandes"
+          type="text"
+          value={presetNameDraft}
+        />
+        {presetNameError ? (
+          <p className={styles.savePopoverError} role="alert">
+            {presetNameError}
+          </p>
+        ) : null}
+        <Button
+          aria-label="Guardar filtro con nombre"
+          onClick={handleConfirmSave}
+          size="sm"
+          type="button"
+        >
+          Guardar
+        </Button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/**
+ * Chips de filtros guardados de la barra unificada: guardar la query actual
+ * con un nombre, aplicarla con un click y eliminarla.
+ */
+export function MonthlyExpensesFilterPresetsBar({
+  presets,
+  onApplyPreset,
+  onDeletePreset,
+  onUpdatePreset,
+}: MonthlyExpensesFilterPresetsBarProps) {
+  const [editingPresetName, setEditingPresetName] = useState<string | null>(
+    null,
+  );
+  const [editNameDraft, setEditNameDraft] = useState("");
+  const [editQueryDraft, setEditQueryDraft] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleEditPopoverOpenChange = (
     preset: MonthlyExpensesFilterPreset,
@@ -140,61 +216,12 @@ export function MonthlyExpensesFilterPresetsBar({
     setEditError(null);
   };
 
+  if (presets.length === 0) {
+    return null;
+  }
+
   return (
     <div className={styles.presetsBar}>
-      <Popover
-        onOpenChange={handleSavePopoverOpenChange}
-        open={isSavePopoverOpen}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            className={styles.saveButton}
-            disabled={!canSaveCurrentQuery}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <Bookmark aria-hidden="true" />
-            Guardar filtro
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="start" className={styles.savePopover}>
-          <Label htmlFor="filter-preset-name-input">Nombre del filtro</Label>
-          <Input
-            id="filter-preset-name-input"
-            onChange={(event) => {
-              setPresetNameDraft(event.target.value);
-
-              if (presetNameError) {
-                setPresetNameError(null);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                handleConfirmSave();
-              }
-            }}
-            placeholder="Deudas grandes"
-            type="text"
-            value={presetNameDraft}
-          />
-          {presetNameError ? (
-            <p className={styles.savePopoverError} role="alert">
-              {presetNameError}
-            </p>
-          ) : null}
-          <Button
-            aria-label="Guardar filtro con nombre"
-            onClick={handleConfirmSave}
-            size="sm"
-            type="button"
-          >
-            Guardar
-          </Button>
-        </PopoverContent>
-      </Popover>
-
       {presets.map((preset) => (
         <span className={styles.presetChip} key={preset.name}>
           <button

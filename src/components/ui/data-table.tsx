@@ -135,6 +135,8 @@ interface DataTableProps<TData, TValue> {
   onAppliedFiltersChange?: (appliedFilters: AppliedFilter[]) => void;
   /** Ref para acceder a los controles imperativos de la barra unificada. */
   queryFilterControlsRef?: React.MutableRefObject<DataTableQueryFilterControls | null>;
+  /** Acción opcional dentro del input de la barra unificada, al final derecho. */
+  queryFilterTrailingAction?: React.ReactNode;
   showExcludeFilterToggle?: boolean;
   excludeFilterValues?: string[];
   onExcludeFilterValuesChange?: (values: string[]) => void;
@@ -361,6 +363,7 @@ export function DataTable<TData, TValue>({
   queryFilterLabel,
   onAppliedFiltersChange,
   queryFilterControlsRef,
+  queryFilterTrailingAction,
   showExcludeFilterToggle = false,
   excludeFilterValues: controlledExcludeFilterValues,
   onExcludeFilterValuesChange,
@@ -992,6 +995,7 @@ export function DataTable<TData, TValue>({
               onFocusChange={setIsQueryFilterFocused}
               onValueChange={handleQueryFilterChange}
               placeholder={queryFilterPlaceholder}
+              trailingAction={queryFilterTrailingAction}
               value={filterQueryDraft}
             />
           ) : null}
