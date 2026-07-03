@@ -178,6 +178,11 @@ interface DataTableProps<TData, TValue> {
    */
   columnVisibilityMenuExtraContent?: React.ReactNode;
   sortingBadgeLabelOverrides?: Record<string, string>;
+  /**
+   * Ids de columnas de orden "internas" (p. ej. la posición de grupo) que el
+   * badge de orden y su botón "Quitar orden" deben ignorar.
+   */
+  sortingBadgeIgnoredColumnIds?: ReadonlySet<string>;
   selectAllColumnsLabel?: string;
   deselectAllColumnsLabel?: string;
   hideableColumnsDefaultVisibility?: VisibilityState;
@@ -407,6 +412,7 @@ export function DataTable<TData, TValue>({
   columnVisibilityMenuLabel = "Mostrar columnas",
   columnVisibilityMenuExtraContent,
   sortingBadgeLabelOverrides,
+  sortingBadgeIgnoredColumnIds,
   selectAllColumnsLabel = "Mostrar todas",
   deselectAllColumnsLabel = "Ocultar todas",
   hideableColumnsDefaultVisibility,
@@ -816,7 +822,9 @@ export function DataTable<TData, TValue>({
     Boolean(filterColumnId) ||
     shouldShowToolbarActions;
   const filterColumn = filterColumnId ? table.getColumn(filterColumnId) : undefined;
-  const activeSortingEntry = sorting[0];
+  const activeSortingEntry = sorting.find(
+    (sortingEntry) => !sortingBadgeIgnoredColumnIds?.has(sortingEntry.id),
+  );
   const activeSortingColumn = activeSortingEntry
     ? table.getColumn(activeSortingEntry.id)
     : undefined;

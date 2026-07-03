@@ -172,6 +172,7 @@ import {
 } from "./monthly-expenses-sort-comparators";
 import {
   BULK_SELECTION_COLUMN_ID,
+  GROUP_POSITION_COLUMN_ID,
   LOAN_INSTALLMENT_RANGE_COLUMN_ID,
   LOAN_SORT_COLUMN_ID,
 } from "./monthly-expenses-table-column-ids";
@@ -223,15 +224,31 @@ const UNASSIGNED_FOLDER_GROUP_LABEL = "Sin carpeta";
 /** Modo de agrupado visual de la tabla; v1 solo soporta carpeta. */
 type MonthlyExpensesGroupByMode = "none" | "folder";
 
-/** Criterio del menú «Ordenar por»; convive con el agrupado (ordena adentro). */
-type MonthlyExpensesSortByField = "none" | "description" | "total";
+/**
+ * Entrada de orden que ancla el agrupado: siempre primera en el estado de
+ * sorting mientras hay agrupado, para que cualquier orden de usuario (header o
+ * menú «Ordenar por») aplique dentro de cada grupo.
+ */
+const GROUP_POSITION_SORT_ENTRY = {
+  desc: false,
+  id: GROUP_POSITION_COLUMN_ID,
+} as const;
 
-const SORT_BY_FIELD_LABELS: Record<
-  Exclude<MonthlyExpensesSortByField, "none">,
-  string
-> = {
+/** El badge "Ordenado por" y su "Quitar orden" ignoran la columna fantasma. */
+const SORTING_BADGE_IGNORED_COLUMN_IDS: ReadonlySet<string> = new Set([
+  GROUP_POSITION_COLUMN_ID,
+]);
+
+/** Etiqueta del criterio activo para el botón «Ordenar por». */
+const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   description: "Descripción",
+  [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
+  [LOAN_SORT_COLUMN_ID]: "Deuda / cuotas",
+  lenderName: "Prestamista",
+  paymentHistory: "Registros",
+  paymentsProgress: "Pagos",
   total: "Total",
+  usd: "USD",
 };
 /**
  * Cantidad máxima de caracteres que se muestran en la descripción de la fila
@@ -794,74 +811,6 @@ function getRowsMatchingDescriptionFilter(
   );
 }
 
-/**
- * Ordena las filas por el criterio del menú «Ordenar por». Los valores no
- * comparables (total sin cotización) quedan al final sin importar la dirección.
- * Es un sort estable previo al agrupado: aplicado antes de
- * `getRowsGroupedByFolder`, el resultado queda ordenado dentro de cada grupo.
- */
-function getRowsSortedByField(
-  rows: MonthlyExpensesEditableRow[],
-  sortByField: Exclude<MonthlyExpensesSortByField, "none">,
-  sortDirection: "asc" | "desc",
-  exchangeRateSnapshot: ExchangeRateSnapshot | null,
-): MonthlyExpensesEditableRow[] {
-  const getSortValue = (row: MonthlyExpensesEditableRow): string | number | null =>
-    sortByField === "description"
-      ? row.description
-      : getArsComparableAmount({
-          exchangeRateSnapshot,
-          rowCurrency: row.currency,
-          value: row.total,
-        });
-
-  return [...rows].sort((leftRow, rightRow) => {
-    const leftValue = getSortValue(leftRow);
-    const rightValue = getSortValue(rightRow);
-
-    if (leftValue == null && rightValue == null) {
-      return 0;
-    }
-
-    if (leftValue == null) {
-      return 1;
-    }
-
-    if (rightValue == null) {
-      return -1;
-    }
-
-    const comparison =
-      typeof leftValue === "string" && typeof rightValue === "string"
-        ? leftValue.localeCompare(rightValue, "es", { sensitivity: "base" })
-        : Number(leftValue) - Number(rightValue);
-
-    return sortDirection === "desc" ? -comparison : comparison;
-  });
-}
-
-/**
- * Reordena las filas por carpeta (en el orden configurado de las carpetas, con
- * "Sin carpeta" al final), preservando el orden relativo dentro de cada grupo.
- */
-function getRowsGroupedByFolder(
-  rows: MonthlyExpensesEditableRow[],
-  folders: ExpenseFolderOption[],
-): MonthlyExpensesEditableRow[] {
-  const positionByFolderId = new Map(
-    folders.map((folder, folderIndex) => [folder.id, folderIndex]),
-  );
-  const unassignedPosition = folders.length;
-  const getGroupPosition = (row: MonthlyExpensesEditableRow) =>
-    positionByFolderId.get(row.expenseFolderId) ?? unassignedPosition;
-
-  // Array.prototype.sort es estable: conserva el orden relativo dentro del grupo.
-  return [...rows].sort(
-    (leftRow, rightRow) =>
-      getGroupPosition(leftRow) - getGroupPosition(rightRow),
-  );
-}
-
 function getRowsWithCompletedAtEnd(
   rows: MonthlyExpensesEditableRow[],
 ): MonthlyExpensesEditableRow[] {
@@ -1119,11 +1068,6 @@ export function MonthlyExpensesTable({
   );
   const [groupByMode, setGroupByMode] =
     useState<MonthlyExpensesGroupByMode>("none");
-  const [sortByField, setSortByField] =
-    useState<MonthlyExpensesSortByField>("none");
-  const [sortByDirection, setSortByDirection] = useState<"asc" | "desc">(
-    "asc",
-  );
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<
     ReadonlySet<string>
   >(() => new Set<string>());
@@ -1454,7 +1398,11 @@ export function MonthlyExpensesTable({
       columnVisibility,
       loanSortMode,
       moveCompletedToEnd,
-      sorting,
+      // La entrada fantasma del agrupado no se persiste: es estado derivado
+      // del modo de agrupado, que en v1 no persiste.
+      sorting: sorting.filter(
+        (sortingEntry) => sortingEntry.id !== GROUP_POSITION_COLUMN_ID,
+      ),
       vigenciaSortMode,
     });
   }, [columnVisibility, loanSortMode, moveCompletedToEnd, sorting, vigenciaSortMode]);
@@ -1540,43 +1488,62 @@ export function MonthlyExpensesTable({
     queryPredicateFilters,
     rowsExcludingDescriptions,
   ]);
-  const hasManualSorting = sorting.length > 0;
-  const rowsForTable = useMemo(() => {
-    let orderedRows = rowsMatchingQueryPredicate;
-
-    // "Mover completados al final" solo aplica sin ningún orden explícito: el
-    // menú «Ordenar por» y el orden manual de columnas lo pisan.
-    if (moveCompletedToEnd && !hasManualSorting && sortByField === "none") {
-      orderedRows = getRowsWithCompletedAtEnd(orderedRows);
-    }
-
-    if (sortByField !== "none" && !hasManualSorting) {
-      orderedRows = getRowsSortedByField(
-        orderedRows,
-        sortByField,
-        sortByDirection,
-        exchangeRateSnapshot,
+  // El estado de sorting es la única fuente de verdad del orden: los headers
+  // de columna y el menú «Ordenar por» escriben ahí (sincronizados), y con
+  // agrupado activo llevan antepuesta la entrada fantasma de posición de grupo
+  // para que todo orden aplique dentro de cada grupo.
+  const userSortingEntries = useMemo(
+    () =>
+      sorting.filter(
+        (sortingEntry) => sortingEntry.id !== GROUP_POSITION_COLUMN_ID,
+      ),
+    [sorting],
+  );
+  const hasUserSorting = userSortingEntries.length > 0;
+  const primaryUserSortingEntry = userSortingEntries[0];
+  const applyUserSorting = useCallback(
+    (nextUserSorting: SortingState) => {
+      setSorting(
+        groupByMode === "folder"
+          ? [GROUP_POSITION_SORT_ENTRY, ...nextUserSorting]
+          : nextUserSorting,
       );
+    },
+    [groupByMode],
+  );
+  // El DataTable emite el estado completo al togglear un header; se filtra la
+  // entrada fantasma y se re-antepone para mantener la invariante.
+  const handleSortingChange = useCallback(
+    (nextSorting: SortingState) => {
+      applyUserSorting(
+        nextSorting.filter(
+          (sortingEntry) => sortingEntry.id !== GROUP_POSITION_COLUMN_ID,
+        ),
+      );
+    },
+    [applyUserSorting],
+  );
+  const handleGroupByModeChange = useCallback(
+    (nextGroupByMode: MonthlyExpensesGroupByMode) => {
+      setGroupByMode(nextGroupByMode);
+      setSorting(
+        nextGroupByMode === "folder"
+          ? [GROUP_POSITION_SORT_ENTRY, ...userSortingEntries]
+          : userSortingEntries,
+      );
+    },
+    [userSortingEntries],
+  );
+  const rowsForTable = useMemo(() => {
+    // "Mover completados al final" solo aplica sin un orden explícito del
+    // usuario; con agrupado sigue valiendo dentro de cada grupo (el orden por
+    // posición de grupo es estable).
+    if (!moveCompletedToEnd || hasUserSorting) {
+      return rowsMatchingQueryPredicate;
     }
 
-    // El agrupado manda el orden entre grupos y, al ser un sort estable, el
-    // orden anterior (menú «Ordenar por») se conserva dentro de cada grupo.
-    // Con orden manual de columnas todo esto queda suspendido.
-    if (groupByMode === "folder" && !hasManualSorting) {
-      orderedRows = getRowsGroupedByFolder(orderedRows, expenseFolders);
-    }
-
-    return orderedRows;
-  }, [
-    exchangeRateSnapshot,
-    expenseFolders,
-    groupByMode,
-    hasManualSorting,
-    moveCompletedToEnd,
-    rowsMatchingQueryPredicate,
-    sortByDirection,
-    sortByField,
-  ]);
+    return getRowsWithCompletedAtEnd(rowsMatchingQueryPredicate);
+  }, [hasUserSorting, moveCompletedToEnd, rowsMatchingQueryPredicate]);
   const selectedExpenseIdsInCurrentRows = useMemo(() => {
     const availableExpenseIds = new Set(rows.map((row) => row.id));
 
@@ -2095,7 +2062,7 @@ export function MonthlyExpensesTable({
   // Config de grupos para el DataTable. Memoizada para no invalidar la memo del
   // cuerpo de la tabla en cada render; `undefined` desactiva el agrupado.
   const rowGroups = useMemo(() => {
-    if (groupByMode !== "folder" || hasManualSorting) {
+    if (groupByMode !== "folder") {
       return undefined;
     }
 
@@ -2134,13 +2101,7 @@ export function MonthlyExpensesTable({
         );
       },
     };
-  }, [
-    collapsedGroupKeys,
-    foldersById,
-    groupByMode,
-    handleGroupToggle,
-    hasManualSorting,
-  ]);
+  }, [collapsedGroupKeys, foldersById, groupByMode, handleGroupToggle]);
   const folderCounts = useMemo(() => {
     const countsByFolderId: Record<string, number> = {};
     let unassignedCount = 0;
@@ -2158,8 +2119,25 @@ export function MonthlyExpensesTable({
     return { countsByFolderId, totalCount: rows.length, unassignedCount };
   }, [foldersById, rows]);
 
-  const columns = useMemo<ColumnDef<MonthlyExpensesEditableRow>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<MonthlyExpensesEditableRow>[]>(() => {
+    const folderPositionById = new Map(
+      expenseFolders.map((folder, folderIndex) => [folder.id, folderIndex]),
+    );
+
+    return [
+      {
+        // Columna fantasma del agrupado: invisible (visibility false, sin
+        // header ni celda) y no ocultable desde el menú. Solo existe para que
+        // TanStack ordene primero por posición de grupo ("Sin carpeta" al
+        // final) y el orden del usuario aplique dentro de cada grupo.
+        id: GROUP_POSITION_COLUMN_ID,
+        accessorFn: (row: MonthlyExpensesEditableRow) =>
+          folderPositionById.get(row.expenseFolderId) ?? expenseFolders.length,
+        cell: () => null,
+        enableHiding: false,
+        header: () => null,
+        sortingFn: "basic",
+      },
       {
         id: BULK_SELECTION_COLUMN_ID,
         cell: ({ row }) => {
@@ -2809,7 +2787,7 @@ export function MonthlyExpensesTable({
             label="Deuda / cuotas"
             onApplySort={({ direction, mode }) => {
               setLoanSortMode(mode);
-              setSorting(buildLoanSortingState(direction));
+              applyUserSorting(buildLoanSortingState(direction));
             }}
             optionIdPrefix="loan-sort"
             sortMode={loanSortMode}
@@ -2934,7 +2912,7 @@ export function MonthlyExpensesTable({
             label="Vigencia"
             onApplySort={({ direction, mode }) => {
               setVigenciaSortMode(mode);
-              setSorting(buildVigenciaSortingState(direction));
+              applyUserSorting(buildVigenciaSortingState(direction));
             }}
             optionIdPrefix="vigencia-sort"
             sortMode={vigenciaSortMode}
@@ -2974,9 +2952,10 @@ export function MonthlyExpensesTable({
           });
         },
       },
-    ],
-    [
+    ];
+  }, [
       actionDisabled,
+      applyUserSorting,
       areAllVisibleRowsSelected,
       areSomeVisibleRowsSelected,
       exchangeRateSnapshot,
@@ -3009,8 +2988,7 @@ export function MonthlyExpensesTable({
       expenseFolders,
       foldersById,
       vigenciaSortMode,
-    ],
-  );
+  ]);
 
   const allReplicableOptionIds = replicateFromPreviousMonthOptions.map(
     (option) => option.id,
@@ -3303,7 +3281,7 @@ export function MonthlyExpensesTable({
               columnVisibilityMenuExtraContent={
                 <DropdownMenuCheckboxItem
                   checked={moveCompletedToEnd}
-                  disabled={hasManualSorting || sortByField !== "none"}
+                  disabled={hasUserSorting}
                   onCheckedChange={(nextChecked) => {
                     setMoveCompletedToEnd(Boolean(nextChecked));
                   }}
@@ -3313,7 +3291,7 @@ export function MonthlyExpensesTable({
                 >
                   <span className={styles.viewMenuOption}>
                     {MOVE_COMPLETED_TO_END_LABEL}
-                    {hasManualSorting || sortByField !== "none" ? (
+                    {hasUserSorting ? (
                       <span className={styles.viewMenuOptionHint}>
                         {MANUAL_SORTING_DISABLED_HELPER_TEXT}
                       </span>
@@ -3367,7 +3345,8 @@ export function MonthlyExpensesTable({
               onFilterValueChange={setDescriptionFilter}
               onVisibleRowsChange={handleVisibleRowsChange}
               onColumnVisibilityChange={setColumnVisibility}
-              onSortingChange={setSorting}
+              onSortingChange={handleSortingChange}
+              sortingBadgeIgnoredColumnIds={SORTING_BADGE_IGNORED_COLUMN_IDS}
               queryFilterConfig={monthlyExpensesFilterQualifiers}
               queryFilterLabel={MONTHLY_EXPENSES_QUERY_FILTER_LABEL}
               queryFilterPlaceholder={MONTHLY_EXPENSES_QUERY_FILTER_PLACEHOLDER}
@@ -3388,22 +3367,35 @@ export function MonthlyExpensesTable({
                   <DropdownMenu key="sort-by-menu">
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="outline">
-                        {sortByField === "none"
-                          ? "Ordenar por"
-                          : `Ordenar por: ${SORT_BY_FIELD_LABELS[sortByField]}`}
+                        {primaryUserSortingEntry
+                          ? `Ordenar por: ${
+                              SORT_LABELS_BY_COLUMN_ID[
+                                primaryUserSortingEntry.id
+                              ] ?? primaryUserSortingEntry.id
+                            }`
+                          : "Ordenar por"}
                         <ChevronDown aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuRadioGroup
                         onValueChange={(nextValue) => {
-                          setSortByField(
-                            nextValue === "description" || nextValue === "total"
-                              ? nextValue
-                              : "none",
-                          );
+                          if (
+                            nextValue !== "description" &&
+                            nextValue !== "total"
+                          ) {
+                            applyUserSorting([]);
+                            return;
+                          }
+
+                          applyUserSorting([
+                            {
+                              desc: primaryUserSortingEntry?.desc ?? false,
+                              id: nextValue,
+                            },
+                          ]);
                         }}
-                        value={sortByField}
+                        value={primaryUserSortingEntry?.id ?? "none"}
                       >
                         <DropdownMenuRadioItem
                           onSelect={(event) => {
@@ -3414,7 +3406,6 @@ export function MonthlyExpensesTable({
                           Sin ordenar
                         </DropdownMenuRadioItem>
                         <DropdownMenuRadioItem
-                          disabled={hasManualSorting}
                           onSelect={(event) => {
                             event.preventDefault();
                           }}
@@ -3423,7 +3414,6 @@ export function MonthlyExpensesTable({
                           Descripción
                         </DropdownMenuRadioItem>
                         <DropdownMenuRadioItem
-                          disabled={hasManualSorting}
                           onSelect={(event) => {
                             event.preventDefault();
                           }}
@@ -3432,20 +3422,26 @@ export function MonthlyExpensesTable({
                           Total
                         </DropdownMenuRadioItem>
                       </DropdownMenuRadioGroup>
-                      {hasManualSorting ? (
-                        <p className={styles.sortMenuHint}>
-                          {MANUAL_SORTING_DISABLED_HELPER_TEXT}
-                        </p>
-                      ) : null}
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Dirección</DropdownMenuLabel>
                       <DropdownMenuRadioGroup
                         onValueChange={(nextValue) => {
-                          setSortByDirection(
-                            nextValue === "desc" ? "desc" : "asc",
+                          if (!primaryUserSortingEntry) {
+                            return;
+                          }
+
+                          applyUserSorting(
+                            userSortingEntries.map((sortingEntry, index) =>
+                              index === 0
+                                ? {
+                                    ...sortingEntry,
+                                    desc: nextValue === "desc",
+                                  }
+                                : sortingEntry,
+                            ),
                           );
                         }}
-                        value={sortByDirection}
+                        value={primaryUserSortingEntry?.desc ? "desc" : "asc"}
                       >
                         <DropdownMenuRadioItem
                           onSelect={(event) => {
@@ -3478,7 +3474,7 @@ export function MonthlyExpensesTable({
                     <DropdownMenuContent align="end">
                       <DropdownMenuRadioGroup
                         onValueChange={(nextValue) => {
-                          setGroupByMode(
+                          handleGroupByModeChange(
                             nextValue === "folder" ? "folder" : "none",
                           );
                         }}
@@ -3493,20 +3489,12 @@ export function MonthlyExpensesTable({
                           Sin agrupar
                         </DropdownMenuRadioItem>
                         <DropdownMenuRadioItem
-                          disabled={hasManualSorting}
                           onSelect={(event) => {
                             event.preventDefault();
                           }}
                           value="folder"
                         >
-                          <span className={styles.viewMenuOption}>
-                            Carpeta
-                            {hasManualSorting ? (
-                              <span className={styles.viewMenuOptionHint}>
-                                {MANUAL_SORTING_DISABLED_HELPER_TEXT}
-                              </span>
-                            ) : null}
-                          </span>
+                          Carpeta
                         </DropdownMenuRadioItem>
                       </DropdownMenuRadioGroup>
                     </DropdownMenuContent>

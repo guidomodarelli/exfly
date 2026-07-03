@@ -1,6 +1,7 @@
 import type { SortingState, VisibilityState } from "@tanstack/react-table";
 
 import {
+  GROUP_POSITION_COLUMN_ID,
   LOAN_INSTALLMENT_RANGE_COLUMN_ID,
   LOAN_SORT_COLUMN_ID,
 } from "./monthly-expenses-table-column-ids";
@@ -19,6 +20,8 @@ export const DEFAULT_VIGENCIA_SORT_MODE: VigenciaSortMode = "startMonth";
 export const DEFAULT_MOVE_COMPLETED_TO_END = true;
 
 export const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
+  // Columna fantasma del agrupado: nunca se muestra ni se puede mostrar.
+  [GROUP_POSITION_COLUMN_ID]: false,
   usd: false,
 };
 

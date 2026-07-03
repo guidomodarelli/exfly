@@ -60,6 +60,12 @@ async function selectSortDirection(
 }
 
 describe("MonthlyExpensesTable sort menu", () => {
+  beforeEach(() => {
+    // El sorting persiste en localStorage: sin limpiar, el restore asincrónico
+    // de preferencias pisa el estado del test siguiente.
+    window.localStorage.clear();
+  });
+
   it("sorts all rows by total when no grouping is active", async () => {
     const user = userEvent.setup();
 
@@ -129,16 +135,26 @@ describe("MonthlyExpensesTable sort menu", () => {
     });
   });
 
-  it("disables the sort criteria while a manual column sort is active", async () => {
+  it("syncs the dropdown with a column header sort", async () => {
     const user = userEvent.setup();
 
     renderMonthlyExpensesTable(ROWS, { expenseFolders: FOLDERS });
 
     await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
-    await user.click(screen.getByRole("button", { name: /^Ordenar por/ }));
 
     expect(
-      screen.getByRole("menuitemradio", { name: /Total/ }),
-    ).toHaveAttribute("aria-disabled", "true");
+      screen.getByRole("button", { name: "Ordenar por: Total" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Ordenar por: Total" }),
+    );
+
+    expect(
+      screen.getByRole("menuitemradio", { name: "Total" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: "Ascendente" }),
+    ).toHaveAttribute("aria-checked", "true");
   });
 });
