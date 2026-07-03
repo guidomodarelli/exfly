@@ -50,6 +50,12 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
       "prestamista",
       "direccion",
       "deuda",
+      "recurrencia",
+      "estado",
+      "moneda",
+      "telefono",
+      "mensaje",
+      "comprobantes",
       "inicio",
       "fin",
       "carpeta",
@@ -68,6 +74,28 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
     expect(byKey.get("carpeta")?.kind).toBe("folder");
     expect(byKey.get("subtotal")?.kind).toBe("numberRange");
     expect(byKey.get("subtotal")?.columnId).toBeUndefined();
+    expect(byKey.get("recurrencia")?.kind).toBe("presence");
+    expect(byKey.get("recurrencia")?.columnId).toBeUndefined();
+    expect(byKey.get("telefono")?.kind).toBe("textMatch");
+    expect(byKey.get("mensaje")?.kind).toBe("textMatch");
+    expect(byKey.get("comprobantes")?.kind).toBe("numberRange");
+  });
+
+  it("exposes enum options for estado and moneda", () => {
+    const byKey = new Map(
+      buildQualifiers().map((qualifier) => [qualifier.key, qualifier]),
+    );
+
+    expect(byKey.get("estado")?.kind).toBe("enum");
+    expect(byKey.get("estado")?.options).toEqual([
+      { label: "Completado", slug: "completado", value: "completed" },
+      { label: "Pendiente", slug: "pendiente", value: "pending" },
+    ]);
+    expect(byKey.get("moneda")?.kind).toBe("enum");
+    expect(byKey.get("moneda")?.options).toEqual([
+      { label: "ARS", slug: "ars", value: "ARS" },
+      { label: "USD", slug: "usd", value: "USD" },
+    ]);
   });
 
   it("builds prestamista options from the loaded lenders with a person icon", () => {

@@ -29,6 +29,17 @@ const LOAN_DIRECTION_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
   { label: "Me deben", slug: "me-deben", value: "receivable" },
 ];
 
+/** Estado de pago derivado de la cobertura del mes (`isPaymentCompleted`). */
+const PAYMENT_STATUS_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
+  { label: "Completado", slug: "completado", value: "completed" },
+  { label: "Pendiente", slug: "pendiente", value: "pending" },
+];
+
+const CURRENCY_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
+  { label: "ARS", slug: "ars", value: "ARS" },
+  { label: "USD", slug: "usd", value: "USD" },
+];
+
 /**
  * Convierte el nombre de una carpeta en un slug tipeable de un solo token. Más
  * allá de quitar acentos/mayúsculas, reemplaza los separadores de token del
@@ -197,10 +208,25 @@ export function buildMonthlyExpensesFilterQualifiers({
       label: "Registros",
     },
     { key: "enviados", kind: "numberRange", label: "Enviados" },
+    { key: "comprobantes", kind: "numberRange", label: "Comprobantes" },
+    {
+      key: "estado",
+      kind: "enum",
+      label: "Estado de pago",
+      options: PAYMENT_STATUS_QUALIFIER_OPTIONS,
+    },
+    {
+      key: "moneda",
+      kind: "enum",
+      label: "Moneda",
+      options: CURRENCY_QUALIFIER_OPTIONS,
+    },
     { key: "cuotas-pagadas", kind: "numberRange", label: "Cuotas pagadas" },
     { key: "cuotas-restantes", kind: "numberRange", label: "Cuotas restantes" },
     { key: "cuotas-total", kind: "numberRange", label: "Cuotas totales" },
     { key: "link", kind: "textMatch", label: "Link de pago" },
+    { key: "telefono", kind: "textMatch", label: "Teléfono de envío" },
+    { key: "mensaje", kind: "textMatch", label: "Mensaje de envío" },
     lenders.length > 0
       ? {
           iconName: "user",
@@ -228,6 +254,7 @@ export function buildMonthlyExpensesFilterQualifiers({
       kind: "presence",
       label: "Deuda / cuotas",
     },
+    { key: "recurrencia", kind: "presence", label: "Recurrencia" },
     { key: "inicio", kind: "yearMonthRange", label: "Inicio de cuota" },
     { key: "fin", kind: "yearMonthRange", label: "Fin de cuota" },
     {

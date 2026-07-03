@@ -149,6 +149,181 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
     expect(hasFolder(createRow({ expenseFolderId: "" }))).toBe(false);
   });
 
+  it("filters by payment status with the estado qualifier", () => {
+    const matchesCompleted = predicate([
+      {
+        key: "estado",
+        negated: false,
+        value: { kind: "enum", value: "completed" },
+      },
+    ]);
+    const completedRow = createRow({
+      manualCoveredPayments: "1",
+      occurrencesPerMonth: "1",
+    });
+    const pendingRow = createRow({
+      manualCoveredPayments: "0",
+      occurrencesPerMonth: "1",
+    });
+
+    expect(matchesCompleted(completedRow)).toBe(true);
+    expect(matchesCompleted(pendingRow)).toBe(false);
+
+    const matchesPending = predicate([
+      {
+        key: "estado",
+        negated: false,
+        value: { kind: "enum", value: "pending" },
+      },
+    ]);
+
+    expect(matchesPending(pendingRow)).toBe(true);
+    expect(matchesPending(completedRow)).toBe(false);
+  });
+
+  it("filters by row currency with the moneda qualifier", () => {
+    const matchesUsd = predicate([
+      { key: "moneda", negated: false, value: { kind: "enum", value: "USD" } },
+    ]);
+
+    expect(matchesUsd(createRow({ currency: "USD" }))).toBe(true);
+    expect(matchesUsd(createRow({ currency: "ARS" }))).toBe(false);
+
+    const matchesArs = predicate([
+      { key: "moneda", negated: false, value: { kind: "enum", value: "ARS" } },
+    ]);
+
+    expect(matchesArs(createRow({ currency: "ARS" }))).toBe(true);
+    expect(matchesArs(createRow({ currency: "USD" }))).toBe(false);
+  });
+
+  it("matches the receipt share phone digits and their presence", () => {
+    const matchesSuffix = predicate([
+      {
+        key: "telefono",
+        negated: false,
+        value: { kind: "textMatch", op: "endsWith", text: "1234" },
+      },
+    ]);
+
+    expect(
+      matchesSuffix(createRow({ receiptSharePhoneDigits: "5491111231234" })),
+    ).toBe(true);
+    expect(
+      matchesSuffix(createRow({ receiptSharePhoneDigits: "5491111235678" })),
+    ).toBe(false);
+
+    const hasPhone = predicate([
+      {
+        key: "telefono",
+        negated: false,
+        value: { kind: "presence", value: "hasValue" },
+      },
+    ]);
+
+    expect(hasPhone(createRow({ receiptSharePhoneDigits: "549111" }))).toBe(
+      true,
+    );
+    expect(hasPhone(createRow({ receiptSharePhoneDigits: "" }))).toBe(false);
+  });
+
+  it("matches the receipt share message and its presence", () => {
+    const matchesText = predicate([
+      {
+        key: "mensaje",
+        negated: false,
+        value: { kind: "textMatch", op: "contains", text: "alquiler" },
+      },
+    ]);
+
+    expect(
+      matchesText(createRow({ receiptShareMessage: "Pago Alquiler abril" })),
+    ).toBe(true);
+    expect(
+      matchesText(createRow({ receiptShareMessage: "Expensas" })),
+    ).toBe(false);
+
+    const noMessage = predicate([
+      {
+        key: "mensaje",
+        negated: false,
+        value: { kind: "presence", value: "noValue" },
+      },
+    ]);
+
+    expect(noMessage(createRow({ receiptShareMessage: "" }))).toBe(true);
+    expect(noMessage(createRow({ receiptShareMessage: "Hola" }))).toBe(false);
+  });
+
+  it("counts attached receipts for the comprobantes qualifier and its presence", () => {
+    const receipt = {
+      allReceiptsFolderId: "",
+      allReceiptsFolderViewUrl: "",
+      coveredPayments: 1,
+      fileId: "file-1",
+      fileName: "comprobante.pdf",
+      fileViewUrl: "",
+      monthlyFolderId: "",
+      monthlyFolderViewUrl: "",
+    };
+    const matchesMin = predicate([
+      {
+        key: "comprobantes",
+        negated: false,
+        value: { kind: "numberRange", min: 2 },
+      },
+    ]);
+
+    expect(
+      matchesMin(
+        createRow({
+          receipts: [receipt, { ...receipt, fileId: "file-2" }],
+        }),
+      ),
+    ).toBe(true);
+    expect(matchesMin(createRow({ receipts: [receipt] }))).toBe(false);
+
+    const noReceipts = predicate([
+      {
+        key: "comprobantes",
+        negated: false,
+        value: { kind: "presence", value: "noValue" },
+      },
+    ]);
+
+    expect(noReceipts(createRow({ receipts: [] }))).toBe(true);
+    expect(noReceipts(createRow({ receipts: [receipt] }))).toBe(false);
+  });
+
+  it("evaluates recurrence presence for tiene:/no: meta filters", () => {
+    const hasRecurrence = predicate([
+      {
+        key: "recurrencia",
+        negated: false,
+        value: { kind: "presence", value: "hasValue" },
+      },
+    ]);
+
+    expect(hasRecurrence(createRow({ isRecurring: true }))).toBe(true);
+    expect(
+      hasRecurrence(
+        createRow({ isRecurring: true, recurrenceEndMonth: "2026-04" }),
+      ),
+    ).toBe(true);
+    expect(hasRecurrence(createRow({ isRecurring: false }))).toBe(false);
+
+    const noRecurrence = predicate([
+      {
+        key: "recurrencia",
+        negated: false,
+        value: { kind: "presence", value: "noValue" },
+      },
+    ]);
+
+    expect(noRecurrence(createRow({ isRecurring: true }))).toBe(false);
+    expect(noRecurrence(createRow({ isRecurring: false }))).toBe(true);
+  });
+
   it("matches link text and inverts on negation", () => {
     const startsWith = predicate([
       { key: "link", negated: false, value: { kind: "textMatch", op: "startsWith", text: "https" } },

@@ -18,7 +18,10 @@ import {
   getConvertedAmountForCurrency,
   getArsComparableAmount,
 } from "./monthly-expenses-currency";
-import { getPaymentProgress } from "./monthly-expenses-payment-progress";
+import {
+  getPaymentProgress,
+  isPaymentCompleted,
+} from "./monthly-expenses-payment-progress";
 import type {
   ExchangeRateSnapshot,
   MonthlyExpensesEditableRow,
@@ -197,6 +200,21 @@ export const MONTHLY_EXPENSES_FILTER_MATCHERS: Record<
     value.kind === "textMatch"
       ? matchesTextMatch(value, stripTrailingSlashes(row.paymentLink))
       : true,
+  telefono: (row, value) =>
+    value.kind === "textMatch"
+      ? matchesTextMatch(value, row.receiptSharePhoneDigits)
+      : true,
+  mensaje: (row, value) =>
+    value.kind === "textMatch"
+      ? matchesTextMatch(value, row.receiptShareMessage)
+      : true,
+  comprobantes: numberRangeMatcher((row) => row.receipts.length),
+  estado: (row, value) =>
+    matchesAdvancedEnumFilter(
+      value,
+      isPaymentCompleted(row) ? "completed" : "pending",
+    ),
+  moneda: (row, value) => matchesAdvancedEnumFilter(value, row.currency),
   prestamista: (row, value, context) =>
     value.kind === "textMatch"
       ? matchesTextMatch(value, row.lenderName)
@@ -209,6 +227,8 @@ export const MONTHLY_EXPENSES_FILTER_MATCHERS: Record<
       value,
       row.isLoan && row.loanProgress.trim().length > 0,
     ),
+  recurrencia: (row, value) =>
+    matchesAdvancedPresenceFilter(value, row.isRecurring),
   inicio: (row, value) =>
     matchesAdvancedYearMonthRangeFilter(value, getYearMonthValue(row.startMonth)),
   fin: (row, value) =>
@@ -273,9 +293,17 @@ export const MONTHLY_EXPENSES_PRESENCE_PREDICATES: Record<
   "cuotas-restantes": (row) => (row.loanRemainingInstallments ?? 0) > 0,
   "cuotas-total": (row) => (row.loanTotalInstallments ?? 0) > 0,
   link: (row) => hasText(row.paymentLink),
+  telefono: (row) => hasText(row.receiptSharePhoneDigits),
+  mensaje: (row) => hasText(row.receiptShareMessage),
+  comprobantes: (row) => row.receipts.length > 0,
+  // Todo gasto tiene estado y moneda: `tiene:`/`no:` no discriminan nada.
+  estado: () => true,
+  moneda: () => true,
   prestamista: (row) => hasText(row.lenderName),
   direccion: (row) => row.isLoan,
   deuda: (row) => row.isLoan && row.loanProgress.trim().length > 0,
+  // Cubre recurrencias activas y canceladas, igual que el ícono de la fila.
+  recurrencia: (row) => row.isRecurring,
   inicio: (row) => getYearMonthValue(row.startMonth) != null,
   fin: (row) => getYearMonthValue(row.loanEndMonth) != null,
   carpeta: (row) => hasText(row.expenseFolderId),

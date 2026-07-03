@@ -1,4 +1,5 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import {
   createRow,
@@ -38,6 +39,43 @@ describe("MonthlyExpensesTable recurrence indicator", () => {
     expect(
       screen.queryByLabelText("Gasto recurrente"),
     ).not.toBeInTheDocument();
+  });
+
+  it("filters recurring expenses with the tiene:/no: recurrencia qualifiers", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({
+        description: "Alquiler",
+        id: "expense-1",
+        isRecurring: true,
+      }),
+      createRow({
+        description: "Compra única",
+        id: "expense-2",
+        isRecurring: false,
+      }),
+    ]);
+
+    const queryBar = screen.getByRole("combobox", {
+      name: "Filtro unificado de gastos",
+    });
+
+    await user.click(queryBar);
+    await user.type(queryBar, "no:recurrencia");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Alquiler")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Compra única")).toBeInTheDocument();
+
+    await user.clear(queryBar);
+    await user.type(queryBar, "tiene:recurrencia");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Compra única")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Alquiler")).toBeInTheDocument();
   });
 
   it("renders no recurrence indicator for one-off expenses", () => {
