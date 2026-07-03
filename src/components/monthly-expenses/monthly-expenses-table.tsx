@@ -3382,7 +3382,10 @@ export function MonthlyExpensesTable({
               rowGroups={rowGroups}
               toolbarActions={
                 <>
-                  <DropdownMenu>
+                  {/* Keys estables: son hermanos del mismo tipo y uno es
+                      controlado; sin key, React puede reutilizar la instancia
+                      controlada como no controlada al reconciliar. */}
+                  <DropdownMenu key="sort-by-menu">
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="outline">
                         {sortByField === "none"
@@ -3463,7 +3466,7 @@ export function MonthlyExpensesTable({
                       </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <DropdownMenu>
+                  <DropdownMenu key="group-by-menu">
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="outline">
                         {groupByMode === "folder"
@@ -3509,6 +3512,7 @@ export function MonthlyExpensesTable({
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <DropdownMenu
+                    key="bulk-actions-menu"
                     onOpenChange={setIsBulkActionsMenuOpen}
                     open={isBulkActionsMenuOpen}
                   >
