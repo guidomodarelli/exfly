@@ -270,6 +270,40 @@ describe("MonthlyExpensesTable sort menu", () => {
     ).toBeInTheDocument();
   });
 
+  it("cycles the header sort through ascending, descending and unsorted", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS, { expenseFolders: FOLDERS });
+
+    const insertionOrder = ["Compra suelta", "Internet", "Alquiler", "Luz"];
+
+    expect(getTableTextOrder(insertionOrder)).toEqual(insertionOrder);
+
+    // El header se re-monta con cada cambio de orden: el botón se re-consulta
+    // en cada click para no clickear un nodo detached.
+    // 1er click: ascendente.
+    await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
+    await waitFor(() => {
+      expect(
+        getTableTextOrder(["Internet", "Alquiler", "Compra suelta", "Luz"]),
+      ).toEqual(["Internet", "Alquiler", "Compra suelta", "Luz"]);
+    });
+
+    // 2do click: descendente.
+    await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
+    await waitFor(() => {
+      expect(
+        getTableTextOrder(["Luz", "Compra suelta", "Alquiler", "Internet"]),
+      ).toEqual(["Luz", "Compra suelta", "Alquiler", "Internet"]);
+    });
+
+    // 3er click: vuelve al estado sin ordenamiento (orden original).
+    await user.click(screen.getByRole("button", { name: "Ordenar Total" }));
+    await waitFor(() => {
+      expect(getTableTextOrder(insertionOrder)).toEqual(insertionOrder);
+    });
+  });
+
   it("syncs the dropdown with a column header sort", async () => {
     const user = userEvent.setup();
 

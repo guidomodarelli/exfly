@@ -669,6 +669,7 @@ function getSortableHeader(label: string) {
     column,
   }: {
     column: {
+      clearSorting: () => void;
       getCanHide: () => boolean;
       getCanSort: () => boolean;
       getIsSorted: () => false | "asc" | "desc";
@@ -694,7 +695,23 @@ function getSortableHeader(label: string) {
         <button
           aria-label={`Ordenar ${label}`}
           className={styles.sortIconButton}
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          onClick={() => {
+            // Ciclo de tres estados: sin orden -> ascendente -> descendente
+            // -> sin orden.
+            const currentSorted = column.getIsSorted();
+
+            if (currentSorted === false) {
+              column.toggleSorting(false);
+              return;
+            }
+
+            if (currentSorted === "asc") {
+              column.toggleSorting(true);
+              return;
+            }
+
+            column.clearSorting();
+          }}
           type="button"
         >
           <SortIcon aria-hidden="true" />
