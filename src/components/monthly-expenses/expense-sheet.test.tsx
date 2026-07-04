@@ -57,12 +57,14 @@ function renderExpenseSheet({
   mode = "create",
   onFieldChange = jest.fn(),
   onLoanToggle = jest.fn(),
+  onOpenExpenseDetails,
 }: {
   changedFields?: Set<string>;
   draft?: MonthlyExpensesEditableRow;
   mode?: "create" | "edit";
   onFieldChange?: (fieldName: string, value: string) => void;
   onLoanToggle?: (checked: boolean) => void;
+  onOpenExpenseDetails?: () => void;
 }) {
   return render(
     <TooltipProvider>
@@ -81,6 +83,7 @@ function renderExpenseSheet({
         onManageFolders={jest.fn()}
         onLenderSelect={jest.fn()}
         onLoanToggle={onLoanToggle}
+        onOpenExpenseDetails={onOpenExpenseDetails}
         onRecurringToggle={jest.fn()}
         onReceiptShareToggle={jest.fn()}
         onRequestClose={jest.fn()}
@@ -186,6 +189,50 @@ describe("ExpenseSheet", () => {
     expect(
       screen.getByText("Completá la duración mensual."),
     ).toBeInTheDocument();
+  });
+
+  it("shows a read-only summary with a details shortcut when editing", async () => {
+    const user = userEvent.setup();
+    const onOpenExpenseDetails = jest.fn();
+
+    renderExpenseSheet({
+      draft: {
+        ...createDraftRow(),
+        currency: "USD",
+        subtotal: "144",
+        total: "144.00",
+        usdRate: {
+          appliesIibb: false,
+          appliesIva: true,
+          base: "blue",
+          customRate: null,
+        },
+      },
+      mode: "edit",
+      onOpenExpenseDetails,
+    });
+
+    const summary = screen.getByRole("region", { name: "Resumen del gasto" });
+    const summaryText = summary.textContent?.replace(/\s/g, " ") ?? "";
+
+    expect(summaryText).toContain("USD");
+    expect(summaryText).toContain("US$ 144");
+    expect(summaryText).toContain("1 vez/es por mes");
+    expect(summaryText).toContain("blue + IVA");
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar subtotal y cantidad" }),
+    );
+
+    expect(onOpenExpenseDetails).toHaveBeenCalled();
+  });
+
+  it("does not show the summary block in create mode", () => {
+    renderExpenseSheet({ mode: "create" });
+
+    expect(
+      screen.queryByRole("region", { name: "Resumen del gasto" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides duplicated inline-edit fields when editing an expense", () => {

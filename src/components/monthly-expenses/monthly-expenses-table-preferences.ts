@@ -7,6 +7,7 @@ import {
 } from "./monthly-expenses-table-column-ids";
 import type {
   LoanSortMode,
+  MonthlyExpensesGroupByMode,
   VigenciaSortMode,
 } from "./monthly-expenses-table.types";
 
@@ -18,6 +19,8 @@ export const DEFAULT_LOAN_SORT_MODE: LoanSortMode = "paidInstallments";
 export const DEFAULT_VIGENCIA_SORT_MODE: VigenciaSortMode = "startMonth";
 
 export const DEFAULT_MOVE_COMPLETED_TO_END = true;
+
+export const DEFAULT_GROUP_BY_MODE: MonthlyExpensesGroupByMode = "none";
 
 export const MONTHLY_EXPENSES_DEFAULT_COLUMN_VISIBILITY: VisibilityState = {
   // Columna fantasma del agrupado: nunca se muestra ni se puede mostrar.
@@ -55,7 +58,10 @@ const PERSISTABLE_COLUMN_VISIBILITY_IDS = new Set([
 ]);
 
 export interface MonthlyExpensesTablePreferences {
+  /** Group keys the user collapsed; only meaningful while grouping is on. */
+  collapsedGroupKeys: string[];
   columnVisibility: VisibilityState;
+  groupByMode: MonthlyExpensesGroupByMode;
   loanSortMode: LoanSortMode;
   moveCompletedToEnd: boolean;
   sorting: SortingState;
@@ -86,6 +92,26 @@ function parsePersistedVigenciaSortMode(
   }
 
   return value;
+}
+
+function parsePersistedGroupByMode(
+  value: unknown,
+): MonthlyExpensesGroupByMode {
+  if (value !== "none" && value !== "folder") {
+    return DEFAULT_GROUP_BY_MODE;
+  }
+
+  return value;
+}
+
+function parsePersistedCollapsedGroupKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (groupKey): groupKey is string => typeof groupKey === "string",
+  );
 }
 
 function parsePersistedMoveCompletedToEnd(value: unknown): boolean {
@@ -194,7 +220,11 @@ export function getPersistedMonthlyExpensesTablePreferences(): MonthlyExpensesTa
     };
 
     return {
+      collapsedGroupKeys: parsePersistedCollapsedGroupKeys(
+        parsedPreferences.collapsedGroupKeys,
+      ),
       columnVisibility,
+      groupByMode: parsePersistedGroupByMode(parsedPreferences.groupByMode),
       loanSortMode,
       moveCompletedToEnd,
       sorting,

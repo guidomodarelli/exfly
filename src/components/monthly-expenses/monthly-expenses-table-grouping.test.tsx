@@ -182,4 +182,89 @@ describe("MonthlyExpensesTable group by folder", () => {
       screen.getByRole("button", { name: "Ordenar por: Total" }),
     ).toBeInTheDocument();
   });
+
+  it("shows each group total with its paid/pending breakdown, also when collapsed", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({
+          description: "Luz",
+          expenseFolderId: "folder-services",
+          id: "expense-1",
+          manualCoveredPayments: "1",
+          subtotal: "300",
+          total: "300",
+        }),
+        createRow({
+          description: "Internet",
+          expenseFolderId: "folder-services",
+          id: "expense-2",
+          manualCoveredPayments: "0",
+          subtotal: "200",
+          total: "200",
+        }),
+      ],
+      { expenseFolders: FOLDERS },
+    );
+
+    await selectGroupByFolder(user);
+
+    const servicesGroupHeader = await screen.findByRole("button", {
+      name: "Grupo Servicios: 2 gastos",
+    });
+    const normalizeSpaces = (text: string) => text.replace(/\s/g, " ");
+
+    expect(normalizeSpaces(servicesGroupHeader.textContent ?? "")).toContain(
+      "500,00",
+    );
+    expect(normalizeSpaces(servicesGroupHeader.textContent ?? "")).toContain(
+      "Pagado: $ 300,00",
+    );
+    expect(normalizeSpaces(servicesGroupHeader.textContent ?? "")).toContain(
+      "Pendiente: $ 200,00",
+    );
+
+    // Colapsado, el total sigue visible.
+    await user.click(servicesGroupHeader);
+    expect(servicesGroupHeader).toHaveAttribute("aria-expanded", "false");
+    expect(normalizeSpaces(servicesGroupHeader.textContent ?? "")).toContain(
+      "500,00",
+    );
+  });
+
+  it("restores the grouping mode and collapsed groups from persisted preferences", async () => {
+    const user = userEvent.setup();
+
+    const { unmount } = renderMonthlyExpensesTable(ROWS, {
+      expenseFolders: FOLDERS,
+    });
+
+    await selectGroupByFolder(user);
+
+    const servicesGroupHeader = await screen.findByRole("button", {
+      name: "Grupo Servicios: 2 gastos",
+    });
+
+    await user.click(servicesGroupHeader);
+    expect(servicesGroupHeader).toHaveAttribute("aria-expanded", "false");
+
+    unmount();
+    renderMonthlyExpensesTable(ROWS, { expenseFolders: FOLDERS });
+
+    // El agrupado vuelve activo y Servicios sigue colapsado.
+    const restoredServicesGroupHeader = await screen.findByRole("button", {
+      name: "Grupo Servicios: 2 gastos",
+    });
+
+    expect(restoredServicesGroupHeader).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByText("Luz")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Agrupar por: Carpeta" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alquiler")).toBeInTheDocument();
+  });
 });

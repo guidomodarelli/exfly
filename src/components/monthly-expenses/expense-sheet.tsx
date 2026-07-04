@@ -68,6 +68,8 @@ import type {
   MonthlyExpensesEditableRow,
   MonthlyExpenseSubtotalUnit,
 } from "./monthly-expenses-table";
+import { formatCurrencyAmount } from "./monthly-expenses-currency";
+import { getUsdRateBadgeLabel } from "./usd-rate-type-labels";
 import styles from "./expense-sheet.module.scss";
 
 export type ExpenseEditableFieldName =
@@ -103,6 +105,12 @@ interface ExpenseSheetProps {
   onLoanToggle: (checked: boolean) => void;
   onRecurringToggle: (checked: boolean) => void;
   onReceiptShareToggle: (checked: boolean) => void;
+  /**
+   * Opens the "Editar subtotal y cantidad" dialog for the expense being
+   * edited. Only rendered in edit mode, where those fields live outside the
+   * sheet.
+   */
+  onOpenExpenseDetails?: () => void;
   onRequestClose: () => void;
   onSave: () => void;
   onUnsavedChangesClose: () => void;
@@ -257,6 +265,7 @@ function ExpenseSheetContent({
   onLenderSelect,
   onManageFolders,
   onLoanToggle,
+  onOpenExpenseDetails,
   onRecurringToggle,
   onReceiptShareToggle,
   onRequestClose,
@@ -461,6 +470,55 @@ function ExpenseSheetContent({
                     </FormItem>
                   )}
                 />
+
+                {!isCreateMode ? (
+                  <section
+                    aria-label="Resumen del gasto"
+                    className={styles.editSummaryCard}
+                  >
+                    <dl className={styles.editSummaryGrid}>
+                      <div className={styles.editSummaryItem}>
+                        <dt>Moneda</dt>
+                        <dd>{draft.currency}</dd>
+                      </div>
+                      <div className={styles.editSummaryItem}>
+                        <dt>Subtotal</dt>
+                        <dd>
+                          {formatCurrencyAmount(draft.currency, draft.subtotal)}
+                          {isHourlySubtotal ? "/h" : ""}
+                        </dd>
+                      </div>
+                      <div className={styles.editSummaryItem}>
+                        <dt>Frecuencia</dt>
+                        <dd>
+                          {isHourlySubtotal
+                            ? draft.occurrencesUnit || "-"
+                            : `${draft.occurrencesPerMonth} vez/es por mes`}
+                        </dd>
+                      </div>
+                      <div className={styles.editSummaryItem}>
+                        <dt>Total</dt>
+                        <dd>{formatCurrencyAmount(draft.currency, draft.total)}</dd>
+                      </div>
+                      {draft.currency === "USD" ? (
+                        <div className={styles.editSummaryItem}>
+                          <dt>Tipo de cambio</dt>
+                          <dd>{getUsdRateBadgeLabel(draft.usdRate)}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                    {onOpenExpenseDetails ? (
+                      <Button
+                        onClick={onOpenExpenseDetails}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        Editar subtotal y cantidad
+                      </Button>
+                    ) : null}
+                  </section>
+                ) : null}
 
                 {isCreateMode ? (
                   <FormField

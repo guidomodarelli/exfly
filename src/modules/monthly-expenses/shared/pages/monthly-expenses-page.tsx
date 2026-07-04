@@ -447,6 +447,24 @@ interface PendingUsdRateIntent {
   shouldFlushAfterRequest: boolean;
 }
 
+/**
+ * Grace window before a confirmed deletion is persisted. While it runs, the
+ * toast offers «Deshacer», which restores the rows without any request.
+ */
+const UNDOABLE_DELETE_GRACE_MS = 6000;
+
+/**
+ * Pool of optimistically deleted rows waiting for their flush. Deletions that
+ * arrive during the grace window merge into the same intent (single undo,
+ * single save) to avoid interleaved saves resurrecting or dropping rows.
+ */
+interface PendingDeleteIntent {
+  /** Month the intent belongs to; a flush for another month is stale. */
+  month: string;
+  removedRowsWithIndex: { index: number; row: MonthlyExpensesEditableRow }[];
+  timerId: number | null;
+}
+
 /** Row-shaped snapshot of the fields the details dialog edits. */
 interface ExpenseDetailsSnapshot {
   occurrencesPerMonth: string;
@@ -1928,6 +1946,25 @@ export default function MonthlyExpensesPage({
   const pendingExpenseDetailsIntentsByExpenseIdRef = useRef(
     new Map<string, PendingExpenseDetailsIntent>(),
   );
+  const pendingDeleteIntentRef = useRef<PendingDeleteIntent | null>(null);
+  // Alta rápida: acumula filas nuevas y serializa los guardados para que dos
+  // POST concurrentes no se pisen (el documento del mes se guarda entero).
+  const pendingQuickAddIntentRef = useRef<{
+    isRequestInFlight: boolean;
+    month: string;
+    pendingRowsById: Map<string, MonthlyExpensesEditableRow>;
+    shouldFlushAfterRequest: boolean;
+  } | null>(null);
+  const pendingMarkPaidIntentsByExpenseIdRef = useRef(
+    new Map<
+      string,
+      {
+        baselineRow: MonthlyExpensesEditableRow;
+        month: string;
+        timerId: number | null;
+      }
+    >(),
+  );
   const latestFormStateRef = useRef(formState);
 
   useEffect(() => {
@@ -1937,6 +1974,8 @@ export default function MonthlyExpensesPage({
   useEffect(() => {
     const pendingUsdRateIntentsByExpenseId =
       pendingUsdRateIntentsByExpenseIdRef.current;
+    const pendingMarkPaidIntentsByExpenseId =
+      pendingMarkPaidIntentsByExpenseIdRef.current;
 
     return () => {
       for (const pendingIntent of pendingUsdRateIntentsByExpenseId.values()) {
@@ -1946,6 +1985,22 @@ export default function MonthlyExpensesPage({
       }
 
       pendingUsdRateIntentsByExpenseId.clear();
+
+      const pendingDeleteIntent = pendingDeleteIntentRef.current;
+
+      if (pendingDeleteIntent?.timerId != null) {
+        window.clearTimeout(pendingDeleteIntent.timerId);
+      }
+
+      pendingDeleteIntentRef.current = null;
+
+      for (const pendingMarkPaidIntent of pendingMarkPaidIntentsByExpenseId.values()) {
+        if (pendingMarkPaidIntent.timerId !== null) {
+          window.clearTimeout(pendingMarkPaidIntent.timerId);
+        }
+      }
+
+      pendingMarkPaidIntentsByExpenseId.clear();
     };
   }, []);
 
@@ -3008,6 +3063,91 @@ export default function MonthlyExpensesPage({
       originalRow: { ...draft },
       showUnsavedChangesDialog: false,
     }));
+  };
+
+  const handleDuplicateExpenseToMonth = async ({
+    expenseId,
+    targetMonth,
+  }: {
+    expenseId: string;
+    targetMonth: string;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para duplicar gastos.");
+      return;
+    }
+
+    const sourceRow = latestFormStateRef.current.rows.find(
+      (row) => row.id === expenseId,
+    );
+
+    if (!sourceRow) {
+      toast.warning("No pudimos encontrar el gasto que querés duplicar.");
+      return;
+    }
+
+    if (targetMonth === latestFormStateRef.current.month) {
+      handleDuplicateExpense(expenseId);
+      return;
+    }
+
+    const duplicateIntoTargetMonth = async () => {
+      const targetDocument = await getMonthlyExpensesDocumentViaApi(
+        targetMonth,
+      );
+      // Copia la definición como gasto simple: préstamos y recurrencias se
+      // proyectan solos entre meses, igual que en la replicación mensual.
+      const duplicatedRow: MonthlyExpensesEditableRow = {
+        ...createEmptyRow(),
+        currency: sourceRow.currency,
+        description: sourceRow.description,
+        expenseFolderId: sourceRow.expenseFolderId,
+        occurrencesPerMonth: sourceRow.occurrencesPerMonth,
+        occurrencesUnit: sourceRow.occurrencesUnit,
+        paymentLink: sourceRow.paymentLink,
+        receiptShareMessage: sourceRow.receiptShareMessage,
+        receiptSharePhoneDigits: sourceRow.receiptSharePhoneDigits,
+        requiresReceiptShare: sourceRow.requiresReceiptShare,
+        subtotal: sourceRow.subtotal,
+        subtotalUnit: sourceRow.subtotalUnit,
+        total: sourceRow.total,
+        usdRate: { ...sourceRow.usdRate },
+      };
+      const targetRows = normalizeEditableRows(targetMonth, [
+        ...toEditableRows(targetDocument),
+        duplicatedRow,
+      ]);
+
+      await saveMonthlyExpensesDocumentViaApi(
+        toSaveMonthlyExpensesCommand({
+          ...formState,
+          hasReplicatedFromPreviousMonth:
+            targetDocument.hasReplicatedFromPreviousMonth ?? false,
+          month: targetMonth,
+          rows: targetRows,
+        }),
+      );
+    };
+
+    const duplicatePromise = duplicateIntoTargetMonth();
+
+    void toast.promise(duplicatePromise, {
+      error: (duplicationError) =>
+        duplicationError instanceof MonthlyExpensesAuthenticationError
+          ? "Tu sesion vencio. Te redirigimos para iniciar sesion nuevamente."
+          : renderErrorWithCode(
+              `No pudimos duplicar el gasto en ${targetMonth}.`,
+              getTechnicalErrorCode(duplicationError),
+            ),
+      loading: `Duplicando en ${targetMonth}...`,
+      success: `Gasto duplicado en ${targetMonth}.`,
+    });
+
+    try {
+      await duplicatePromise;
+    } catch (duplicationError) {
+      await handleAuthenticationRecovery(duplicationError);
+    }
   };
 
   const handleCloseReceiptUpload = () => {
@@ -4777,19 +4917,392 @@ export default function MonthlyExpensesPage({
     await handleSaveExpense();
   };
 
-  const handleRemoveExpense = async (expenseId: string) => {
-    const nextRows = normalizeEditableRows(
-      formState.month,
-      formState.rows.filter((row) => row.id !== expenseId),
-    );
-    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
-      loading: "Eliminando gasto...",
-      success: "Gasto eliminado correctamente.",
-    });
+  const restorePendingDeletedRows = () => {
+    const pendingIntent = pendingDeleteIntentRef.current;
 
-    if (wasSaved && expenseSheetState.draft?.id === expenseId) {
+    if (!pendingIntent) {
+      return;
+    }
+
+    if (pendingIntent.timerId !== null) {
+      window.clearTimeout(pendingIntent.timerId);
+    }
+
+    pendingDeleteIntentRef.current = null;
+    updateFormState((currentState) => {
+      const restoredRows = [...currentState.rows];
+
+      // Reinserta en las posiciones originales (orden ascendente para que los
+      // índices previos sigan siendo válidos al insertar).
+      for (const { index, row } of [...pendingIntent.removedRowsWithIndex].sort(
+        (left, right) => left.index - right.index,
+      )) {
+        restoredRows.splice(Math.min(index, restoredRows.length), 0, row);
+      }
+
+      return { ...currentState, rows: restoredRows };
+    });
+  };
+
+  const handleUndoPendingDelete = () => {
+    restorePendingDeletedRows();
+    toast.success("Eliminación deshecha.");
+  };
+
+  const flushPendingDeleteIntent = async () => {
+    const pendingIntent = pendingDeleteIntentRef.current;
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    pendingIntent.timerId = null;
+
+    // Stale-scope guard: al cambiar de mes las filas locales ya no aplican y
+    // no se persistió nada, así que descartar es seguro.
+    if (latestFormStateRef.current.month !== pendingIntent.month) {
+      pendingDeleteIntentRef.current = null;
+      return;
+    }
+
+    const removedExpenseIds = new Set(
+      pendingIntent.removedRowsWithIndex.map(({ row }) => row.id),
+    );
+    const rowsToPersist = latestFormStateRef.current.rows.filter(
+      (row) => !removedExpenseIds.has(row.id),
+    );
+    const wasSaved = await persistMonthlyExpensesRows(
+      rowsToPersist,
+      {
+        loading: "Eliminando...",
+        success:
+          removedExpenseIds.size === 1
+            ? "Gasto eliminado correctamente."
+            : "Gastos eliminados correctamente.",
+      },
+      { markSubmitting: false, showToast: false },
+    );
+
+    if (!wasSaved) {
+      restorePendingDeletedRows();
+      toast.error("No pudimos eliminar. Restauramos los gastos.");
+      return;
+    }
+
+    pendingDeleteIntentRef.current = null;
+  };
+
+  const removeExpensesOptimistically = (expenseIds: string[]): boolean => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para eliminar gastos.");
+      return false;
+    }
+
+    const expenseIdSet = new Set(expenseIds);
+    const currentRows = latestFormStateRef.current.rows;
+    const removedRowsWithIndex = currentRows
+      .map((row, index) => ({ index, row }))
+      .filter(({ row }) => expenseIdSet.has(row.id));
+
+    if (removedRowsWithIndex.length === 0) {
+      return false;
+    }
+
+    let pendingIntent = pendingDeleteIntentRef.current;
+
+    if (pendingIntent && pendingIntent.month === formState.month) {
+      // Merge dentro de la ventana de gracia: un solo deshacer y un solo save.
+      if (pendingIntent.timerId !== null) {
+        window.clearTimeout(pendingIntent.timerId);
+      }
+
+      pendingIntent.removedRowsWithIndex.push(...removedRowsWithIndex);
+    } else {
+      pendingIntent = {
+        month: formState.month,
+        removedRowsWithIndex,
+        timerId: null,
+      };
+      pendingDeleteIntentRef.current = pendingIntent;
+    }
+
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: currentState.rows.filter((row) => !expenseIdSet.has(row.id)),
+    }));
+
+    pendingIntent.timerId = window.setTimeout(() => {
+      void flushPendingDeleteIntent();
+    }, UNDOABLE_DELETE_GRACE_MS);
+
+    const removedCount = pendingIntent.removedRowsWithIndex.length;
+
+    toast(
+      removedCount === 1
+        ? "Gasto eliminado."
+        : `${removedCount} gastos eliminados.`,
+      {
+        action: {
+          label: "Deshacer",
+          onClick: handleUndoPendingDelete,
+        },
+        duration: UNDOABLE_DELETE_GRACE_MS,
+      },
+    );
+
+    if (
+      expenseSheetState.draft &&
+      expenseIdSet.has(expenseSheetState.draft.id)
+    ) {
       setExpenseSheetState(createClosedExpenseSheetState());
     }
+
+    return true;
+  };
+
+  const flushPendingQuickAddIntent = async () => {
+    const pendingIntent = pendingQuickAddIntentRef.current;
+
+    if (!pendingIntent || pendingIntent.pendingRowsById.size === 0) {
+      return;
+    }
+
+    if (latestFormStateRef.current.month !== pendingIntent.month) {
+      pendingQuickAddIntentRef.current = null;
+      return;
+    }
+
+    if (pendingIntent.isRequestInFlight) {
+      pendingIntent.shouldFlushAfterRequest = true;
+      return;
+    }
+
+    pendingIntent.isRequestInFlight = true;
+    pendingIntent.shouldFlushAfterRequest = false;
+
+    const flushedRowIds = new Set(pendingIntent.pendingRowsById.keys());
+    // Aplica las filas pendientes sobre el estado más reciente en vez de
+    // confiar en que React ya haya renderizado el alta optimista.
+    const latestRows = latestFormStateRef.current.rows;
+    const latestRowIds = new Set(latestRows.map((row) => row.id));
+    const missingPendingRows = [...pendingIntent.pendingRowsById.values()].filter(
+      (pendingRow) => !latestRowIds.has(pendingRow.id),
+    );
+    const rowsToPersist =
+      missingPendingRows.length > 0
+        ? normalizeEditableRows(pendingIntent.month, [
+            ...latestRows,
+            ...missingPendingRows,
+          ])
+        : latestRows;
+    const wasSaved = await persistMonthlyExpensesRows(
+      rowsToPersist,
+      {
+        loading: "Agregando gasto...",
+        success: "Gasto agregado.",
+      },
+      { markSubmitting: false },
+    );
+
+    pendingIntent.isRequestInFlight = false;
+
+    if (!wasSaved) {
+      // Rollback: retira las filas nuevas que nunca llegaron al servidor.
+      updateFormState((currentState) => ({
+        ...currentState,
+        rows: currentState.rows.filter(
+          (row) => !pendingIntent.pendingRowsById.has(row.id),
+        ),
+      }));
+      pendingQuickAddIntentRef.current = null;
+      toast.error("No pudimos agregar el gasto.");
+      return;
+    }
+
+    for (const flushedRowId of flushedRowIds) {
+      pendingIntent.pendingRowsById.delete(flushedRowId);
+    }
+
+    if (pendingIntent.shouldFlushAfterRequest) {
+      void flushPendingQuickAddIntent();
+      return;
+    }
+
+    if (pendingIntent.pendingRowsById.size === 0) {
+      pendingQuickAddIntentRef.current = null;
+    }
+  };
+
+  const handleQuickAddExpense = ({
+    currency,
+    description,
+    subtotal,
+  }: {
+    currency: MonthlyExpenseCurrency;
+    description: string;
+    subtotal: number;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para agregar gastos.");
+      return;
+    }
+
+    const quickAddRow: MonthlyExpensesEditableRow = {
+      ...createEmptyRow(),
+      currency,
+      description,
+      subtotal: formatEditableNumber(subtotal),
+    };
+
+    let pendingIntent = pendingQuickAddIntentRef.current;
+
+    if (!pendingIntent || pendingIntent.month !== formState.month) {
+      pendingIntent = {
+        isRequestInFlight: false,
+        month: formState.month,
+        pendingRowsById: new Map<string, MonthlyExpensesEditableRow>(),
+        shouldFlushAfterRequest: false,
+      };
+      pendingQuickAddIntentRef.current = pendingIntent;
+    }
+
+    pendingIntent.pendingRowsById.set(quickAddRow.id, quickAddRow);
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: normalizeEditableRows(currentState.month, [
+        ...currentState.rows,
+        quickAddRow,
+      ]),
+    }));
+
+    void flushPendingQuickAddIntent();
+  };
+
+  const restoreMarkPaidBaseline = (expenseId: string) => {
+    const pendingIntent =
+      pendingMarkPaidIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    if (pendingIntent.timerId !== null) {
+      window.clearTimeout(pendingIntent.timerId);
+    }
+
+    pendingMarkPaidIntentsByExpenseIdRef.current.delete(expenseId);
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: currentState.rows.map((row) =>
+        row.id === expenseId ? pendingIntent.baselineRow : row,
+      ),
+    }));
+  };
+
+  const flushPendingMarkPaidIntent = async (expenseId: string) => {
+    const pendingIntent =
+      pendingMarkPaidIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    pendingIntent.timerId = null;
+
+    if (latestFormStateRef.current.month !== pendingIntent.month) {
+      pendingMarkPaidIntentsByExpenseIdRef.current.delete(expenseId);
+      return;
+    }
+
+    const wasSaved = await persistMonthlyExpensesRows(
+      latestFormStateRef.current.rows,
+      {
+        loading: "Registrando pago...",
+        success: "Pago registrado.",
+      },
+      { markSubmitting: false, showToast: false },
+    );
+
+    if (!wasSaved) {
+      restoreMarkPaidBaseline(expenseId);
+      toast.error("No pudimos registrar el pago. Restauramos el estado.");
+      return;
+    }
+
+    pendingMarkPaidIntentsByExpenseIdRef.current.delete(expenseId);
+  };
+
+  const handleMarkExpensePaid = (expenseId: string) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para registrar pagos.");
+      return;
+    }
+
+    // Una marca ya en curso para el gasto: no apilar registros duplicados.
+    if (pendingMarkPaidIntentsByExpenseIdRef.current.has(expenseId)) {
+      return;
+    }
+
+    const expenseRow = latestFormStateRef.current.rows.find(
+      (row) => row.id === expenseId,
+    );
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    const remainingPayments = getMaxManualCoveredPayments({ row: expenseRow });
+
+    if (remainingPayments <= 0) {
+      toast.info("El gasto ya está pagado.");
+      return;
+    }
+
+    const pendingIntent = {
+      baselineRow: expenseRow,
+      month: latestFormStateRef.current.month,
+      timerId: null as number | null,
+    };
+
+    pendingMarkPaidIntentsByExpenseIdRef.current.set(expenseId, pendingIntent);
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: currentState.rows.map((row) =>
+        row.id === expenseId
+          ? synchronizeRowPaymentCoverage({
+              ...row,
+              paymentRecords: [
+                ...(row.paymentRecords ?? []),
+                {
+                  coveredPayments: remainingPayments,
+                  id: createPaymentRecordId(),
+                  registeredAt: new Date().toISOString(),
+                },
+              ],
+            })
+          : row,
+      ),
+    }));
+
+    pendingIntent.timerId = window.setTimeout(() => {
+      void flushPendingMarkPaidIntent(expenseId);
+    }, UNDOABLE_DELETE_GRACE_MS);
+
+    toast("Gasto marcado como pagado.", {
+      action: {
+        label: "Deshacer",
+        onClick: () => {
+          restoreMarkPaidBaseline(expenseId);
+          toast.success("Pago deshecho.");
+        },
+      },
+      duration: UNDOABLE_DELETE_GRACE_MS,
+    });
+  };
+
+  const handleRemoveExpense = (expenseId: string) => {
+    removeExpensesOptimistically([expenseId]);
   };
   const handleRemoveExpensesInBulk = async (
     expenseIds: string[],
@@ -4798,25 +5311,7 @@ export default function MonthlyExpensesPage({
       return false;
     }
 
-    const expenseIdSet = new Set(expenseIds);
-    const nextRows = normalizeEditableRows(
-      formState.month,
-      formState.rows.filter((row) => !expenseIdSet.has(row.id)),
-    );
-    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
-      loading: "Eliminando gastos seleccionados...",
-      success: "Gastos eliminados correctamente.",
-    });
-
-    if (
-      wasSaved &&
-      expenseSheetState.draft &&
-      expenseIdSet.has(expenseSheetState.draft.id)
-    ) {
-      setExpenseSheetState(createClosedExpenseSheetState());
-    }
-
-    return wasSaved;
+    return removeExpensesOptimistically(expenseIds);
   };
 
   const handleLenderFieldChange = (
@@ -5343,6 +5838,8 @@ export default function MonthlyExpensesPage({
                 onToggleReplicableOption={handleToggleReplicableOption}
                 onDeleteAllReceiptsFolderReference={handleDeleteAllReceiptsFolderReference}
                 onDeleteExpense={handleRemoveExpense}
+                onMarkExpensePaid={handleMarkExpensePaid}
+                onQuickAddExpense={handleQuickAddExpense}
                 onDeleteExpenses={handleRemoveExpensesInBulk}
                 onDeleteExpenseReceiptShare={handleDeleteExpenseReceiptShare}
                 onDeletePaymentLink={handleDeletePaymentLink}
@@ -5350,6 +5847,7 @@ export default function MonthlyExpensesPage({
                 onDeleteReceipt={handleDeleteExpenseReceipt}
                 onEditReceiptCoverage={handleOpenReceiptCoverageEditor}
                 onDuplicateExpense={handleDuplicateExpense}
+                onDuplicateExpenseToMonth={handleDuplicateExpenseToMonth}
                 onEditExpense={handleEditExpense}
                 onExpenseFieldChange={handleExpenseFieldChange}
                 onExpenseFolderSelect={handleExpenseFolderSelect}

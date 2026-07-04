@@ -249,7 +249,7 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(
       screen.getByRole("button", { name: "Abrir acciones para Electricidad" }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Duplicar" }));
+    await selectDropdownSubmenuItem(user, "Duplicar", "En este mes");
 
     expect(
       await screen.findByRole("heading", { name: "Nuevo gasto" }),
@@ -3405,7 +3405,7 @@ registerMonthlyExpensesPageDefaultHooks({
     expect(screen.getByLabelText("Nombre")).toBeInTheDocument();
   });
 
-  it("confirms row deletion and persists immediately", async () => {
+  it("confirms row deletion and persists after the undo grace window", async () => {
     const user = userEvent.setup();
     const fetchMock = createMonthlyExpensesFetchMock();
 
@@ -3463,24 +3463,28 @@ registerMonthlyExpensesPageDefaultHooks({
 
     await user.click(screen.getByRole("button", { name: "Confirmar" }));
 
-    await waitFor(() => {
-      expect(getMonthlyExpensesSavePayload(fetchMock)).toEqual({
-        items: [
-          {
-            currency: "ARS",
-            description: "Agua",
-            id: "expense-1",
-            occurrencesPerMonth: 1,
-            paymentLink: null,
-            subtotal: 10000,
-          },
-        ],
-        month: "2026-03",
-      });
-    });
+    // El borrado es optimista con deshacer: el POST sale al vencer la gracia.
+    await waitFor(
+      () => {
+        expect(getMonthlyExpensesSavePayload(fetchMock)).toEqual({
+          items: [
+            {
+              currency: "ARS",
+              description: "Agua",
+              id: "expense-1",
+              occurrencesPerMonth: 1,
+              paymentLink: null,
+              subtotal: 10000,
+            },
+          ],
+          month: "2026-03",
+        });
+      },
+      { timeout: 9000 },
+    );
 
     expect(screen.queryByText("Internet")).not.toBeInTheDocument();
-  });
+  }, 20000);
 
   it("adds a lender to the catalog from the page", async () => {
     const user = userEvent.setup();

@@ -2569,6 +2569,19 @@ registerMonthlyExpensesPageDefaultHooks({
       ).not.toBeInTheDocument();
     });
 
+    // El borrado ahora es optimista con deshacer: el POST sale recién al
+    // vencer la ventana de gracia.
+    await waitFor(
+      () => {
+        expect(
+          fetchMock.mock.calls.some(
+            ([url]) => url === "/api/storage/monthly-expenses",
+          ),
+        ).toBe(true);
+      },
+      { timeout: 9000 },
+    );
+
     const payload = getMonthlyExpensesSavePayload(fetchMock);
     const savedDescriptions = payload.items.map(
       (item: { description: string }) => item.description,
@@ -2576,7 +2589,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(savedDescriptions).toEqual(["Internet", "Luz"]);
     expect(savedDescriptions).not.toContain("Agua");
-  });
+  }, 20000);
 
   it("disables bulk actions when filters leave no visible rows", async () => {
     const user = userEvent.setup();

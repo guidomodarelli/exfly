@@ -26,6 +26,8 @@ function renderExpenseRowActions(
     onDeleteMonthlyFolderReference: jest.fn(),
     onDeletePaymentLink: jest.fn(),
     onDuplicate: jest.fn(),
+    onDuplicateToNextMonth: jest.fn(),
+    onDuplicateToPickedMonth: jest.fn(),
     onEdit: jest.fn(),
     onManagePaymentLink: jest.fn(),
     onReactivateRecurrence: jest.fn(),
@@ -58,14 +60,28 @@ describe("ExpenseRowActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("duplicates the expense from the menu root", async () => {
+  it("duplicates the expense in the current month from the submenu", async () => {
     const onDuplicate = jest.fn();
     renderExpenseRowActions({ onDuplicate });
 
     const user = await openActionsMenu();
-    await user.click(screen.getByRole("menuitem", { name: "Duplicar" }));
+    await selectDropdownSubmenuItem(user, "Duplicar", "En este mes");
 
     expect(onDuplicate).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers duplicating into the next month and picking a month", async () => {
+    renderExpenseRowActions();
+
+    const user = await openActionsMenu();
+    await user.click(screen.getByRole("menuitem", { name: "Duplicar" }));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "En el mes siguiente" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Elegir mes…" }),
+    ).toBeInTheDocument();
   });
 
   it("does not offer a recurrence submenu for a non-recurring expense", async () => {

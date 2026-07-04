@@ -70,6 +70,10 @@ interface ExpenseRowActionsProps {
   onDeletePaymentLink: () => void;
   /** Opens the expense sheet in create mode prefilled with this expense. */
   onDuplicate: () => void;
+  /** Duplicates the expense straight into the following month. */
+  onDuplicateToNextMonth: () => void;
+  /** Opens the month picker to duplicate the expense into any month. */
+  onDuplicateToPickedMonth: () => void;
   onEdit: () => void;
   onManagePaymentLink: () => void;
   onReactivateRecurrence: () => void;
@@ -100,6 +104,8 @@ export function ExpenseRowActions({
   onDeleteMonthlyFolderReference,
   onDeletePaymentLink,
   onDuplicate,
+  onDuplicateToNextMonth,
+  onDuplicateToPickedMonth,
   onEdit,
   onManagePaymentLink,
   onReactivateRecurrence,
@@ -210,17 +216,44 @@ export function ExpenseRowActions({
               Editar
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              setIsMenuOpen(false);
-              onDuplicate();
-            }}
-          >
-            <span className={styles.menuItem}>
-              <Copy aria-hidden="true" />
-              Duplicar
-            </span>
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <span className={styles.menuItem}>
+                <Copy aria-hidden="true" />
+                Duplicar
+              </span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  onDuplicate();
+                }}
+              >
+                En este mes
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  window.setTimeout(() => {
+                    onDuplicateToNextMonth();
+                  }, 0);
+                }}
+              >
+                En el mes siguiente
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setIsMenuOpen(false);
+                  window.setTimeout(() => {
+                    onDuplicateToPickedMonth();
+                  }, 0);
+                }}
+              >
+                Elegir mes…
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem
             onSelect={() => {
               setIsMenuOpen(false);

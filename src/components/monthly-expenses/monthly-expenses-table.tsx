@@ -83,12 +83,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  CircleCheck,
   Link2,
   MoreVertical,
   Pencil,
   Repeat,
 } from "lucide-react";
 import { ExpenseRowActions } from "@/components/monthly-expenses/expense-row-actions";
+import { QuickAddExpenseForm } from "@/components/monthly-expenses/quick-add-expense-form";
 import {
   ExpenseSheet,
   type ExpenseEditableFieldName,
@@ -152,7 +154,9 @@ import {
   getArsComparableAmount,
   getConvertedAmountForCurrency,
   getConvertedTotalAmount,
+  getUsdRateForRow,
 } from "./monthly-expenses-currency";
+import { getUsdRateBadgeLabel } from "./usd-rate-type-labels";
 import {
   getPaymentProgress,
   isPaymentCompleted,
@@ -204,6 +208,7 @@ import type {
   MonthlyExpenseReceiptShareStatus,
   MonthlyExpenseSubtotalUnit,
   MonthlyExpensesEditableRow,
+  MonthlyExpensesGroupByMode,
   MonthlyExpensesReplicableOption,
   MonthlyExpenseUsdRateBase,
   MonthlyExpenseUsdRateSettings,
@@ -228,7 +233,6 @@ const MANUAL_SORTING_DISABLED_HELPER_TEXT =
 const UNASSIGNED_FOLDER_GROUP_LABEL = "Sin carpeta";
 
 /** Modo de agrupado visual de la tabla; v1 solo soporta carpeta. */
-type MonthlyExpensesGroupByMode = "none" | "folder";
 
 /**
  * Entrada de orden que ancla el agrupado: siempre primera en el estado de
@@ -587,6 +591,19 @@ interface MonthlyExpensesTableProps {
     expenseId: string;
     usdRate: MonthlyExpenseUsdRateSettings;
   }) => void | Promise<void>;
+  /** Quick action: covers the expense's remaining payments for the month. */
+  onMarkExpensePaid: (expenseId: string) => void;
+  /** Quick add: creates an expense with defaults (once a month, no folder). */
+  onQuickAddExpense: (args: {
+    currency: MonthlyExpenseCurrency;
+    description: string;
+    subtotal: number;
+  }) => void;
+  /** Duplicates the expense into another month without leaving this one. */
+  onDuplicateExpenseToMonth: (args: {
+    expenseId: string;
+    targetMonth: string;
+  }) => void | Promise<void>;
   onUpdateExpenseDetails: (args: {
     expenseId: string;
     occurrencesPerMonth: number;
@@ -626,6 +643,11 @@ interface PaymentLinkDialogState {
 }
 
 interface CustomUsdRateDialogState {
+  expenseDescription: string;
+  expenseId: string;
+}
+
+interface DuplicateToMonthDialogState {
   expenseDescription: string;
   expenseId: string;
 }
@@ -1060,6 +1082,9 @@ export function MonthlyExpensesTable({
   onEditManualPaymentRecord,
   onUpdatePaymentLink,
   onUpdateUsdRate,
+  onMarkExpensePaid,
+  onQuickAddExpense,
+  onDuplicateExpenseToMonth,
   onUpdateExpenseDetails,
   onUpdateExpenseReceiptShare,
   onUpdatePaymentRecordSendStatus,
@@ -1253,6 +1278,10 @@ export function MonthlyExpensesTable({
     useState<string | null>(null);
   const [customUsdRateDialogState, setCustomUsdRateDialogState] =
     useState<CustomUsdRateDialogState | null>(null);
+  const [duplicateToMonthDialogState, setDuplicateToMonthDialogState] =
+    useState<DuplicateToMonthDialogState | null>(null);
+  const [duplicateToMonthDraftValue, setDuplicateToMonthDraftValue] =
+    useState("");
   const [customUsdRateDraftValue, setCustomUsdRateDraftValue] = useState("");
   const [customUsdRateDraftError, setCustomUsdRateDraftError] =
     useState<string | null>(null);
@@ -1409,7 +1438,17 @@ export function MonthlyExpensesTable({
         setLoanSortMode(persistedPreferences.loanSortMode);
         setVigenciaSortMode(persistedPreferences.vigenciaSortMode);
         setMoveCompletedToEnd(persistedPreferences.moveCompletedToEnd);
-        setSorting(persistedPreferences.sorting);
+        setGroupByMode(persistedPreferences.groupByMode);
+        setCollapsedGroupKeys(
+          new Set(persistedPreferences.collapsedGroupKeys),
+        );
+        // El agrupado activo exige la entrada fantasma al frente del sorting,
+        // igual que cuando el usuario lo activa desde el menú.
+        setSorting(
+          persistedPreferences.groupByMode === "folder"
+            ? [GROUP_POSITION_SORT_ENTRY, ...persistedPreferences.sorting]
+            : persistedPreferences.sorting,
+        );
         setColumnVisibility(persistedPreferences.columnVisibility);
       }
 
@@ -1428,17 +1467,27 @@ export function MonthlyExpensesTable({
     }
 
     persistMonthlyExpensesTablePreferences({
+      collapsedGroupKeys: Array.from(collapsedGroupKeys),
       columnVisibility,
+      groupByMode,
       loanSortMode,
       moveCompletedToEnd,
-      // La entrada fantasma del agrupado no se persiste: es estado derivado
-      // del modo de agrupado, que en v1 no persiste.
+      // La entrada fantasma del agrupado no se persiste: se deriva del modo
+      // de agrupado al restaurar.
       sorting: sorting.filter(
         (sortingEntry) => sortingEntry.id !== GROUP_POSITION_COLUMN_ID,
       ),
       vigenciaSortMode,
     });
-  }, [columnVisibility, loanSortMode, moveCompletedToEnd, sorting, vigenciaSortMode]);
+  }, [
+    collapsedGroupKeys,
+    columnVisibility,
+    groupByMode,
+    loanSortMode,
+    moveCompletedToEnd,
+    sorting,
+    vigenciaSortMode,
+  ]);
 
   const getSortDirection = useCallback(
     (columnId: string) => getColumnSortDirection(sorting, columnId),
@@ -2148,6 +2197,44 @@ export function MonthlyExpensesTable({
 
     return folderMap;
   }, [expenseFolders]);
+  // Totales por grupo sobre las filas visibles (respetan filtros), para
+  // mostrarlos en el header aun con el grupo colapsado.
+  const groupTotalsByKey = useMemo(() => {
+    if (groupByMode !== "folder") {
+      return null;
+    }
+
+    const rowsByGroupKey = new Map<string, MonthlyExpensesEditableRow[]>();
+
+    for (const row of rowsForTable) {
+      const groupKey =
+        row.expenseFolderId && foldersById.has(row.expenseFolderId)
+          ? row.expenseFolderId
+          : "";
+      const groupRows = rowsByGroupKey.get(groupKey) ?? [];
+
+      groupRows.push(row);
+      rowsByGroupKey.set(groupKey, groupRows);
+    }
+
+    const totalsByGroupKey = new Map<
+      string,
+      { paid: string; pending: string; total: string }
+    >();
+
+    for (const [groupKey, groupRows] of rowsByGroupKey) {
+      totalsByGroupKey.set(
+        groupKey,
+        formatMonthlyTotalsBreakdown({
+          currency: "ARS",
+          exchangeRateSnapshot,
+          rows: groupRows,
+        }),
+      );
+    }
+
+    return totalsByGroupKey;
+  }, [exchangeRateSnapshot, foldersById, groupByMode, rowsForTable]);
   // Config de grupos para el DataTable. Memoizada para no invalidar la memo del
   // cuerpo de la tabla en cada render; `undefined` desactiva el agrupado.
   const rowGroups = useMemo(() => {
@@ -2166,31 +2253,52 @@ export function MonthlyExpensesTable({
         const folder = groupKey ? foldersById.get(groupKey) ?? null : null;
         const folderName = folder?.name ?? UNASSIGNED_FOLDER_GROUP_LABEL;
         const groupRowCountLabel = `${groupRowCount} gasto${groupRowCount === 1 ? "" : "s"}`;
+        const groupTotals = groupTotalsByKey?.get(groupKey) ?? null;
 
         return (
-          <span
-            aria-label={`Grupo ${folderName}: ${groupRowCountLabel}`}
-            className={styles.groupHeaderPill}
-            role="img"
-          >
-            {folder ? (
-              <span
-                aria-hidden="true"
-                className={styles.groupHeaderSwatch}
-                style={{
-                  backgroundColor: resolveExpenseFolderColorHex(folder.color),
-                }}
-              >
-                <ExpenseFolderIconGlyph icon={folder.icon} size={12} stroke={2} />
+          <>
+            <span
+              aria-label={`Grupo ${folderName}: ${groupRowCountLabel}`}
+              className={styles.groupHeaderPill}
+              role="img"
+            >
+              {folder ? (
+                <span
+                  aria-hidden="true"
+                  className={styles.groupHeaderSwatch}
+                  style={{
+                    backgroundColor: resolveExpenseFolderColorHex(folder.color),
+                  }}
+                >
+                  <ExpenseFolderIconGlyph icon={folder.icon} size={12} stroke={2} />
+                </span>
+              ) : null}
+              <span>{folderName}</span>
+              <span className={styles.groupHeaderCount}>{groupRowCount}</span>
+            </span>
+            {groupTotals ? (
+              // Fuera del nombre accesible del botón: el toggle sigue siendo
+              // «Grupo X: N gastos»; el total es refuerzo visual.
+              <span aria-hidden="true" className={styles.groupHeaderTotals}>
+                <span className={styles.groupHeaderTotalAmount}>
+                  {groupTotals.total}
+                </span>
+                <span className={styles.groupHeaderTotalsBreakdown}>
+                  {`Pagado: ${groupTotals.paid} · Pendiente: ${groupTotals.pending}`}
+                </span>
               </span>
             ) : null}
-            <span>{folderName}</span>
-            <span className={styles.groupHeaderCount}>{groupRowCount}</span>
-          </span>
+          </>
         );
       },
     };
-  }, [collapsedGroupKeys, foldersById, groupByMode, handleGroupToggle]);
+  }, [
+    collapsedGroupKeys,
+    foldersById,
+    groupByMode,
+    groupTotalsByKey,
+    handleGroupToggle,
+  ]);
   const folderCounts = useMemo(() => {
     const countsByFolderId: Record<string, number> = {};
     let unassignedCount = 0;
@@ -2361,6 +2469,19 @@ export function MonthlyExpensesTable({
                 onDeleteMonthlyFolderReference(row.original.id)}
               onDeletePaymentLink={() => onDeletePaymentLink(row.original.id)}
               onDuplicate={() => onDuplicateExpense(row.original.id)}
+              onDuplicateToNextMonth={() => {
+                void onDuplicateExpenseToMonth({
+                  expenseId: row.original.id,
+                  targetMonth: getAdjacentYearMonth(month, 1) ?? month,
+                });
+              }}
+              onDuplicateToPickedMonth={() => {
+                setDuplicateToMonthDialogState({
+                  expenseDescription: expenseDescriptionLabel,
+                  expenseId: row.original.id,
+                });
+                setDuplicateToMonthDraftValue(getAdjacentYearMonth(month, 1) ?? month);
+              }}
               onEdit={() => onEditExpense(row.original.id)}
               onReactivateRecurrence={() =>
                 onReactivateRecurrence(row.original.id)}
@@ -2558,11 +2679,35 @@ export function MonthlyExpensesTable({
               value,
             });
 
+          const effectiveUsdRate =
+            row.original.currency === "USD"
+              ? getUsdRateForRow({
+                  exchangeRateSnapshot,
+                  usdRate: row.original.usdRate,
+                })
+              : null;
+          const usdRateBadge =
+            row.original.currency === "USD" ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge className={styles.usdRateChip} variant="outline">
+                    {getUsdRateBadgeLabel(row.original.usdRate)}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {effectiveUsdRate != null
+                    ? `1 USD = ${formatExchangeRateAmount(effectiveUsdRate)}`
+                    : "Sin cotización disponible para convertir"}
+                </TooltipContent>
+              </Tooltip>
+            ) : null;
+
           return (
             <div className={styles.totalCell}>
               <div className={styles.totalSummary}>
                 <span className={styles.totalAmount}>
                   {formatRowArsAmount(row.original.total)}
+                  {usdRateBadge}
                 </span>
                 {hasSubtotalBreakdown ? (
                   <span className={styles.totalSubtotalBreakdown}>
@@ -2775,6 +2920,24 @@ export function MonthlyExpensesTable({
                 <PaymentProgressRing fraction={completionFraction} />
                 {normalizedCoveredPayments} / {requiredPayments}
               </span>
+              {!isComplete ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label={`Marcar ${expenseDescription} como pagado`}
+                      className={styles.paymentLinkActionButton}
+                      disabled={actionDisabled}
+                      onClick={() => onMarkExpensePaid(row.original.id)}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <CircleCheck aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Marcar como pagado</TooltipContent>
+                </Tooltip>
+              ) : null}
               <PaymentHistoryCell
                 actionDisabled={actionDisabled}
                 expenseDescription={expenseDescription}
@@ -3102,6 +3265,9 @@ export function MonthlyExpensesTable({
       handleOpenDetailsDialog,
       handleOpenReceiptShareDialog,
       handleOpenPaymentLinkDialog,
+      month,
+      onDuplicateExpenseToMonth,
+      onMarkExpensePaid,
       onUpdateUsdRate,
       selectedExpenseIdsInCurrentRows,
       expenseFolders,
@@ -3392,6 +3558,10 @@ export function MonthlyExpensesTable({
               onSelectFilter={handleFolderChipSelect}
               totalCount={folderCounts.totalCount}
               unassignedCount={folderCounts.unassignedCount}
+            />
+            <QuickAddExpenseForm
+              actionDisabled={actionDisabled}
+              onQuickAddExpense={onQuickAddExpense}
             />
             <DataTable
               columnVisibility={columnVisibility}
@@ -3852,6 +4022,21 @@ export function MonthlyExpensesTable({
           onManageFolders={onManageFolders}
           onLenderSelect={onExpenseLenderSelect}
           onLoanToggle={onExpenseLoanToggle}
+          {...(sheetMode === "edit" && draft
+            ? {
+                onOpenExpenseDetails: () =>
+                  handleOpenDetailsDialog({
+                    currency: draft.currency,
+                    expenseDescription:
+                      draft.description.trim() || "este gasto",
+                    expenseId: draft.id,
+                    occurrencesPerMonth: draft.occurrencesPerMonth,
+                    occurrencesUnit: draft.occurrencesUnit,
+                    subtotal: draft.subtotal,
+                    subtotalUnit: draft.subtotalUnit ?? "occurrence",
+                  }),
+              }
+            : {})}
           onRecurringToggle={onExpenseRecurringToggle}
           onReceiptShareToggle={onExpenseReceiptShareToggle}
           onRequestClose={onRequestCloseExpenseSheet}
@@ -4189,6 +4374,67 @@ export function MonthlyExpensesTable({
                 type="button"
               >
                 Guardar
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) {
+              setDuplicateToMonthDialogState(null);
+            }
+          }}
+          open={duplicateToMonthDialogState != null}
+        >
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Duplicar en otro mes</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Elegí el mes donde duplicar ${duplicateToMonthDialogState?.expenseDescription ?? "este gasto"}.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className={styles.paymentLinkDialogField}>
+              <Label htmlFor="duplicate-to-month-dialog-input">Mes destino</Label>
+              <Input
+                aria-label={`Mes destino para duplicar ${duplicateToMonthDialogState?.expenseDescription ?? "gasto"}`}
+                id="duplicate-to-month-dialog-input"
+                onChange={(event) =>
+                  setDuplicateToMonthDraftValue(event.target.value)
+                }
+                type="month"
+                value={duplicateToMonthDraftValue}
+              />
+            </div>
+
+            <AlertDialogFooter className={styles.paymentLinkDialogActions}>
+              <Button
+                onClick={() => setDuplicateToMonthDialogState(null)}
+                type="button"
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={
+                  actionDisabled ||
+                  !YEAR_MONTH_PATTERN.test(duplicateToMonthDraftValue)
+                }
+                onClick={() => {
+                  if (!duplicateToMonthDialogState) {
+                    return;
+                  }
+
+                  void onDuplicateExpenseToMonth({
+                    expenseId: duplicateToMonthDialogState.expenseId,
+                    targetMonth: duplicateToMonthDraftValue,
+                  });
+                  setDuplicateToMonthDialogState(null);
+                }}
+                type="button"
+              >
+                Duplicar
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

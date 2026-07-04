@@ -270,6 +270,51 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     expect(tableText).toContain("15.730");
   });
 
+  it("shows a rate badge on USD rows with the effective rate in a tooltip", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({
+          currency: "USD",
+          description: "Online full",
+          id: "expense-1",
+          subtotal: "10",
+          total: "10",
+          usdRate: buildUsdRate({
+            appliesIibb: true,
+            appliesIva: true,
+            base: "official",
+          }),
+        }),
+        createRow({
+          currency: "ARS",
+          description: "Alquiler",
+          id: "expense-2",
+          subtotal: "1000",
+          total: "1000",
+        }),
+      ],
+      { exchangeRateSnapshot: SNAPSHOT },
+    );
+
+    const rateBadge = screen.getByText("oficial + IIBB + IVA");
+
+    expect(rateBadge).toBeInTheDocument();
+
+    await user.hover(rateBadge);
+
+    const tooltip = await screen.findByRole("tooltip");
+
+    // 1000 × 1,3 (IIBB) × 1,21 (IVA) = 1.573 por USD.
+    expect(tooltip.textContent?.replace(/\s/g, " ")).toContain("1 USD = $ 1.573");
+
+    // Las filas ARS no llevan badge de tasa.
+    const arsRow = screen.getByText("Alquiler").closest("tr");
+
+    expect(arsRow?.textContent).not.toContain("oficial");
+  });
+
   it("converts the total with the custom rate", () => {
     renderMonthlyExpensesTable(
       [

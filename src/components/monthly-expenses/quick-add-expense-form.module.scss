@@ -1,0 +1,28 @@
+.quickAddForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.quickAddDescription {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+}
+
+.quickAddCurrency {
+  flex: 0 0 auto;
+  min-width: 5.25rem;
+}
+
+.quickAddAmount {
+  flex: 0 1 8.5rem;
+}
+
+.quickAddError {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--destructive);
+}

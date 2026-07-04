@@ -1,4 +1,7 @@
-import type { MonthlyExpenseUsdRateBase } from "./monthly-expenses-table.types";
+import type {
+  MonthlyExpenseUsdRateBase,
+  MonthlyExpenseUsdRateSettings,
+} from "./monthly-expenses-table.types";
 
 /** User-facing labels (es-AR) for each USD base quote. */
 export const USD_RATE_BASE_LABELS: Record<MonthlyExpenseUsdRateBase, string> = {
@@ -16,3 +19,26 @@ export const USD_RATE_BASE_MENU_ORDER: MonthlyExpenseUsdRateBase[] = [
 
 export const USD_RATE_IIBB_SURCHARGE_LABEL = "Sumar IIBB";
 export const USD_RATE_IVA_SURCHARGE_LABEL = "Sumar IVA 21%";
+
+/**
+ * Compact badge label for a row's USD rate settings, e.g. "blue + IIBB",
+ * "oficial + IIBB + IVA" or "manual".
+ */
+export function getUsdRateBadgeLabel(
+  usdRate: MonthlyExpenseUsdRateSettings,
+): string {
+  const baseLabel =
+    usdRate.base === "blue"
+      ? "blue"
+      : usdRate.base === "official"
+        ? "oficial"
+        : "manual";
+
+  return [
+    baseLabel,
+    usdRate.appliesIibb ? "+ IIBB" : null,
+    usdRate.appliesIva ? "+ IVA" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
