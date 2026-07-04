@@ -426,6 +426,29 @@ function normalizeReceiptShareMessage(value: string): string {
   return value.trim();
 }
 
+/**
+ * Delay before flushing a pending USD-rate intent. Debounces the request, not
+ * the visual feedback: the optimistic conversion applies immediately.
+ */
+const USD_RATE_INTENT_FLUSH_DEBOUNCE_MS = 400;
+
+/**
+ * Pending optimistic mutation for a row's USD rate, keyed by expense id. The
+ * baseline snapshots the last persisted state (captured once per intent) and
+ * is the rollback target; the intended fields track the latest user action.
+ */
+interface PendingUsdRateIntent {
+  baselineCustomUsdRate: number | null;
+  baselineUsdRateType: MonthlyExpenseUsdRateType;
+  debounceTimerId: number | null;
+  intendedCustomUsdRate: number | null;
+  intendedUsdRateType: MonthlyExpenseUsdRateType;
+  isRequestInFlight: boolean;
+  /** Month the intent belongs to; a flush for another month is stale. */
+  month: string;
+  shouldFlushAfterRequest: boolean;
+}
+
 function createEmptyRow(): MonthlyExpensesEditableRow {
   return {
     allReceiptsFolderId: "",
@@ -1844,6 +1867,29 @@ export default function MonthlyExpensesPage({
   const isReauthenticationInProgressRef = useRef(false);
   const latestMonthLoadRequestIdRef = useRef(0);
   const hasRequestedDeferredReportRef = useRef(false);
+  const pendingUsdRateIntentsByExpenseIdRef = useRef(
+    new Map<string, PendingUsdRateIntent>(),
+  );
+  const latestFormStateRef = useRef(formState);
+
+  useEffect(() => {
+    latestFormStateRef.current = formState;
+  });
+
+  useEffect(() => {
+    const pendingUsdRateIntentsByExpenseId =
+      pendingUsdRateIntentsByExpenseIdRef.current;
+
+    return () => {
+      for (const pendingIntent of pendingUsdRateIntentsByExpenseId.values()) {
+        if (pendingIntent.debounceTimerId !== null) {
+          window.clearTimeout(pendingIntent.debounceTimerId);
+        }
+      }
+
+      pendingUsdRateIntentsByExpenseId.clear();
+    };
+  }, []);
 
   const isAuthenticated = status === "authenticated";
   const isSessionLoading = status === "loading";
@@ -3880,7 +3926,135 @@ export default function MonthlyExpensesPage({
     }
   };
 
-  const handleUpdateUsdRate = async ({
+  const applyUsdRateToRows = ({
+    customUsdRate,
+    expenseId,
+    usdRateType,
+  }: {
+    customUsdRate: number | null;
+    expenseId: string;
+    usdRateType: MonthlyExpenseUsdRateType;
+  }) => {
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: currentState.rows.map((row) =>
+        row.id === expenseId
+          ? { ...row, customUsdRate, usdRateType }
+          : row,
+      ),
+    }));
+  };
+
+  const clearPendingUsdRateIntent = (expenseId: string) => {
+    const pendingIntent =
+      pendingUsdRateIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (pendingIntent?.debounceTimerId != null) {
+      window.clearTimeout(pendingIntent.debounceTimerId);
+    }
+
+    pendingUsdRateIntentsByExpenseIdRef.current.delete(expenseId);
+  };
+
+  const flushPendingUsdRateIntent = async (expenseId: string) => {
+    const pendingIntent =
+      pendingUsdRateIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    pendingIntent.debounceTimerId = null;
+
+    // Stale-scope guard: the month changed, so the rows no longer belong to
+    // the document this intent was captured against.
+    if (latestFormStateRef.current.month !== pendingIntent.month) {
+      clearPendingUsdRateIntent(expenseId);
+      return;
+    }
+
+    // Back to baseline: nothing meaningful to persist.
+    if (
+      pendingIntent.intendedUsdRateType === pendingIntent.baselineUsdRateType &&
+      pendingIntent.intendedCustomUsdRate === pendingIntent.baselineCustomUsdRate
+    ) {
+      clearPendingUsdRateIntent(expenseId);
+      return;
+    }
+
+    if (pendingIntent.isRequestInFlight) {
+      pendingIntent.shouldFlushAfterRequest = true;
+      return;
+    }
+
+    pendingIntent.isRequestInFlight = true;
+    pendingIntent.shouldFlushAfterRequest = false;
+
+    const flushedUsdRateType = pendingIntent.intendedUsdRateType;
+    const flushedCustomUsdRate = pendingIntent.intendedCustomUsdRate;
+    const rowsToPersist = latestFormStateRef.current.rows;
+    const wasSaved = await persistMonthlyExpensesRows(rowsToPersist, {
+      loading: "Guardando tipo de cambio...",
+      success: "Tipo de cambio guardado correctamente.",
+    });
+
+    pendingIntent.isRequestInFlight = false;
+
+    if (!wasSaved) {
+      // Rollback to the captured baseline, not to any intermediate state.
+      applyUsdRateToRows({
+        customUsdRate: pendingIntent.baselineCustomUsdRate,
+        expenseId,
+        usdRateType: pendingIntent.baselineUsdRateType,
+      });
+      clearPendingUsdRateIntent(expenseId);
+      toast.error("No pudimos guardar el tipo de cambio.");
+      return;
+    }
+
+    const hasNewerIntent =
+      pendingIntent.shouldFlushAfterRequest ||
+      pendingIntent.intendedUsdRateType !== flushedUsdRateType ||
+      pendingIntent.intendedCustomUsdRate !== flushedCustomUsdRate;
+
+    if (!hasNewerIntent) {
+      clearPendingUsdRateIntent(expenseId);
+      return;
+    }
+
+    // The response is older than the latest intent: promote what was just
+    // persisted to the new baseline, reapply the latest intent on top (the
+    // save response overwrote the rows with the flushed snapshot) and flush
+    // again.
+    pendingIntent.baselineUsdRateType = flushedUsdRateType;
+    pendingIntent.baselineCustomUsdRate = flushedCustomUsdRate;
+    pendingIntent.shouldFlushAfterRequest = false;
+    applyUsdRateToRows({
+      customUsdRate: pendingIntent.intendedCustomUsdRate,
+      expenseId,
+      usdRateType: pendingIntent.intendedUsdRateType,
+    });
+    void flushPendingUsdRateIntent(expenseId);
+  };
+
+  const schedulePendingUsdRateIntentFlush = (expenseId: string) => {
+    const pendingIntent =
+      pendingUsdRateIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    if (pendingIntent.debounceTimerId !== null) {
+      window.clearTimeout(pendingIntent.debounceTimerId);
+    }
+
+    pendingIntent.debounceTimerId = window.setTimeout(() => {
+      void flushPendingUsdRateIntent(expenseId);
+    }, USD_RATE_INTENT_FLUSH_DEBOUNCE_MS);
+  };
+
+  const handleUpdateUsdRate = ({
     customUsdRate,
     expenseId,
     usdRateType,
@@ -3894,7 +4068,9 @@ export default function MonthlyExpensesPage({
       return;
     }
 
-    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+    const expenseRow = latestFormStateRef.current.rows.find(
+      (row) => row.id === expenseId,
+    );
 
     if (!expenseRow) {
       toast.warning("No pudimos encontrar el gasto seleccionado.");
@@ -3913,32 +4089,41 @@ export default function MonthlyExpensesPage({
 
     const normalizedCustomUsdRate =
       usdRateType === "custom" ? customUsdRate : null;
+    const pendingIntents = pendingUsdRateIntentsByExpenseIdRef.current;
+    let pendingIntent = pendingIntents.get(expenseId);
 
-    if (
-      expenseRow.usdRateType === usdRateType &&
-      expenseRow.customUsdRate === normalizedCustomUsdRate
-    ) {
+    if (!pendingIntent) {
+      // First action of the burst: the visible row still holds persisted
+      // state, so it is the baseline for skip-on-return and rollback.
+      pendingIntent = {
+        baselineCustomUsdRate: expenseRow.customUsdRate,
+        baselineUsdRateType: expenseRow.usdRateType,
+        debounceTimerId: null,
+        intendedCustomUsdRate: normalizedCustomUsdRate,
+        intendedUsdRateType: usdRateType,
+        isRequestInFlight: false,
+        month: latestFormStateRef.current.month,
+        shouldFlushAfterRequest: false,
+      };
+      pendingIntents.set(expenseId, pendingIntent);
+    } else {
+      pendingIntent.intendedUsdRateType = usdRateType;
+      pendingIntent.intendedCustomUsdRate = normalizedCustomUsdRate;
+    }
+
+    // Optimistic feedback first; only the request is debounced.
+    applyUsdRateToRows({
+      customUsdRate: normalizedCustomUsdRate,
+      expenseId,
+      usdRateType,
+    });
+
+    if (pendingIntent.isRequestInFlight) {
+      pendingIntent.shouldFlushAfterRequest = true;
       return;
     }
 
-    const nextRows = formState.rows.map((row) =>
-      row.id === expenseId
-        ? {
-            ...row,
-            customUsdRate: normalizedCustomUsdRate,
-            usdRateType,
-          }
-        : row,
-    );
-
-    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
-      loading: "Guardando tipo de cambio...",
-      success: "Tipo de cambio guardado correctamente.",
-    });
-
-    if (!wasSaved) {
-      toast.error("No pudimos guardar el tipo de cambio.");
-    }
+    schedulePendingUsdRateIntentFlush(expenseId);
   };
 
   const handleUpdateExpenseDetails = async ({
