@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { TypingAnimation } from "@/components/ui/typing-animation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -175,124 +174,100 @@ export default function ExchangeRatesPage({
           </p>
         </div>
 
-        <Card className={styles.settingsCard}>
-          <CardHeader>
-            <CardTitle>Mes de consulta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={styles.settingsField}>
-              <Label htmlFor="exchange-rates-month">Mes y año</Label>
-              <Input
-                id="exchange-rates-month"
-                max={currentResult.maxSelectableMonth}
-                onChange={(event) => handleMonthChange(event.target.value)}
-                type="month"
-                value={currentResult.selectedMonth}
-              />
-              <p className={styles.helperText}>
-                Podés consultar cualquier mes anterior hasta{" "}
-                {currentResult.maxSelectableMonth}. No se permiten meses
-                futuros.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <section className={styles.settingsBlock}>
+          <h2 className={styles.blockTitle}>Mes de consulta</h2>
+          <div className={styles.settingsField}>
+            <Label htmlFor="exchange-rates-month">Mes y año</Label>
+            <Input
+              id="exchange-rates-month"
+              max={currentResult.maxSelectableMonth}
+              onChange={(event) => handleMonthChange(event.target.value)}
+              type="month"
+              value={currentResult.selectedMonth}
+            />
+            <p className={styles.helperText}>
+              Podés consultar cualquier mes anterior hasta{" "}
+              {currentResult.maxSelectableMonth}. No se permiten meses
+              futuros.
+            </p>
+          </div>
+        </section>
 
         {feedbackMessage ? (
-          <Card>
-            <CardContent>
-              <p className={`${styles.feedbackText} ${styles.errorText}`} role="alert">
-                <span>{feedbackMessage}</span>
-                {feedbackErrorCode ? (
-                  <span className={styles.feedbackErrorCode}>{`Code: ${feedbackErrorCode}`}</span>
-                ) : null}
-              </p>
-            </CardContent>
-          </Card>
+          <p className={`${styles.feedbackText} ${styles.errorText}`} role="alert">
+            <span>{feedbackMessage}</span>
+            {feedbackErrorCode ? (
+              <span className={styles.feedbackErrorCode}>{`Code: ${feedbackErrorCode}`}</span>
+            ) : null}
+          </p>
         ) : null}
 
-        <div className={styles.cardsGrid}>
-          <Card className={styles.rateCard}>
-            <CardHeader>
-              <CardTitle>Dólar oficial</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={styles.rateValue}>
-                {formatCurrency(currentResult.officialRate, isRatesAvailable)}
-              </p>
-              <p className={styles.rateHint}>Referencia base para el cálculo.</p>
-            </CardContent>
-          </Card>
-          <Card className={styles.rateCard}>
-            <CardHeader>
-              <CardTitle>Dólar blue</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={styles.rateValue}>
-                {formatCurrency(currentResult.blueRate, isRatesAvailable)}
-              </p>
-              <p className={styles.rateHint}>
-                Valor obtenido desde la cotización informal.
-              </p>
-            </CardContent>
-          </Card>
-          <Card className={styles.rateCard}>
-            <CardHeader>
-              <CardTitle>Dólar solidario</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={styles.rateValue}>
-                {formatCurrency(currentResult.solidarityRate, isRatesAvailable)}
-              </p>
-              <p className={styles.rateHint}>
-                Oficial + IVA ({formatPercentage(0.21)}) + IIBB (
-                {formatPercentage(currentResult.iibbRateDecimal)}).
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <section className={styles.ratesRow} aria-label="Cotizaciones del mes">
+          <div className={styles.rateItem}>
+            <p className={styles.rateLabel}>Dólar oficial</p>
+            <p className={styles.rateValue}>
+              {formatCurrency(currentResult.officialRate, isRatesAvailable)}
+            </p>
+            <p className={styles.rateHint}>Referencia base para el cálculo.</p>
+          </div>
+          <div className={styles.rateItem}>
+            <p className={styles.rateLabel}>Dólar blue</p>
+            <p className={styles.rateValue}>
+              {formatCurrency(currentResult.blueRate, isRatesAvailable)}
+            </p>
+            <p className={styles.rateHint}>
+              Valor obtenido desde la cotización informal.
+            </p>
+          </div>
+          <div className={styles.rateItem}>
+            <p className={styles.rateLabel}>Dólar solidario</p>
+            <p className={styles.rateValue}>
+              {formatCurrency(currentResult.solidarityRate, isRatesAvailable)}
+            </p>
+            <p className={styles.rateHint}>
+              Oficial + IVA ({formatPercentage(0.21)}) + IIBB (
+              {formatPercentage(currentResult.iibbRateDecimal)}).
+            </p>
+          </div>
+        </section>
 
-        <Card className={styles.settingsCard}>
-          <CardHeader>
-            <CardTitle>Configuración global de IIBB</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentResult.canEditIibb ? (
-              <form className={styles.settingsForm} onSubmit={handleSubmit}>
-                <div className={styles.settingsField}>
-                  <Label htmlFor="iibbRateDecimal">IIBB en formato decimal</Label>
-                  <Input
-                    id="iibbRateDecimal"
-                    inputMode="decimal"
-                    onChange={(event) => setIibbInputValue(event.target.value)}
-                    placeholder="0.02"
-                    step="0.0001"
-                    type="number"
-                    value={iibbInputValue}
-                  />
-                  <p className={styles.helperText}>
-                    Usá decimal. Ejemplo: 0.02 equivale a 2%.
-                  </p>
-                </div>
-                <div className={styles.settingsActions}>
-                  <Button disabled={isSubmitting} type="submit">
-                    {isSubmitting ? "Guardando IIBB..." : "Guardar IIBB"}
-                  </Button>
-                </div>
-              </form>
-            ) : (
+        <section className={styles.settingsBlock}>
+          <h2 className={styles.blockTitle}>Configuración global de IIBB</h2>
+          {currentResult.canEditIibb ? (
+            <form className={styles.settingsForm} onSubmit={handleSubmit}>
               <div className={styles.settingsField}>
-                <p className={styles.readOnlyValue}>
-                  {formatPercentage(currentResult.iibbRateDecimal)}
-                </p>
+                <Label htmlFor="iibbRateDecimal">IIBB en formato decimal</Label>
+                <Input
+                  id="iibbRateDecimal"
+                  inputMode="decimal"
+                  onChange={(event) => setIibbInputValue(event.target.value)}
+                  placeholder="0.02"
+                  step="0.0001"
+                  type="number"
+                  value={iibbInputValue}
+                />
                 <p className={styles.helperText}>
-                  Solo los admins configurados en la allowlist pueden editar este
-                  valor global.
+                  Usá decimal. Ejemplo: 0.02 equivale a 2%.
                 </p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div className={styles.settingsActions}>
+                <Button disabled={isSubmitting} type="submit">
+                  {isSubmitting ? "Guardando IIBB..." : "Guardar IIBB"}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className={styles.settingsField}>
+              <p className={styles.readOnlyValue}>
+                {formatPercentage(currentResult.iibbRateDecimal)}
+              </p>
+              <p className={styles.helperText}>
+                Solo los admins configurados en la allowlist pueden editar este
+                valor global.
+              </p>
+            </div>
+          )}
+        </section>
     </section>
   );
 }
