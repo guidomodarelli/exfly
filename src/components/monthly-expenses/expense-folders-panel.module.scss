@@ -13,10 +13,8 @@
 .form {
   display: grid;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  border-radius: 0.875rem;
-  background: color-mix(in srgb, var(--muted) 30%, transparent);
+  padding: 1rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
 }
 
 .formField {
@@ -148,15 +146,16 @@
 
 .list {
   display: grid;
-  gap: 0.75rem;
 }
 
 .listItem {
   display: grid;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
-  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  border-radius: 0.875rem;
+  padding: 0.7rem 0.25rem;
+
+  & + & {
+    border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  }
 }
 
 .listHeader {
