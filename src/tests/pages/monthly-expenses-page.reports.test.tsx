@@ -672,6 +672,213 @@ registerMonthlyExpensesPageDefaultHooks({
     });
   });
 
+  it("closes the register dialog immediately and shows the coverage optimistically while the upload runs", async () => {
+    const user = userEvent.setup();
+    const deferredUploadResponse = createDeferredValue<{
+      json: () => Promise<unknown>;
+      ok: boolean;
+    }>();
+    const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      if (input === "/api/storage/monthly-expenses-receipts") {
+        return deferredUploadResponse.promise;
+      }
+
+      if (input === "/api/storage/monthly-expenses") {
+        return { ok: true, status: 204 };
+      }
+
+      if (input === "/api/storage/monthly-expenses-report") {
+        return {
+          json: async () => ({
+            data: {
+              entries: [],
+              summary: {
+                activeLoanCount: 0,
+                lenderCount: 0,
+                remainingAmount: 0,
+                trackedLoanCount: 0,
+              },
+            },
+          }),
+          ok: true,
+        };
+      }
+
+      throw new Error(`Unexpected fetch input: ${String(input)}`);
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 0,
+              occurrencesPerMonth: 4,
+              subtotal: 100,
+              total: 400,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Agregar nuevo registro de pago para Internet",
+      }),
+    );
+
+    const receiptFile = new File(["receipt-content"], "comprobante.pdf", {
+      type: "application/pdf",
+    });
+    await user.upload(screen.getByLabelText("Seleccionar comprobante"), receiptFile);
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    // Optimista: el dialog se cierra y la cobertura se ve al instante, con la
+    // subida a Drive todavía en vuelo.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: "Registrar nuevo pago" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("1 / 4")).toBeInTheDocument();
+
+    deferredUploadResponse.resolve({
+      json: async () => ({
+        data: {
+          allReceiptsFolderId: "receipt-folder-id",
+          allReceiptsFolderViewUrl:
+            "https://drive.google.com/drive/folders/receipt-folder-id",
+          coveredPayments: 1,
+          fileId: "receipt-file-id",
+          fileName: "comprobante.pdf",
+          fileViewUrl: "https://drive.google.com/file/d/receipt-file-id/view",
+          monthlyFolderId: "receipt-month-folder-id",
+          monthlyFolderViewUrl:
+            "https://drive.google.com/drive/folders/receipt-month-folder-id",
+          registeredAt: "2026-03-10T12:00:00.000Z",
+        },
+      }),
+      ok: true,
+    });
+
+    // Al resolver, el registro provisorio se reemplaza por el definitivo.
+    await waitFor(() => {
+      const payload = getMonthlyExpensesSavePayload(fetchMock);
+
+      expect(payload.items[0]?.paymentRecords).toHaveLength(1);
+      expect(payload.items[0]?.paymentRecords[0]?.receipt?.fileId).toBe(
+        "receipt-file-id",
+      );
+    });
+    expect(screen.getByText("1 / 4")).toBeInTheDocument();
+  });
+
+  it("removes the optimistic coverage when the receipt upload fails", async () => {
+    const user = userEvent.setup();
+    const fetchMock = jest.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      if (input === "/api/storage/monthly-expenses-receipts") {
+        return {
+          json: async () => ({ error: "boom" }),
+          ok: false,
+          status: 500,
+        };
+      }
+
+      if (input === "/api/storage/monthly-expenses-report") {
+        return {
+          json: async () => ({
+            data: {
+              entries: [],
+              summary: {
+                activeLoanCount: 0,
+                lenderCount: 0,
+                remainingAmount: 0,
+                trackedLoanCount: 0,
+              },
+            },
+          }),
+          ok: true,
+        };
+      }
+
+      throw new Error(`Unexpected fetch input: ${String(input)}`);
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "user@example.com",
+          name: "User",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialDocument={{
+          items: [
+            {
+              currency: "ARS",
+              description: "Internet",
+              id: "expense-1",
+              manualCoveredPayments: 0,
+              occurrencesPerMonth: 4,
+              subtotal: 100,
+              total: 400,
+            },
+          ],
+          month: "2026-03",
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Agregar nuevo registro de pago para Internet",
+      }),
+    );
+
+    const receiptFile = new File(["receipt-content"], "comprobante.pdf", {
+      type: "application/pdf",
+    });
+    await user.upload(screen.getByLabelText("Seleccionar comprobante"), receiptFile);
+    await user.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    // Falla la subida: la cobertura optimista se revierte.
+    await waitFor(() => {
+      expect(screen.getByText("0 / 4")).toBeInTheDocument();
+    });
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) => url === "/api/storage/monthly-expenses",
+      ),
+    ).toBe(false);
+  });
+
   it("shows upload loading toast immediately and only once when registering a payment with receipt", async () => {
     const user = userEvent.setup();
     const deferredSaveResponse = createDeferredValue<{
