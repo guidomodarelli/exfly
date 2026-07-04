@@ -314,6 +314,9 @@
 
 .tableWrapper {
   --selection-column-width: 3.75rem;
+  // Altura del header de grupo sticky en mobile; los headers de card se anclan
+  // debajo con calc(), por eso debe ser fija y no derivada del contenido.
+  --mobile-group-header-height: 3.125rem;
 
   position: relative;
   // Separador hairline que delimita la zona de carpetas/filtro/tabla del bloque
@@ -1496,10 +1499,33 @@
     overflow: visible;
   }
 
-  // Sin header de columnas en cards: el grupo se pega arriba de la pagina.
+  /* Sin header de columnas en cards: el grupo se pega arriba de la página.
+     La celda sticky no puede moverse dentro de su propia fila (miden lo
+     mismo), así que en mobile el sticky va en la fila del grupo completa. */
+  .tableWrapper :global([data-slot="table-group-header-row"]) {
+    /* Sigue siendo display: table-row (no matchea la regla de cards): dentro
+       del grid queda envuelto en una tabla anónima de su mismo tamaño y el
+       sticky no tiene recorrido. Como bloque, sí se pega al viewport. */
+    display: block;
+    position: -webkit-sticky;
+    position: sticky;
+    /* El top bar del shell también es sticky (z-index 20): sin este offset el
+       header del grupo queda pegado pero oculto detrás de la barra. */
+    top: var(--app-top-bar-height);
+    /* Altura fija: los headers sticky de las cards se anclan justo debajo con
+       calc(); con altura variable quedarían solapados o con hueco. */
+    height: var(--mobile-group-header-height);
+    z-index: 4;
+    /* La celda usa bg-muted/40 (translúcido): sin fondo opaco en la fila,
+       las cards se transparentan detrás del header pegado. */
+    background: var(--background);
+  }
+
   .tableWrapper :global([data-slot="table-group-header-row"] [data-slot="table-cell"]) {
-    top: 0;
+    position: static;
     box-shadow: none;
+    height: 100%;
+    align-items: center;
   }
 
   .tableWrapper :global([data-slot="table"]) {
@@ -1610,6 +1636,18 @@
     z-index: 2;
     border-bottom: 1px solid var(--border);
     background: color-mix(in srgb, var(--muted) 45%, var(--background));
+  }
+
+  /* Con agrupado activo (toda card sigue a un header de grupo sticky), el
+     header de la card se ancla debajo del header de grupo; con el mismo top
+     ambos stickies quedaban superpuestos y la card asomaba recortada. */
+  .tableWrapper
+    :global([data-slot="table-group-header-row"] ~ [data-slot="table-row"])
+    .selectionTableCell,
+  .tableWrapper
+    :global([data-slot="table-group-header-row"] ~ [data-slot="table-row"])
+    .stickyDescriptionCell {
+    top: calc(var(--app-top-bar-height) + var(--mobile-group-header-height));
   }
 
   /* Checkbox: a la izquierda de la descripción, alineado arriba con el título. */

@@ -26,11 +26,14 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  min-height: var(--app-top-bar-height);
+  /* Altura fija (no min-height): otros stickies se anclan justo debajo con
+     top: var(--app-top-bar-height), y con altura variable quedarían tapados
+     o con hueco según zoom/tipografía del dispositivo. */
+  height: var(--app-top-bar-height);
   box-sizing: border-box;
   margin-block: 0;
   margin-inline: -1.25rem;
-  padding: 1rem 1.25rem;
+  padding: 0 1.25rem;
   background: color-mix(in srgb, var(--background) 92%, transparent 8%);
   backdrop-filter: blur(6px);
 }
