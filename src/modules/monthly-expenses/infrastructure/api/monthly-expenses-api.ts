@@ -24,6 +24,12 @@ const RECEIPT_VIEW_URL_SCHEMA = z.url({
 });
 const RECEIPT_SHARE_STATUSES = ["pending", "sent"] as const;
 const LOAN_DIRECTIONS = ["payable", "receivable"] as const;
+const USD_RATE_TYPES = [
+  "blue",
+  "officialWithIibb",
+  "official",
+  "custom",
+] as const;
 
 function normalizeHttpPaymentLink(value: string): string {
   const normalizedValue = value.trim();
@@ -215,7 +221,18 @@ const monthlyExpenseItemSchema = z.object({
   sortOrder: z.number().int().nonnegative().nullable().optional(),
   subtotal: z.number().positive(),
   subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
+  customUsdRate: z.number().positive().nullable().optional(),
+  usdRateType: z.enum(USD_RATE_TYPES).nullable().optional(),
 }).strict().superRefine((value, context) => {
+  if (value.usdRateType === "custom" && !value.customUsdRate) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "monthly-expenses-api requires customUsdRate when usdRateType is custom.",
+      path: ["customUsdRate"],
+    });
+  }
+
   if (value.requiresReceiptShare === true && !value.receiptSharePhoneDigits) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -368,6 +385,8 @@ const monthlyExpensesDocumentEnvelopeSchema = z.object({
         subtotal: z.number().positive(),
         subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
         total: z.number().nonnegative(),
+        customUsdRate: z.number().positive().optional(),
+        usdRateType: z.enum(USD_RATE_TYPES).optional(),
       }).strict().superRefine((value, context) => {
         if (value.requiresReceiptShare === true && !value.receiptSharePhoneDigits) {
           context.addIssue({

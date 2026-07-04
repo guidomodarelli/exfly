@@ -14,7 +14,9 @@ import type { StoredMonthlyExpensesDocument } from "../../../domain/entities/sto
 import type { MonthlyExpensesRepository } from "../../../domain/repositories/monthly-expenses-repository";
 import {
   createMonthlyExpensesDocument,
+  MONTHLY_EXPENSE_USD_RATE_TYPES,
   type MonthlyExpenseItem,
+  type MonthlyExpenseUsdRateType,
   type MonthlyExpensesExchangeRateSnapshot,
   type MonthlyExpensesDocument,
 } from "../../../domain/value-objects/monthly-expenses-document";
@@ -39,6 +41,7 @@ interface NormalizedExpenseRow {
   exchangeRateMonth: string | null;
   exchangeRateOfficialRate: number | null;
   exchangeRateSolidarityRate: number | null;
+  customUsdRate: number | null;
   expenseFolderId: string | null;
   expenseId: string;
   isPaid: number;
@@ -62,6 +65,7 @@ interface NormalizedExpenseRow {
   sortOrder: number | null;
   subtotal: number;
   subtotalUnit: string | null;
+  usdRateType: string | null;
 }
 
 interface MonthlyExpenseMonthRow {
@@ -367,6 +371,7 @@ export class DrizzleMonthlyExpensesRepository
           allReceiptsFolderViewUrl: allReceiptsFolder.viewUrl,
           createdAtIso,
           currency: item.currency,
+          customUsdRate: item.customUsdRate ?? null,
           description: item.description,
           expenseFolderId: item.expenseFolderId ?? null,
           expenseId: item.id,
@@ -383,6 +388,7 @@ export class DrizzleMonthlyExpensesRepository
           requiresReceiptShare: toBooleanInteger(item.requiresReceiptShare === true),
           sortOrder: item.sortOrder ?? itemIndex,
           updatedAtIso: nowIso,
+          usdRateType: item.usdRateType ?? null,
           userSubject: this.userSubject,
         })
         .onConflictDoUpdate({
@@ -390,6 +396,7 @@ export class DrizzleMonthlyExpensesRepository
             allReceiptsFolderId: allReceiptsFolder.id,
             allReceiptsFolderViewUrl: allReceiptsFolder.viewUrl,
             currency: item.currency,
+            customUsdRate: item.customUsdRate ?? null,
             description: item.description,
             expenseFolderId: item.expenseFolderId ?? null,
             loanDirection: item.loan?.direction ?? "payable",
@@ -405,6 +412,7 @@ export class DrizzleMonthlyExpensesRepository
             requiresReceiptShare: toBooleanInteger(item.requiresReceiptShare === true),
             sortOrder: item.sortOrder ?? itemIndex,
             updatedAtIso: nowIso,
+            usdRateType: item.usdRateType ?? null,
           },
           target: [expensesTable.userSubject, expensesTable.expenseId],
         });
@@ -625,6 +633,7 @@ export class DrizzleMonthlyExpensesRepository
         allReceiptsFolderId: expensesTable.allReceiptsFolderId,
         allReceiptsFolderViewUrl: expensesTable.allReceiptsFolderViewUrl,
         currency: expensesTable.currency,
+        customUsdRate: expensesTable.customUsdRate,
         description: expensesTable.description,
         exchangeRateBlueRate: expenseMonthsTable.exchangeRateBlueRate,
         exchangeRateMonth: expenseMonthsTable.exchangeRateMonth,
@@ -653,6 +662,7 @@ export class DrizzleMonthlyExpensesRepository
         sortOrder: expensesTable.sortOrder,
         subtotal: expenseMonthsTable.subtotal,
         subtotalUnit: expenseMonthsTable.subtotalUnit,
+        usdRateType: expensesTable.usdRateType,
       })
       .from(expenseMonthsTable)
       .innerJoin(
@@ -914,6 +924,15 @@ export class DrizzleMonthlyExpensesRepository
               }
             : {}),
           ...(row.paymentLink ? { paymentLink: row.paymentLink } : {}),
+          ...(row.usdRateType &&
+          MONTHLY_EXPENSE_USD_RATE_TYPES.includes(
+            row.usdRateType as MonthlyExpenseUsdRateType,
+          )
+            ? { usdRateType: row.usdRateType as MonthlyExpenseUsdRateType }
+            : {}),
+          ...(row.customUsdRate != null
+            ? { customUsdRate: row.customUsdRate }
+            : {}),
           ...(row.receiptShareMessage
             ? { receiptShareMessage: row.receiptShareMessage }
             : {}),

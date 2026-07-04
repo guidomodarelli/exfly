@@ -55,6 +55,7 @@ export const expensesTable = sqliteTable(
     allReceiptsFolderViewUrl: text("all_receipts_folder_view_url"),
     createdAtIso: text("created_at_iso").notNull(),
     currency: text("currency").notNull(),
+    customUsdRate: real("custom_usd_rate"),
     description: text("description").notNull(),
     expenseFolderId: text("expense_folder_id"),
     expenseId: text("expense_id").notNull(),
@@ -71,6 +72,7 @@ export const expensesTable = sqliteTable(
     requiresReceiptShare: integer("requires_receipt_share").notNull().default(0),
     sortOrder: integer("sort_order"),
     updatedAtIso: text("updated_at_iso").notNull(),
+    usdRateType: text("usd_rate_type"),
     userSubject: text("user_subject").notNull(),
   },
   (table) => [

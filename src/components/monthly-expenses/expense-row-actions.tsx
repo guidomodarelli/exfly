@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   CalendarX2,
   Copy,
+  DollarSign,
   Folder,
   FolderX,
   Link2,
@@ -28,6 +29,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -35,6 +38,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import type { MonthlyExpenseUsdRateType } from "./monthly-expenses-table.types";
+import {
+  USD_RATE_TYPE_LABELS,
+  USD_RATE_TYPE_MENU_ORDER,
+} from "./usd-rate-type-labels";
 import styles from "./expense-row-actions.module.scss";
 
 interface ExpenseRowActionsProps {
@@ -59,6 +67,13 @@ interface ExpenseRowActionsProps {
   onEdit: () => void;
   onManagePaymentLink: () => void;
   onReactivateRecurrence: () => void;
+  /**
+   * Selects the USD→ARS rate type for a USD expense. `custom` is expected to
+   * open the manual-rate dialog on the caller side.
+   */
+  onSelectUsdRateType?: (usdRateType: MonthlyExpenseUsdRateType) => void;
+  /** Current rate type; the submenu renders only for USD expenses. */
+  usdRateType?: MonthlyExpenseUsdRateType;
 }
 
 export function ExpenseRowActions({
@@ -80,6 +95,8 @@ export function ExpenseRowActions({
   onEdit,
   onManagePaymentLink,
   onReactivateRecurrence,
+  onSelectUsdRateType,
+  usdRateType,
 }: ExpenseRowActionsProps) {
   const normalizedDescription = description.trim() || "este gasto";
   const [confirmActionType, setConfirmActionType] = useState<
@@ -244,6 +261,37 @@ export function ExpenseRowActions({
                     </span>
                   </DropdownMenuItem>
                 )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ) : null}
+          {onSelectUsdRateType && usdRateType ? (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <span className={styles.menuItem}>
+                  <DollarSign aria-hidden="true" />
+                  Tipo de cambio
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup
+                  onValueChange={(nextUsdRateType) => {
+                    setIsMenuOpen(false);
+                    window.setTimeout(() => {
+                      onSelectUsdRateType(
+                        nextUsdRateType as MonthlyExpenseUsdRateType,
+                      );
+                    }, 0);
+                  }}
+                  value={usdRateType}
+                >
+                  {USD_RATE_TYPE_MENU_ORDER.map((rateType) => (
+                    <DropdownMenuRadioItem key={rateType} value={rateType}>
+                      {rateType === "custom"
+                        ? `${USD_RATE_TYPE_LABELS.custom}…`
+                        : USD_RATE_TYPE_LABELS[rateType]}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           ) : null}

@@ -170,24 +170,30 @@ export const MONTHLY_EXPENSES_FILTER_MATCHERS: Record<
 > = {
   subtotal: numberRangeMatcher((row, context) =>
     getArsComparableAmount({
+      customUsdRate: row.customUsdRate,
       exchangeRateSnapshot: context.exchangeRateSnapshot,
       rowCurrency: row.currency,
+      usdRateType: row.usdRateType,
       value: row.subtotal,
     }),
   ),
   total: numberRangeMatcher((row, context) =>
     getArsComparableAmount({
+      customUsdRate: row.customUsdRate,
       exchangeRateSnapshot: context.exchangeRateSnapshot,
       rowCurrency: row.currency,
+      usdRateType: row.usdRateType,
       value: row.total,
     }),
   ),
   usd: numberRangeMatcher((row, context) =>
     getConvertedAmountForCurrency({
       currency: "USD",
+      customUsdRate: row.customUsdRate,
       exchangeRateSnapshot: context.exchangeRateSnapshot,
       rowCurrency: row.currency,
       total: Number(row.total),
+      usdRateType: row.usdRateType,
     }),
   ),
   pagos: numberRangeMatcher((row) => getPaymentProgress(row).coveredPayments),
@@ -279,9 +285,11 @@ export const MONTHLY_EXPENSES_PRESENCE_PREDICATES: Record<
   usd: (row, context) => {
     const convertedUsd = getConvertedAmountForCurrency({
       currency: "USD",
+      customUsdRate: row.customUsdRate,
       exchangeRateSnapshot: context.exchangeRateSnapshot,
       rowCurrency: row.currency,
       total: Number(row.total),
+      usdRateType: row.usdRateType,
     });
 
     return convertedUsd != null && convertedUsd !== 0;

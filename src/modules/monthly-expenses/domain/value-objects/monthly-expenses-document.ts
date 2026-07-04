@@ -22,6 +22,21 @@ export const MONTHLY_EXPENSE_RECEIPT_SHARE_STATUSES = [
   "pending",
   "sent",
 ] as const;
+/**
+ * How a USD expense converts to ARS:
+ *
+ * - `blue`: informal ("blue") rate, typical for cash payments.
+ * - `officialWithIibb`: official rate plus IIBB perception (online purchases
+ *   with local tax withholding). This is the implicit default.
+ * - `official`: plain official rate, for online purchases without perceptions.
+ * - `custom`: a manual per-expense rate (`customUsdRate`).
+ */
+export const MONTHLY_EXPENSE_USD_RATE_TYPES = [
+  "blue",
+  "officialWithIibb",
+  "official",
+  "custom",
+] as const;
 
 export type MonthlyExpenseCurrency =
   (typeof MONTHLY_EXPENSE_CURRENCIES)[number];
@@ -30,6 +45,12 @@ export type MonthlyExpenseLoanDirection =
 
 export type MonthlyExpenseReceiptShareStatus =
   (typeof MONTHLY_EXPENSE_RECEIPT_SHARE_STATUSES)[number];
+
+export type MonthlyExpenseUsdRateType =
+  (typeof MONTHLY_EXPENSE_USD_RATE_TYPES)[number];
+
+export const DEFAULT_MONTHLY_EXPENSE_USD_RATE_TYPE: MonthlyExpenseUsdRateType =
+  "officialWithIibb";
 
 export interface MonthlyExpenseLoanInput {
   direction?: MonthlyExpenseLoanDirection;
@@ -143,6 +164,9 @@ export interface MonthlyExpenseItemInput {
   sortOrder?: number | null;
   subtotal: number;
   subtotalUnit?: MonthlyExpenseSubtotalUnit | null;
+  /** Manual ARS-per-USD rate, only meaningful when `usdRateType` is `custom`. */
+  customUsdRate?: number | null;
+  usdRateType?: MonthlyExpenseUsdRateType | null;
 }
 
 export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
@@ -161,6 +185,8 @@ export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
   sortOrder?: number | null;
   subtotalUnit?: MonthlyExpenseSubtotalUnit;
   total: number;
+  customUsdRate?: number;
+  usdRateType?: MonthlyExpenseUsdRateType;
 }
 
 /**
@@ -540,6 +566,57 @@ function validatePaymentLink(
       `${operationName} requires every payment link to be a valid URL.`,
     );
   }
+}
+
+function isValidUsdRateType(
+  usdRateType: string,
+): usdRateType is MonthlyExpenseUsdRateType {
+  return MONTHLY_EXPENSE_USD_RATE_TYPES.includes(
+    usdRateType as MonthlyExpenseUsdRateType,
+  );
+}
+
+/**
+ * Validates the per-expense USD conversion settings. Non-USD expenses drop
+ * both fields silently; a `custom` rate type requires a positive manual rate.
+ */
+function validateUsdRateSettings(
+  {
+    currency,
+    customUsdRate,
+    usdRateType,
+  }: {
+    currency: string;
+    customUsdRate: number | null | undefined;
+    usdRateType: string | null | undefined;
+  },
+  operationName: string,
+): { customUsdRate?: number; usdRateType?: MonthlyExpenseUsdRateType } {
+  if (usdRateType == null || currency !== "USD") {
+    return {};
+  }
+
+  if (!isValidUsdRateType(usdRateType)) {
+    throw new Error(
+      `${operationName} requires every USD rate type to be one of: ${MONTHLY_EXPENSE_USD_RATE_TYPES.join(", ")}.`,
+    );
+  }
+
+  if (usdRateType !== "custom") {
+    return { usdRateType };
+  }
+
+  if (
+    typeof customUsdRate !== "number" ||
+    !Number.isFinite(customUsdRate) ||
+    customUsdRate <= 0
+  ) {
+    throw new Error(
+      `${operationName} requires a custom USD rate greater than 0 when the USD rate type is custom.`,
+    );
+  }
+
+  return { customUsdRate, usdRateType };
 }
 
 function validateReceiptSharePhoneDigits(
@@ -949,6 +1026,7 @@ function validateItem(
   targetMonth: string,
 ): MonthlyExpenseItem {
   const {
+    customUsdRate,
     expenseFolderId,
     folders,
     isPaid,
@@ -957,6 +1035,7 @@ function validateItem(
     manualCoveredPayments,
     occurrencesUnit,
     paymentLink,
+    usdRateType,
     receiptShareMessage,
     receiptSharePhoneDigits,
     receiptShareStatus,
@@ -981,6 +1060,14 @@ function validateItem(
   const normalizedSortOrder = normalizeSortOrder(sortOrder, operationName);
   const normalizedFolders = validateFolders(folders, operationName);
   const normalizedPaymentLink = validatePaymentLink(paymentLink, operationName);
+  const normalizedUsdRateSettings = validateUsdRateSettings(
+    {
+      currency: normalizedItem.currency,
+      customUsdRate,
+      usdRateType,
+    },
+    operationName,
+  );
   const normalizedReceiptSharePhoneDigits = validateReceiptSharePhoneDigits(
     receiptSharePhoneDigits,
     operationName,
@@ -1113,6 +1200,7 @@ function validateItem(
       ? { occurrencesUnit: normalizedOccurrencesUnit }
       : {}),
     paymentLink: normalizedPaymentLink,
+    ...normalizedUsdRateSettings,
     ...(normalizedReceiptShareMessage
       ? { receiptShareMessage: normalizedReceiptShareMessage }
       : {}),
@@ -1343,6 +1431,10 @@ export function toMonthlyExpensesDocumentInput(
         ? { occurrencesUnit: item.occurrencesUnit }
         : {}),
       paymentLink: item.paymentLink,
+      ...(item.usdRateType ? { usdRateType: item.usdRateType } : {}),
+      ...(item.customUsdRate !== undefined
+        ? { customUsdRate: item.customUsdRate }
+        : {}),
       ...(item.receiptShareMessage
         ? {
             receiptShareMessage: item.receiptShareMessage,

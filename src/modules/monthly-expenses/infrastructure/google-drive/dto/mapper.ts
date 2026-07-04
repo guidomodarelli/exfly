@@ -212,6 +212,11 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
   receipts: z.array(monthlyExpenseReceiptSchema).optional(),
   subtotal: z.number().positive(),
   subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
+  customUsdRate: z.number().positive().nullable().optional(),
+  usdRateType: z
+    .enum(["blue", "officialWithIibb", "official", "custom"])
+    .nullable()
+    .optional(),
 }).strict().superRefine((value, context) => {
   if (value.requiresReceiptShare === true && !value.receiptSharePhoneDigits) {
     context.addIssue({
@@ -293,6 +298,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
         items: document.items.map(
           ({
             currency,
+            customUsdRate,
             description,
             folders,
             id,
@@ -310,6 +316,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             receipts,
             subtotal,
             subtotalUnit,
+            usdRateType,
           }) => ({
             currency,
             description,
@@ -389,6 +396,8 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             occurrencesPerMonth,
             ...(occurrencesUnit ? { occurrencesUnit } : {}),
             paymentLink,
+            ...(usdRateType ? { usdRateType } : {}),
+            ...(customUsdRate !== undefined ? { customUsdRate } : {}),
             ...(receiptShareMessage
               ? { receiptShareMessage }
               : {}),
@@ -525,6 +534,12 @@ export function parseGoogleDriveMonthlyExpensesContent(
           subtotal: item.subtotal,
           ...(item.subtotalUnit !== undefined
             ? { subtotalUnit: item.subtotalUnit }
+            : {}),
+          ...(item.usdRateType != null
+            ? { usdRateType: item.usdRateType }
+            : {}),
+          ...(item.customUsdRate != null
+            ? { customUsdRate: item.customUsdRate }
             : {}),
         };
       }),

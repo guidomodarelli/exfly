@@ -246,6 +246,99 @@ describe("DrizzleMonthlyExpensesRepository", () => {
     expect(plainRow?.recurrenceEndMonth).toBeNull();
   });
 
+  it("persists the usd rate columns on the expense row", async () => {
+    const insertedExpenseRows: Record<string, unknown>[] = [];
+    const selectMock = jest.fn().mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue([]),
+      }),
+    });
+    const insertMock = jest.fn((table: unknown) => ({
+      values: jest.fn((payload: unknown) => {
+        if (
+          table === expensesTable &&
+          payload &&
+          typeof payload === "object" &&
+          "expenseId" in payload
+        ) {
+          insertedExpenseRows.push(payload as Record<string, unknown>);
+        }
+
+        return {
+          onConflictDoUpdate: jest.fn().mockResolvedValue(undefined),
+        };
+      }),
+    }));
+    const transactionExecutor = {
+      delete: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue(undefined),
+      }),
+      insert: insertMock,
+      select: selectMock,
+    };
+    const database = {
+      transaction: jest
+        .fn()
+        .mockImplementation(async (callback: (tx: unknown) => Promise<void>) =>
+          callback(transactionExecutor),
+        ),
+    };
+    const repository = new DrizzleMonthlyExpensesRepository(
+      database as never,
+      "user-subject",
+    );
+    const document = createMonthlyExpensesDocument(
+      {
+        items: [
+          {
+            currency: "USD",
+            customUsdRate: 1480.5,
+            description: "Suscripción custom",
+            id: "custom-rate-id",
+            occurrencesPerMonth: 1,
+            subtotal: 10,
+            usdRateType: "custom",
+          },
+          {
+            currency: "USD",
+            description: "Suscripción blue",
+            id: "blue-rate-id",
+            occurrencesPerMonth: 1,
+            subtotal: 15,
+            usdRateType: "blue",
+          },
+          {
+            currency: "USD",
+            description: "Suscripción default",
+            id: "default-rate-id",
+            occurrencesPerMonth: 1,
+            subtotal: 20,
+          },
+        ],
+        month: "2026-03",
+      },
+      "Testing usd rate persistence",
+    );
+
+    await repository.save(document);
+
+    const customRow = insertedExpenseRows.find(
+      (row) => row.expenseId === "custom-rate-id",
+    );
+    const blueRow = insertedExpenseRows.find(
+      (row) => row.expenseId === "blue-rate-id",
+    );
+    const defaultRow = insertedExpenseRows.find(
+      (row) => row.expenseId === "default-rate-id",
+    );
+    expect(customRow?.usdRateType).toBe("custom");
+    expect(customRow?.customUsdRate).toBe(1480.5);
+    expect(blueRow?.usdRateType).toBe("blue");
+    expect(blueRow?.customUsdRate).toBeNull();
+    expect(defaultRow?.usdRateType).toBeNull();
+    expect(defaultRow?.customUsdRate).toBeNull();
+  });
+
   it("orders normalized reads by created timestamp and expense id", async () => {
     const metadataLimitMock = jest.fn().mockResolvedValue([]);
     const metadataWhereMock = jest.fn().mockReturnValue({

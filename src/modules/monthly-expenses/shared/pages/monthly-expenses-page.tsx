@@ -49,6 +49,10 @@ import {
   type MonthlyExpenseSubtotalUnit,
 } from "@/components/monthly-expenses/monthly-expenses-table";
 import {
+  DEFAULT_USD_RATE_TYPE,
+  type MonthlyExpenseUsdRateType,
+} from "@/components/monthly-expenses/monthly-expenses-table.types";
+import {
   parseOccurrenceDuration,
   splitOccurrencesUnit,
 } from "@/components/monthly-expenses/occurrences-unit";
@@ -460,6 +464,8 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     subtotal: "",
     subtotalUnit: "occurrence",
     total: "0.00",
+    customUsdRate: null,
+    usdRateType: DEFAULT_USD_RATE_TYPE,
   };
 }
 
@@ -723,6 +729,8 @@ export function toEditableRows(
     subtotal: formatEditableNumber(item.subtotal),
     subtotalUnit: item.subtotalUnit ?? "occurrence",
     total: item.total.toFixed(2),
+    customUsdRate: item.customUsdRate ?? null,
+    usdRateType: item.usdRateType ?? DEFAULT_USD_RATE_TYPE,
     });
   });
 }
@@ -1659,6 +1667,15 @@ export function toSaveMonthlyExpensesCommand(
         subtotal: Number(row.subtotal),
         ...(row.subtotalUnit === "hour"
           ? { subtotalUnit: "hour" as const }
+          : {}),
+        // The default rate type is implicit: only explicit deviations travel.
+        ...(row.currency === "USD" && row.usdRateType !== DEFAULT_USD_RATE_TYPE
+          ? {
+              usdRateType: row.usdRateType,
+              ...(row.usdRateType === "custom" && row.customUsdRate
+                ? { customUsdRate: row.customUsdRate }
+                : {}),
+            }
           : {}),
       };
     }),
@@ -2871,6 +2888,8 @@ export default function MonthlyExpensesPage({
       subtotal: row.subtotal,
       subtotalUnit: row.subtotalUnit,
       total: row.total,
+      customUsdRate: row.customUsdRate,
+      usdRateType: row.usdRateType,
     };
 
     updateExpenseSheetState(() => ({
@@ -3858,6 +3877,67 @@ export default function MonthlyExpensesPage({
 
     if (!wasSaved) {
       toast.error("No pudimos guardar el link de pago.");
+    }
+  };
+
+  const handleUpdateUsdRate = async ({
+    customUsdRate,
+    expenseId,
+    usdRateType,
+  }: {
+    customUsdRate: number | null;
+    expenseId: string;
+    usdRateType: MonthlyExpenseUsdRateType;
+  }) => {
+    if (!isOAuthConfigured || !isAuthenticated) {
+      toast.warning("Conectate con Google para actualizar el tipo de cambio.");
+      return;
+    }
+
+    const expenseRow = formState.rows.find((row) => row.id === expenseId);
+
+    if (!expenseRow) {
+      toast.warning("No pudimos encontrar el gasto seleccionado.");
+      return;
+    }
+
+    if (
+      usdRateType === "custom" &&
+      (customUsdRate == null ||
+        !Number.isFinite(customUsdRate) ||
+        customUsdRate <= 0)
+    ) {
+      toast.warning("Ingresá una cotización mayor a 0 para la tasa personalizada.");
+      return;
+    }
+
+    const normalizedCustomUsdRate =
+      usdRateType === "custom" ? customUsdRate : null;
+
+    if (
+      expenseRow.usdRateType === usdRateType &&
+      expenseRow.customUsdRate === normalizedCustomUsdRate
+    ) {
+      return;
+    }
+
+    const nextRows = formState.rows.map((row) =>
+      row.id === expenseId
+        ? {
+            ...row,
+            customUsdRate: normalizedCustomUsdRate,
+            usdRateType,
+          }
+        : row,
+    );
+
+    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
+      loading: "Guardando tipo de cambio...",
+      success: "Tipo de cambio guardado correctamente.",
+    });
+
+    if (!wasSaved) {
+      toast.error("No pudimos guardar el tipo de cambio.");
     }
   };
 
@@ -4923,6 +5003,7 @@ export default function MonthlyExpensesPage({
                 onDeleteManualPaymentRecord={handleDeleteManualPaymentRecord}
                 onEditManualPaymentRecord={handleOpenManualPaymentRecordEditor}
                 onUpdatePaymentLink={handleUpdatePaymentLink}
+                onUpdateUsdRate={handleUpdateUsdRate}
                 onUpdateExpenseDetails={handleUpdateExpenseDetails}
                 onUpdateExpenseReceiptShare={handleUpdateExpenseReceiptShare}
                 onUpdatePaymentRecordSendStatus={handleUpdatePaymentRecordSendStatus}

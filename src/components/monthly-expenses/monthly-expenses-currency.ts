@@ -2,7 +2,9 @@ import type {
   ExchangeRateSnapshot,
   MonthlyExpenseCurrency,
   MonthlyExpensesEditableRow,
+  MonthlyExpenseUsdRateType,
 } from "./monthly-expenses-table.types";
+import { DEFAULT_USD_RATE_TYPE } from "./monthly-expenses-table.types";
 
 const CURRENCY_FORMATTER_BY_CURRENCY: Record<
   MonthlyExpenseCurrency,
@@ -53,62 +55,103 @@ export function formatExchangeRateAmount(value: number): string {
 }
 
 /**
- * Converts a row amount into the requested currency using the solidarity rate.
- * Returns `null` when the amount is not finite or the snapshot is unavailable.
+ * Resolves the ARS-per-USD rate for a row given its rate type. Returns `null`
+ * when the snapshot is unavailable or the custom rate is missing/invalid.
  */
-export function getConvertedAmountForCurrency({
-  currency,
+export function getUsdRateForRow({
+  customUsdRate,
   exchangeRateSnapshot,
-  rowCurrency,
-  total,
+  usdRateType,
 }: {
-  currency: MonthlyExpenseCurrency;
+  customUsdRate: number | null;
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
-  rowCurrency: MonthlyExpenseCurrency;
-  total: number;
+  usdRateType: MonthlyExpenseUsdRateType;
 }): number | null {
-  if (!Number.isFinite(total)) {
-    return null;
-  }
-
-  if (currency === "ARS") {
-    if (rowCurrency === "ARS") {
-      return total;
-    }
-
-    if (!exchangeRateSnapshot) {
-      return null;
-    }
-
-    return total * exchangeRateSnapshot.solidarityRate;
-  }
-
-  if (rowCurrency === "USD") {
-    return total;
+  if (usdRateType === "custom") {
+    return typeof customUsdRate === "number" &&
+      Number.isFinite(customUsdRate) &&
+      customUsdRate > 0
+      ? customUsdRate
+      : null;
   }
 
   if (!exchangeRateSnapshot) {
     return null;
   }
 
-  return total / exchangeRateSnapshot.solidarityRate;
+  if (usdRateType === "blue") {
+    return exchangeRateSnapshot.blueRate;
+  }
+
+  if (usdRateType === "official") {
+    return exchangeRateSnapshot.officialRate;
+  }
+
+  return exchangeRateSnapshot.solidarityRate;
+}
+
+/**
+ * Converts a row amount into the requested currency using the row's USD rate
+ * type (solidarity rate by default). Returns `null` when the amount is not
+ * finite or no usable rate is available.
+ */
+export function getConvertedAmountForCurrency({
+  currency,
+  customUsdRate = null,
+  exchangeRateSnapshot,
+  rowCurrency,
+  total,
+  usdRateType = DEFAULT_USD_RATE_TYPE,
+}: {
+  currency: MonthlyExpenseCurrency;
+  customUsdRate?: number | null;
+  exchangeRateSnapshot: ExchangeRateSnapshot | null;
+  rowCurrency: MonthlyExpenseCurrency;
+  total: number;
+  usdRateType?: MonthlyExpenseUsdRateType;
+}): number | null {
+  if (!Number.isFinite(total)) {
+    return null;
+  }
+
+  if (currency === rowCurrency) {
+    return total;
+  }
+
+  const usdRate = getUsdRateForRow({
+    customUsdRate,
+    exchangeRateSnapshot,
+    usdRateType,
+  });
+
+  if (usdRate == null) {
+    return null;
+  }
+
+  return currency === "ARS" ? total * usdRate : total / usdRate;
 }
 
 /** Returns a row amount expressed in ARS for cross-currency comparison/sorting. */
 export function getArsComparableAmount({
+  customUsdRate = null,
   exchangeRateSnapshot,
   rowCurrency,
+  usdRateType = DEFAULT_USD_RATE_TYPE,
   value,
 }: {
+  customUsdRate?: number | null;
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
   rowCurrency: MonthlyExpenseCurrency;
+  usdRateType?: MonthlyExpenseUsdRateType;
   value: string;
 }): number | null {
   return getConvertedAmountForCurrency({
     currency: "ARS",
+    customUsdRate,
     exchangeRateSnapshot,
     rowCurrency,
     total: Number(value),
+    usdRateType,
   });
 }
 
@@ -128,9 +171,11 @@ export function getConvertedTotalAmount({
   for (const row of rows) {
     const convertedAmount = getConvertedAmountForCurrency({
       currency,
+      customUsdRate: row.customUsdRate,
       exchangeRateSnapshot,
       rowCurrency: row.currency,
       total: Number(row.total),
+      usdRateType: row.usdRateType,
     });
 
     if (convertedAmount == null) {

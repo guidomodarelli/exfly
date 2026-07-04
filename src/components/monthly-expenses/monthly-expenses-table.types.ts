@@ -15,6 +15,20 @@ export type MonthlyExpenseSubtotalUnit = "occurrence" | "hour";
 
 export type MonthlyExpenseReceiptShareStatus = "pending" | "sent";
 
+/**
+ * Per-expense USD→ARS conversion rate:
+ * `blue` (cash), `officialWithIibb` (online with IIBB perception, the default),
+ * `official` (online without perceptions) or `custom` (manual rate).
+ */
+export type MonthlyExpenseUsdRateType =
+  | "blue"
+  | "officialWithIibb"
+  | "official"
+  | "custom";
+
+export const DEFAULT_USD_RATE_TYPE: MonthlyExpenseUsdRateType =
+  "officialWithIibb";
+
 /** Sort criterion for the unified loan "Deuda / cuotas" column. */
 export type LoanSortMode =
   | "paidInstallments"
@@ -105,6 +119,9 @@ export interface MonthlyExpensesEditableRow {
   subtotal: string;
   subtotalUnit?: MonthlyExpenseSubtotalUnit;
   total: string;
+  /** Manual ARS-per-USD rate; only meaningful when `usdRateType` is `custom`. */
+  customUsdRate: number | null;
+  usdRateType: MonthlyExpenseUsdRateType;
 }
 
 export interface MonthlyExpensesReplicableOption {

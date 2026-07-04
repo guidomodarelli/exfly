@@ -1314,4 +1314,128 @@ describe("monthlyExpensesDocument", () => {
 
     expect(revalidated.items[0]?.recurrence?.endMonth).toBeNull();
   });
+
+  describe("usd rate type", () => {
+    const baseUsdItem = {
+      currency: "USD" as const,
+      description: "Suscripción",
+      id: "expense-usd",
+      occurrencesPerMonth: 1,
+      subtotal: 10,
+    };
+
+    it("keeps a valid usd rate type and round-trips it through the input", () => {
+      const document = createMonthlyExpensesDocument(
+        {
+          items: [{ ...baseUsdItem, usdRateType: "blue" }],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      );
+
+      expect(document.items[0]?.usdRateType).toBe("blue");
+      expect(
+        toMonthlyExpensesDocumentInput(document).items[0]?.usdRateType,
+      ).toBe("blue");
+    });
+
+    it("omits the usd rate type when it is not provided", () => {
+      const document = createMonthlyExpensesDocument(
+        { items: [baseUsdItem], month: "2026-03" },
+        "Saving monthly expenses",
+      );
+
+      expect(document.items[0]?.usdRateType).toBeUndefined();
+      expect(document.items[0]?.customUsdRate).toBeUndefined();
+      expect(
+        toMonthlyExpensesDocumentInput(document).items[0]?.usdRateType,
+      ).toBeUndefined();
+    });
+
+    it("keeps the custom rate only for the custom rate type", () => {
+      const document = createMonthlyExpensesDocument(
+        {
+          items: [
+            { ...baseUsdItem, customUsdRate: 1450.5, usdRateType: "custom" },
+          ],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      );
+
+      expect(document.items[0]?.usdRateType).toBe("custom");
+      expect(document.items[0]?.customUsdRate).toBe(1450.5);
+
+      const reserializedItem =
+        toMonthlyExpensesDocumentInput(document).items[0];
+
+      expect(reserializedItem?.customUsdRate).toBe(1450.5);
+    });
+
+    it("drops the custom rate when the rate type is not custom", () => {
+      const document = createMonthlyExpensesDocument(
+        {
+          items: [{ ...baseUsdItem, customUsdRate: 1450, usdRateType: "blue" }],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      );
+
+      expect(document.items[0]?.customUsdRate).toBeUndefined();
+    });
+
+    it("rejects a custom rate type without a positive custom rate", () => {
+      for (const customUsdRate of [undefined, null, 0, -5, Number.NaN]) {
+        expect(() =>
+          createMonthlyExpensesDocument(
+            {
+              items: [{ ...baseUsdItem, customUsdRate, usdRateType: "custom" }],
+              month: "2026-03",
+            },
+            "Saving monthly expenses",
+          ),
+        ).toThrow(/custom USD rate/);
+      }
+    });
+
+    it("rejects an unknown usd rate type", () => {
+      expect(() =>
+        createMonthlyExpensesDocument(
+          {
+            items: [
+              {
+                ...baseUsdItem,
+                usdRateType: "mep" as unknown as "blue",
+              },
+            ],
+            month: "2026-03",
+          },
+          "Saving monthly expenses",
+        ),
+      ).toThrow(/USD rate type/);
+    });
+
+    it("ignores the usd rate type on ARS expenses", () => {
+      const document = createMonthlyExpensesDocument(
+        {
+          items: [
+            {
+              currency: "ARS",
+              customUsdRate: 1450,
+              description: "Alquiler",
+              id: "expense-ars",
+              occurrencesPerMonth: 1,
+              subtotal: 350000,
+              usdRateType: "blue",
+            },
+          ],
+          month: "2026-03",
+        },
+        "Saving monthly expenses",
+      );
+
+      expect(document.items[0]?.usdRateType).toBeUndefined();
+      expect(document.items[0]?.customUsdRate).toBeUndefined();
+    });
+  });
 });

@@ -52,6 +52,8 @@ export function createRow(
     subtotal: "1000",
     subtotalUnit: "occurrence",
     total: "1000",
+    customUsdRate: null,
+    usdRateType: "officialWithIibb",
     ...overrides,
   };
 }
@@ -135,6 +137,7 @@ export function renderMonthlyExpensesTable(
     onUpdateExpenseDetails: jest.fn(),
     onUpdateExpenseReceiptShare: jest.fn(),
     onUpdatePaymentLink: jest.fn(),
+    onUpdateUsdRate: jest.fn(),
     onUpdatePaymentRecordSendStatus: jest.fn(),
     pendingMonth: null,
     replicateFromPreviousMonthDialogOpen: false,

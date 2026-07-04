@@ -205,6 +205,7 @@ import type {
   MonthlyExpenseSubtotalUnit,
   MonthlyExpensesEditableRow,
   MonthlyExpensesReplicableOption,
+  MonthlyExpenseUsdRateType,
   TechnicalErrorCode,
   VigenciaSortMode,
 } from "./monthly-expenses-table.types";
@@ -580,6 +581,11 @@ interface MonthlyExpensesTableProps {
     expenseId: string;
     paymentLink: string;
   }) => void | Promise<void>;
+  onUpdateUsdRate: (args: {
+    customUsdRate: number | null;
+    expenseId: string;
+    usdRateType: MonthlyExpenseUsdRateType;
+  }) => void | Promise<void>;
   onUpdateExpenseDetails: (args: {
     expenseId: string;
     occurrencesPerMonth: number;
@@ -616,6 +622,11 @@ interface PaymentLinkDialogState {
   expenseDescription: string;
   expenseId: string;
   mode: "create" | "edit";
+}
+
+interface CustomUsdRateDialogState {
+  expenseDescription: string;
+  expenseId: string;
 }
 
 interface ExpenseDetailsDialogState {
@@ -873,12 +884,16 @@ function getExcludeFilterMetrics(
 }
 
 function formatArsWithUsdSecondary({
+  customUsdRate,
   exchangeRateSnapshot,
   rowCurrency,
+  usdRateType,
   value,
 }: {
+  customUsdRate: number | null;
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
   rowCurrency: MonthlyExpenseCurrency;
+  usdRateType: MonthlyExpenseUsdRateType;
   value: string;
 }) {
   if (rowCurrency === "ARS") {
@@ -887,9 +902,11 @@ function formatArsWithUsdSecondary({
 
   const arsAmount = getConvertedAmountForCurrency({
     currency: "ARS",
+    customUsdRate,
     exchangeRateSnapshot,
     rowCurrency,
     total: Number(value),
+    usdRateType,
   });
 
   return (
@@ -1044,6 +1061,7 @@ export function MonthlyExpensesTable({
   onDeleteManualPaymentRecord,
   onEditManualPaymentRecord,
   onUpdatePaymentLink,
+  onUpdateUsdRate,
   onUpdateExpenseDetails,
   onUpdateExpenseReceiptShare,
   onUpdatePaymentRecordSendStatus,
@@ -1234,6 +1252,11 @@ export function MonthlyExpensesTable({
     useState<PaymentLinkDialogState | null>(null);
   const [paymentLinkDraftValue, setPaymentLinkDraftValue] = useState("");
   const [paymentLinkDraftError, setPaymentLinkDraftError] =
+    useState<string | null>(null);
+  const [customUsdRateDialogState, setCustomUsdRateDialogState] =
+    useState<CustomUsdRateDialogState | null>(null);
+  const [customUsdRateDraftValue, setCustomUsdRateDraftValue] = useState("");
+  const [customUsdRateDraftError, setCustomUsdRateDraftError] =
     useState<string | null>(null);
   const [detailsDialogState, setDetailsDialogState] =
     useState<ExpenseDetailsDialogState | null>(null);
@@ -1820,6 +1843,53 @@ export function MonthlyExpensesTable({
     handleClosePaymentLinkDialog();
   };
 
+  const handleOpenCustomUsdRateDialog = useCallback(({
+    customUsdRate,
+    expenseDescription,
+    expenseId,
+  }: {
+    customUsdRate: number | null;
+    expenseDescription: string;
+    expenseId: string;
+  }) => {
+    setCustomUsdRateDialogState({ expenseDescription, expenseId });
+    setCustomUsdRateDraftValue(
+      customUsdRate && customUsdRate > 0 ? String(customUsdRate) : "",
+    );
+    setCustomUsdRateDraftError(null);
+  }, []);
+
+  const handleCloseCustomUsdRateDialog = () => {
+    setCustomUsdRateDialogState(null);
+    setCustomUsdRateDraftValue("");
+    setCustomUsdRateDraftError(null);
+  };
+
+  const handleSaveCustomUsdRate = async () => {
+    if (!customUsdRateDialogState) {
+      return;
+    }
+
+    const parsedCustomUsdRate = Number(
+      customUsdRateDraftValue.trim().replace(",", "."),
+    );
+
+    if (!Number.isFinite(parsedCustomUsdRate) || parsedCustomUsdRate <= 0) {
+      setCustomUsdRateDraftError(
+        "Ingresá una cotización en pesos mayor a 0 (por ejemplo 1480,50).",
+      );
+      return;
+    }
+
+    setCustomUsdRateDraftError(null);
+    await onUpdateUsdRate({
+      customUsdRate: parsedCustomUsdRate,
+      expenseId: customUsdRateDialogState.expenseId,
+      usdRateType: "custom",
+    });
+    handleCloseCustomUsdRateDialog();
+  };
+
   const handleOpenDetailsDialog = useCallback(({
     currency,
     expenseDescription,
@@ -2294,6 +2364,27 @@ export function MonthlyExpensesTable({
                   mode: hasPaymentLink ? "edit" : "create",
                   paymentLink: row.original.paymentLink,
                 })}
+              {...(row.original.currency === "USD"
+                ? {
+                    onSelectUsdRateType: (usdRateType: MonthlyExpenseUsdRateType) => {
+                      if (usdRateType === "custom") {
+                        handleOpenCustomUsdRateDialog({
+                          customUsdRate: row.original.customUsdRate,
+                          expenseDescription: expenseDescriptionLabel,
+                          expenseId: row.original.id,
+                        });
+                        return;
+                      }
+
+                      void onUpdateUsdRate({
+                        customUsdRate: null,
+                        expenseId: row.original.id,
+                        usdRateType,
+                      });
+                    },
+                    usdRateType: row.original.usdRateType,
+                  }
+                : {})}
             />
           );
           const paymentLinkAnchor = paymentLinkUrl ? (
@@ -2440,8 +2531,10 @@ export function MonthlyExpensesTable({
             (subtotalUnit === "hour" || occurrencesPerMonth !== 1);
           const formatRowArsAmount = (value: string) =>
             formatArsWithUsdSecondary({
+              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
+              usdRateType: row.original.usdRateType,
               value,
             });
 
@@ -2523,8 +2616,10 @@ export function MonthlyExpensesTable({
           matchesAdvancedNumberRangeFilter(
             filterValue,
             getArsComparableAmount({
+              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
+              usdRateType: row.original.usdRateType,
               value: row.original.total,
             }),
           ),
@@ -2543,13 +2638,17 @@ export function MonthlyExpensesTable({
           return compareValuesKeepingInvalidLast({
             compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
             leftValue: getArsComparableAmount({
+              customUsdRate: rowA.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: rowA.original.currency,
+              usdRateType: rowA.original.usdRateType,
               value: rowA.original.total,
             }),
             rightValue: getArsComparableAmount({
+              customUsdRate: rowB.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: rowB.original.currency,
+              usdRateType: rowB.original.usdRateType,
               value: rowB.original.total,
             }),
             sortDirection: getSortDirection("total"),
@@ -2562,9 +2661,11 @@ export function MonthlyExpensesTable({
           const total = Number(row.original.total);
           const usdAmount = getConvertedAmountForCurrency({
             currency: "USD",
+            customUsdRate: row.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: row.original.currency,
             total,
+            usdRateType: row.original.usdRateType,
           });
 
           return formatConvertedAmount("USD", usdAmount);
@@ -2574,9 +2675,11 @@ export function MonthlyExpensesTable({
             filterValue,
             getConvertedAmountForCurrency({
               currency: "USD",
+              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
               total: Number(row.original.total),
+              usdRateType: row.original.usdRateType,
             }),
           ),
         footer: ({ table }) => (
@@ -2600,15 +2703,19 @@ export function MonthlyExpensesTable({
 
           const leftAmount = getConvertedAmountForCurrency({
             currency: "USD",
+            customUsdRate: rowA.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: rowA.original.currency,
             total: Number(rowA.original.total),
+            usdRateType: rowA.original.usdRateType,
           });
           const rightAmount = getConvertedAmountForCurrency({
             currency: "USD",
+            customUsdRate: rowB.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: rowB.original.currency,
             total: Number(rowB.original.total),
+            usdRateType: rowB.original.usdRateType,
           });
 
           return compareValuesKeepingInvalidLast({
@@ -2978,9 +3085,11 @@ export function MonthlyExpensesTable({
       onRegisterPaymentRecord,
       onUpdatePaymentRecordSendStatus,
       compareRowsByDescriptionFilterRelevance,
+      handleOpenCustomUsdRateDialog,
       handleOpenDetailsDialog,
       handleOpenReceiptShareDialog,
       handleOpenPaymentLinkDialog,
+      onUpdateUsdRate,
       selectedExpenseIdsInCurrentRows,
       expenseFolders,
       foldersById,
@@ -4063,6 +4172,75 @@ export function MonthlyExpensesTable({
                 disabled={actionDisabled}
                 onClick={() => {
                   void handleSavePaymentLink();
+                }}
+                type="button"
+              >
+                Guardar
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) {
+              handleCloseCustomUsdRateDialog();
+            }
+          }}
+          open={customUsdRateDialogState != null}
+        >
+          <AlertDialogContent
+            onOpenAutoFocus={(event) => {
+              handleDialogInputAutoFocus(event, "custom-usd-rate-dialog-input");
+            }}
+            size="sm"
+          >
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cotización personalizada</AlertDialogTitle>
+              <AlertDialogDescription>
+                {`Ingresá cuántos pesos vale 1 USD para ${customUsdRateDialogState?.expenseDescription ?? "este gasto"}.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className={styles.paymentLinkDialogField}>
+              <Label htmlFor="custom-usd-rate-dialog-input">
+                Cotización (ARS por USD)
+              </Label>
+              <Input
+                aria-invalid={customUsdRateDraftError ? "true" : "false"}
+                aria-label={`Cotización personalizada de ${customUsdRateDialogState?.expenseDescription ?? "gasto"}`}
+                autoFocus
+                id="custom-usd-rate-dialog-input"
+                inputMode="decimal"
+                onChange={(event) => {
+                  setCustomUsdRateDraftValue(event.target.value);
+
+                  if (customUsdRateDraftError) {
+                    setCustomUsdRateDraftError(null);
+                  }
+                }}
+                placeholder="1480,50"
+                value={customUsdRateDraftValue}
+              />
+              {customUsdRateDraftError ? (
+                <p className={styles.paymentLinkDialogError} role="alert">
+                  {customUsdRateDraftError}
+                </p>
+              ) : null}
+            </div>
+
+            <AlertDialogFooter className={styles.paymentLinkDialogActions}>
+              <Button
+                onClick={handleCloseCustomUsdRateDialog}
+                type="button"
+                variant="outline"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={actionDisabled}
+                onClick={() => {
+                  void handleSaveCustomUsdRate();
                 }}
                 type="button"
               >
