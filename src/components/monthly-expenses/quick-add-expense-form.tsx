@@ -79,22 +79,6 @@ export function QuickAddExpenseForm({
       className={styles.quickAddForm}
       onSubmit={handleSubmit}
     >
-      <Input
-        aria-label="Descripción del gasto nuevo"
-        className={styles.quickAddDescription}
-        disabled={actionDisabled}
-        onChange={(event) => {
-          setDescriptionValue(event.target.value);
-
-          if (validationError) {
-            setValidationError(null);
-          }
-        }}
-        placeholder="Alta rápida: descripción"
-        ref={descriptionInputRef}
-        type="text"
-        value={descriptionValue}
-      />
       <Select
         onValueChange={(nextCurrency) =>
           setCurrencyValue(nextCurrency as MonthlyExpenseCurrency)
@@ -133,6 +117,22 @@ export function QuickAddExpenseForm({
           value={subtotalValue}
         />
       </InputGroup>
+      <Input
+        aria-label="Descripción del gasto nuevo"
+        className={styles.quickAddDescription}
+        disabled={actionDisabled}
+        onChange={(event) => {
+          setDescriptionValue(event.target.value);
+
+          if (validationError) {
+            setValidationError(null);
+          }
+        }}
+        placeholder="Alta rápida: descripción"
+        ref={descriptionInputRef}
+        type="text"
+        value={descriptionValue}
+      />
       <Button
         disabled={actionDisabled}
         size="sm"
