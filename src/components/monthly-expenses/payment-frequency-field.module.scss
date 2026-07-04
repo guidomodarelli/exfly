@@ -11,13 +11,15 @@
 .option {
   display: grid;
   gap: 0.25rem;
-  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
-  border-radius: 0.75rem;
-  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  // Sin card: borde transparente para que los estados changed/invalid puedan
+  // seguir pintándolo sin mover el layout.
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.5rem;
 }
 
 .optionSelected {
-  border-color: color-mix(in srgb, var(--primary) 58%, transparent);
   background: color-mix(in srgb, var(--primary) 9%, transparent);
 }
 

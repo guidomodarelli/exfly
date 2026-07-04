@@ -155,6 +155,20 @@ describe("ExpenseSheet", () => {
     expect(onFieldChange).toHaveBeenCalledWith("subtotalUnit", "hour");
   });
 
+  it("selects a payment frequency option by clicking anywhere on its row", async () => {
+    const user = userEvent.setup();
+    const onFieldChange = jest.fn();
+
+    renderExpenseSheet({ mode: "create", onFieldChange });
+
+    // Click sobre la descripción (no sobre el radio ni el label).
+    await user.click(
+      screen.getByText(/clases de ingles, psicologa o empleada domestica/),
+    );
+
+    expect(onFieldChange).toHaveBeenCalledWith("occurrencesPerMonth", "2");
+  });
+
   it("shows the monthly duration instead of the frequency field for an hourly subtotal", () => {
     renderExpenseSheet({
       draft: {

@@ -45,6 +45,11 @@
   text-align: left;
   cursor: pointer;
 
+  & + & {
+    border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    border-radius: 0;
+  }
+
   &:hover {
     background: color-mix(in srgb, var(--muted) 55%, transparent);
   }
