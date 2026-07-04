@@ -733,6 +733,100 @@ describe("createMonthlyExpensesApiHandler", () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it("passes the usd rate settings to the save use case when provided", async () => {
+    const database = {} as TursoDatabase;
+    const save = jest.fn().mockResolvedValue({
+      id: "monthly-expenses-file-id",
+      month: "2026-03",
+      name: "control-mensual-2026-marzo.json",
+      viewUrl: null,
+    });
+    const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
+      getDatabase: jest.fn().mockReturnValue(database),
+      getUserSubject: jest.fn().mockResolvedValue("google-user-123"),
+      save,
+    });
+
+    const request = {
+      body: {
+        items: [
+          {
+            currency: "USD",
+            description: "Suscripción blue",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            subtotal: 10,
+            usdRateType: "blue",
+          },
+          {
+            currency: "USD",
+            customUsdRate: 1480.5,
+            description: "Suscripción custom",
+            id: "expense-2",
+            occurrencesPerMonth: 1,
+            subtotal: 20,
+            usdRateType: "custom",
+          },
+        ],
+        month: "2026-03",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        command: expect.objectContaining({
+          items: [
+            expect.objectContaining({ usdRateType: "blue" }),
+            expect.objectContaining({
+              customUsdRate: 1480.5,
+              usdRateType: "custom",
+            }),
+          ],
+        }),
+      }),
+    );
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("returns 400 when a custom usd rate type comes without its rate", async () => {
+    const database = {} as TursoDatabase;
+    const save = jest.fn();
+    const handler = createMonthlyExpensesApiHandler({
+      load: jest.fn(),
+      getDatabase: jest.fn().mockReturnValue(database),
+      getUserSubject: jest.fn().mockResolvedValue("google-user-123"),
+      save,
+    });
+
+    const request = {
+      body: {
+        items: [
+          {
+            currency: "USD",
+            description: "Suscripción custom",
+            id: "expense-1",
+            occurrencesPerMonth: 1,
+            subtotal: 20,
+            usdRateType: "custom",
+          },
+        ],
+        month: "2026-03",
+      },
+      method: "POST",
+    } as NextApiRequest;
+    const response = createMockResponse();
+
+    await handler(request, response);
+
+    expect(save).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+  });
+
   it("passes receipt sharing metadata to the save use case when provided", async () => {
     const database = {} as TursoDatabase;
     const save = jest.fn().mockResolvedValue({
