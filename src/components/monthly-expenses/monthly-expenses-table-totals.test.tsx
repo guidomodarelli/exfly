@@ -35,6 +35,13 @@ const PENDING_ROW = createRow({
   total: "2000",
 });
 
+
+function hasNormalizedText(expectedText: string) {
+  return (_content: string, element: Element | null): boolean =>
+    element?.tagName === "SPAN" &&
+    (element.textContent ?? "").replace(/\s+/g, " ").trim() === expectedText;
+}
+
 describe("MonthlyExpensesTable totals footer", () => {
   it("shows the month total with a paid versus pending breakdown", () => {
     renderMonthlyExpensesTable([PAID_ROW, PENDING_ROW]);
@@ -47,10 +54,10 @@ describe("MonthlyExpensesTable totals footer", () => {
       footer.getByText(formatExpectedAmount("ARS", 3000)),
     ).toBeInTheDocument();
     expect(
-      footer.getByText(`Pagado: ${formatExpectedAmount("ARS", 1000)}`),
+      footer.getByText(hasNormalizedText(`Pagado: ${formatExpectedAmount("ARS", 1000)}`)),
     ).toBeInTheDocument();
     expect(
-      footer.getByText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`),
+      footer.getByText(hasNormalizedText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`)),
     ).toBeInTheDocument();
   });
 
@@ -69,15 +76,18 @@ describe("MonthlyExpensesTable totals footer", () => {
       const rowGroups = screen.getAllByRole("rowgroup");
       const footerRowGroup = rowGroups[rowGroups.length - 1];
 
+      // El mismo monto aparece también como "Pendiente": acotar al total.
       expect(
-        within(footerRowGroup).getByText(formatExpectedAmount("ARS", 2000)),
+        within(footerRowGroup).getByText(formatExpectedAmount("ARS", 2000), {
+          selector: ".totalFooterValue",
+        }),
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByText(`Pagado: ${formatExpectedAmount("ARS", 0)}`),
+      screen.getByText(hasNormalizedText(`Pagado: ${formatExpectedAmount("ARS", 0)}`)),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`),
+      screen.getByText(hasNormalizedText(`Pendiente: ${formatExpectedAmount("ARS", 2000)}`)),
     ).toBeInTheDocument();
   });
 
@@ -97,10 +107,10 @@ describe("MonthlyExpensesTable totals footer", () => {
     await user.click(screen.getByRole("menuitemcheckbox", { name: /^USD/ }));
 
     expect(
-      await screen.findByText(`Pagado: ${formatExpectedAmount("USD", 1)}`),
+      await screen.findByText(hasNormalizedText(`Pagado: ${formatExpectedAmount("USD", 1)}`)),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`Pendiente: ${formatExpectedAmount("USD", 2)}`),
+      screen.getByText(hasNormalizedText(`Pendiente: ${formatExpectedAmount("USD", 2)}`)),
     ).toBeInTheDocument();
   });
 });

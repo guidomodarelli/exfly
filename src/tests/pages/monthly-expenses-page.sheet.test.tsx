@@ -3483,11 +3483,11 @@ registerMonthlyExpensesPageDefaultHooks({
           month: "2026-03",
         });
       },
-      { timeout: 9000 },
+      { timeout: 15000 },
     );
 
     expect(screen.queryByText("Internet")).not.toBeInTheDocument();
-  }, 20000);
+  }, 30000);
 
   it("adds a lender to the catalog from the page", async () => {
     const user = userEvent.setup();

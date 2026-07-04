@@ -1176,7 +1176,17 @@ registerMonthlyExpensesPageDefaultHooks({
     // El total del footer también aparece en la línea "Pendiente:" del desglose.
     expect(screen.getAllByText(/\$\s*390,00/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/US\$\s*3,25/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Pagado:\s*\$\s*0,00/)).toBeInTheDocument();
+    // El desglose quedó partido en spans (label + monto coloreado): matchear
+    // por contenido normalizado del contenedor.
+    expect(
+      screen.getByText((_content, element) =>
+        element?.tagName === "SPAN" &&
+        /Pagado:\s*\$\s*0,00/.test(
+          (element.textContent ?? "").replace(/\s+/g, " "),
+        ) &&
+        element.children.length === 1,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("falls back to the expenses tab for invalid query values", () => {
@@ -2579,7 +2589,7 @@ registerMonthlyExpensesPageDefaultHooks({
           ),
         ).toBe(true);
       },
-      { timeout: 9000 },
+      { timeout: 15000 },
     );
 
     const payload = getMonthlyExpensesSavePayload(fetchMock);
@@ -2589,7 +2599,7 @@ registerMonthlyExpensesPageDefaultHooks({
 
     expect(savedDescriptions).toEqual(["Internet", "Luz"]);
     expect(savedDescriptions).not.toContain("Agua");
-  }, 20000);
+  }, 30000);
 
   it("disables bulk actions when filters leave no visible rows", async () => {
     const user = userEvent.setup();

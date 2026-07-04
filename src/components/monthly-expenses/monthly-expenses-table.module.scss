@@ -228,6 +228,11 @@
   font-weight: 600;
 }
 
+.groupHeaderTotalsAmount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .groupHeaderTotalsBreakdown {
   font-size: 0.72rem;
   color: var(--muted-foreground);
@@ -396,8 +401,28 @@
 }
 
 .tableWrapper :global([data-slot="table-container"]) {
-  max-height: none;
-  overflow: visible;
+  // Scroll vertical propio: habilita headers de columnas y de grupo sticky.
+  max-height: min(70vh, 48rem);
+  overflow: auto;
+}
+
+// Header de columnas fijo al scrollear verticalmente dentro del contenedor.
+.tableWrapper :global([data-slot="table-head"]) {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--background);
+}
+
+// Headers de grupo fijos debajo del header de columnas (h-10 = 2.5rem).
+.tableWrapper :global([data-slot="table-group-header-row"] [data-slot="table-cell"]) {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 2.5rem;
+  z-index: 4;
+  background: var(--background);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .tableWrapper :global([data-slot="table"]) {
@@ -630,6 +655,19 @@
 .recurrenceIndicatorCancelled {
   color: var(--muted-foreground);
   opacity: 0.7;
+  position: relative;
+
+  // Barra superpuesta: el icono queda "tachado" sin tocar el texto.
+  &::after {
+    content: "";
+    position: absolute;
+    left: -0.1rem;
+    right: -0.1rem;
+    top: 50%;
+    height: 1.5px;
+    background: color-mix(in srgb, var(--muted-foreground) 85%, transparent);
+    transform: rotate(-20deg);
+  }
 }
 
 .descriptionPaymentLinkChip {
@@ -1379,14 +1417,14 @@
     position: -webkit-sticky;
     position: sticky;
     left: 0;
-    z-index: 4;
+    z-index: 6;
   }
 
   .tableWrapper :global([data-slot="table-head"]:nth-child(2)) {
     position: -webkit-sticky;
     position: sticky;
     left: var(--selection-column-width);
-    z-index: 4;
+    z-index: 6;
   }
 
   .tableWrapperScrolled .stickyDescriptionCell,
@@ -1454,7 +1492,14 @@
      tabla (con overflow-x) no deben interceptar el scroll vertical. */
   .tableWrapper :global([data-slot="table-container"]),
   .tableWrapper :global(div:has(> [data-slot="table-container"])) {
+    max-height: none;
     overflow: visible;
+  }
+
+  // Sin header de columnas en cards: el grupo se pega arriba de la pagina.
+  .tableWrapper :global([data-slot="table-group-header-row"] [data-slot="table-cell"]) {
+    top: 0;
+    box-shadow: none;
   }
 
   .tableWrapper :global([data-slot="table"]) {

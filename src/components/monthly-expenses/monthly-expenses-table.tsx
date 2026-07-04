@@ -1025,10 +1025,16 @@ function MonthlyTotalsFooter({
     <span className={styles.totalFooterCell}>
       <span className={styles.totalFooterValue}>{totals.total}</span>
       <span className={styles.totalFooterBreakdownLine}>
-        {`Pagado: ${totals.paid}`}
+        {"Pagado: "}
+        <span className={cn(styles.groupHeaderTotalsAmount, "text-green-700 dark:text-green-300")}>
+          {totals.paid}
+        </span>
       </span>
       <span className={styles.totalFooterBreakdownLine}>
-        {`Pendiente: ${totals.pending}`}
+        {"Pendiente: "}
+        <span className={cn(styles.groupHeaderTotalsAmount, "text-yellow-700 dark:text-yellow-300")}>
+          {totals.pending}
+        </span>
       </span>
     </span>
   );
@@ -2301,7 +2307,14 @@ export function MonthlyExpensesTable({
                   {groupTotals.total}
                 </span>
                 <span className={styles.groupHeaderTotalsBreakdown}>
-                  {`Pagado: ${groupTotals.paid} · Pendiente: ${groupTotals.pending}`}
+                  {"Pagado: "}
+                  <span className={cn(styles.groupHeaderTotalsAmount, "text-green-700 dark:text-green-300")}>
+                    {groupTotals.paid}
+                  </span>
+                  {" · Pendiente: "}
+                  <span className={cn(styles.groupHeaderTotalsAmount, "text-yellow-700 dark:text-yellow-300")}>
+                    {groupTotals.pending}
+                  </span>
                 </span>
               </span>
             ) : null}
