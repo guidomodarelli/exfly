@@ -3,7 +3,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  // Contenedor propio para que el alta no se lea como otro filtro: borde
+  // punteado + fondo tenue + aire respecto de la barra de filtros.
+  margin: 0.25rem 0 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed color-mix(in srgb, var(--border) 90%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--muted) 30%, transparent);
 }
 
 .quickAddDescription {
