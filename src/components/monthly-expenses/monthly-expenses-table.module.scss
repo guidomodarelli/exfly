@@ -382,9 +382,13 @@
 }
 
 .receiptShareSummaryInfo {
-  color: #713f12;
-  border-color: color-mix(in srgb, #eab308 52%, var(--border));
-  background: color-mix(in srgb, #eab308 22%, var(--background));
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--border) 75%, transparent);
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+
+  .receiptShareSummaryIcon {
+    color: #d97706;
+  }
 }
 
 .tableWrapper :global([data-slot="table-container"]) {

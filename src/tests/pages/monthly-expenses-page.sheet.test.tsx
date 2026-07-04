@@ -1524,7 +1524,7 @@ registerMonthlyExpensesPageDefaultHooks({
       "true",
     );
     expect(
-      screen.getByText("Los labels amarillos subrayados marcan cambios sin guardar."),
+      screen.getByText("El punto junto al label marca cambios sin guardar."),
     ).toBeInTheDocument();
     expect(descriptionInput).toHaveValue("Agua y cloaca");
 

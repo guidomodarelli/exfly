@@ -1233,7 +1233,7 @@ function ExpenseSheetContent({
           <DialogFooter className={styles.footer}>
             {hasPendingChanges ? (
               <p className={styles.changesLegend} role="status">
-                Los labels amarillos subrayados marcan cambios sin guardar.
+                El punto junto al label marca cambios sin guardar.
               </p>
             ) : null}
             <div className={styles.footerActions}>

@@ -98,11 +98,18 @@
 }
 
 .changedFieldLabel {
-  color: #a16207;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, #facc15 75%, #a16207 25%);
-  text-decoration-thickness: 0.14em;
-  text-underline-offset: 0.18em;
+  // Cambio sin guardar: un punto discreto al lado del label, sin teñir el
+  // texto ni subrayarlo.
+  &::after {
+    content: "";
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-left: 0.35rem;
+    border-radius: 9999px;
+    background: var(--primary);
+    vertical-align: middle;
+  }
 }
 
 .changedField {
@@ -275,13 +282,22 @@
 }
 
 .changesLegend {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   margin: 0;
-  padding: 0.7rem 0.85rem;
-  border: 1px solid color-mix(in srgb, #facc15 45%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, #facc15 14%, transparent);
-  color: #a16207;
-  font-size: 0.875rem;
+  padding: 0 1rem;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+
+  &::before {
+    content: "";
+    flex-shrink: 0;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: var(--primary);
+  }
 }
 
 .unsavedChangesContent {

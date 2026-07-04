@@ -3485,44 +3485,6 @@ export function MonthlyExpensesTable({
             )}
             ref={tableWrapperRef}
           >
-            {completedPendingReceiptShareCount > 0 ? (
-              <div
-                aria-live="polite"
-                className={cn(styles.receiptShareSummary, styles.receiptShareSummaryInfo)}
-                role="status"
-              >
-                <AlertTriangle
-                  aria-hidden="true"
-                  className={styles.receiptShareSummaryIcon}
-                />
-                <div className={styles.receiptShareSummaryContent}>
-                  <p className={styles.receiptShareSummaryText}>
-                    {completedPendingReceiptShareMessage}
-                  </p>
-                  <ul className={styles.receiptShareSummaryList}>
-                    {completedPendingReceiptShareExpenses.map((expense) => (
-                      <li
-                        key={expense.expenseId}
-                        className={styles.receiptShareSummaryListItem}
-                      >
-                        <span className={styles.receiptShareSummaryListDescription}>
-                          {expense.displayDescription}
-                        </span>
-                        <Button
-                          aria-label={`Filtrar gasto ${expense.displayDescription}`}
-                          className={styles.receiptShareSummaryFilterButton}
-                          onClick={() => setDescriptionFilter(expense.rawDescription)}
-                          type="button"
-                          variant="ghost"
-                        >
-                          Filtrar
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ) : null}
             {isRestoringTablePreferences || isMonthTransitionPending ? (
               <div
                 aria-label={
@@ -3563,6 +3525,44 @@ export function MonthlyExpensesTable({
               actionDisabled={actionDisabled}
               onQuickAddExpense={onQuickAddExpense}
             />
+            {completedPendingReceiptShareCount > 0 ? (
+              <div
+                aria-live="polite"
+                className={cn(styles.receiptShareSummary, styles.receiptShareSummaryInfo)}
+                role="status"
+              >
+                <AlertTriangle
+                  aria-hidden="true"
+                  className={styles.receiptShareSummaryIcon}
+                />
+                <div className={styles.receiptShareSummaryContent}>
+                  <p className={styles.receiptShareSummaryText}>
+                    {completedPendingReceiptShareMessage}
+                  </p>
+                  <ul className={styles.receiptShareSummaryList}>
+                    {completedPendingReceiptShareExpenses.map((expense) => (
+                      <li
+                        key={expense.expenseId}
+                        className={styles.receiptShareSummaryListItem}
+                      >
+                        <span className={styles.receiptShareSummaryListDescription}>
+                          {expense.displayDescription}
+                        </span>
+                        <Button
+                          aria-label={`Filtrar gasto ${expense.displayDescription}`}
+                          className={styles.receiptShareSummaryFilterButton}
+                          onClick={() => setDescriptionFilter(expense.rawDescription)}
+                          type="button"
+                          variant="ghost"
+                        >
+                          Filtrar
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
             <DataTable
               columnVisibility={columnVisibility}
               columnVisibilityButtonLabel="Vista"
