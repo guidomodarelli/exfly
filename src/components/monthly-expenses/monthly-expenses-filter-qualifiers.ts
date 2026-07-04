@@ -230,16 +230,16 @@ export function buildMonthlyExpensesFilterQualifiers({
     lenders.length > 0
       ? {
           iconName: "user",
-          key: "prestamista",
+          key: "contraparte",
           kind: "enum",
-          label: "Prestamista",
+          label: "Contraparte",
           options: buildLenderQualifierOptions(lenders),
         }
       : {
           iconName: "user",
-          key: "prestamista",
+          key: "contraparte",
           kind: "textMatch",
-          label: "Prestamista",
+          label: "Contraparte",
         },
     {
       columnId: "lenderName",

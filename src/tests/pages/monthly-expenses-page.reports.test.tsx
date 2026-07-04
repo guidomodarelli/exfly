@@ -3118,7 +3118,7 @@ registerMonthlyExpensesPageDefaultHooks({
       .getAllByRole("columnheader")
       .map((header) => header.textContent?.trim() ?? "");
     const loanHeaderIndex = headers.indexOf("Deuda / cuotas");
-    const lenderHeaderIndex = headers.indexOf("Prestamista");
+    const lenderHeaderIndex = headers.indexOf("Contraparte");
     const vigenciaHeaderIndex = headers.indexOf("Vigencia");
 
     expect(loanHeaderIndex).toBeGreaterThanOrEqual(0);

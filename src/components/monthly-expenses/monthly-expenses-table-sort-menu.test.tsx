@@ -150,7 +150,7 @@ describe("MonthlyExpensesTable sort menu", () => {
       "Total",
       "USD",
       "Pagos",
-      "Prestamista",
+      "Contraparte",
       "Vigencia",
     ]) {
       expect(

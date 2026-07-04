@@ -3141,8 +3141,11 @@ registerMonthlyExpensesPageDefaultHooks({
     await user.click(screen.getByLabelText("Es deuda/préstamo"));
     await user.type(screen.getByLabelText("Descripción"), "Prestamo a proveedor");
     await user.type(screen.getByLabelText("Subtotal"), "10000");
-    await user.click(screen.getByRole("combobox", { name: "Dirección del préstamo" }));
-    await user.click(screen.getByRole("option", { name: "Me deben" }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Yo soy el prestamista (me deben)",
+      }),
+    );
     await user.type(screen.getByLabelText("Cantidad total de cuotas"), "3");
     fireEvent.change(screen.getByLabelText("Inicio de la deuda"), {
       target: { value: "2026-01" },

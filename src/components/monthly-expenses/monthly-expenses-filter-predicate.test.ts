@@ -429,7 +429,7 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
 
   it("matches prestamista by lender id (enum)", () => {
     const matches = predicate([
-      { key: "prestamista", negated: false, value: { kind: "enum", value: "lender-1" } },
+      { key: "contraparte", negated: false, value: { kind: "enum", value: "lender-1" } },
     ]);
 
     expect(matches(createRow({ lenderId: "lender-1" }))).toBe(true);
@@ -443,7 +443,7 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
       lenderNamesById: new Map([["lender-1", "Juan Pérez"]]),
     };
     const matches = buildMonthlyExpensesQueryPredicate(
-      [{ key: "prestamista", negated: false, value: { kind: "enum", value: "lender-1" } }],
+      [{ key: "contraparte", negated: false, value: { kind: "enum", value: "lender-1" } }],
       context,
     );
 
@@ -461,7 +461,7 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
     // todas las filas como no-op.
     const matches = predicate([
       {
-        key: "prestamista",
+        key: "contraparte",
         negated: false,
         value: { kind: "textMatch", op: "contains", text: "juan" },
       },
@@ -476,14 +476,14 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
   it("textMatch prestamista with has/notHas ops", () => {
     const matchesHas = predicate([
       {
-        key: "prestamista",
+        key: "contraparte",
         negated: false,
         value: { kind: "textMatch", op: "has" },
       },
     ]);
     const matchesNotHas = predicate([
       {
-        key: "prestamista",
+        key: "contraparte",
         negated: false,
         value: { kind: "textMatch", op: "notHas" },
       },
@@ -498,7 +498,7 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
   it("ANDs multiple filters of different kinds", () => {
     const matches = predicate([
       { key: "subtotal", negated: false, value: { kind: "numberRange", min: 500 } },
-      { key: "prestamista", negated: false, value: { kind: "enum", value: "lender-1" } },
+      { key: "contraparte", negated: false, value: { kind: "enum", value: "lender-1" } },
     ]);
 
     expect(matches(createRow({ subtotal: "1000", lenderId: "lender-1" }))).toBe(true);

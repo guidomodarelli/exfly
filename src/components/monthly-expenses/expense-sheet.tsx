@@ -803,30 +803,39 @@ function ExpenseSheetContent({
 
                   {draft.isLoan ? (
                     <>
-                    <div className={styles.fieldGroup}>
-                      <Label htmlFor="expense-loan-direction">
-                        {getFieldLabel(
-                          "Dirección",
-                          changedFields.has("loanDirection"),
-                        )}
-                      </Label>
-                      <Select
-                        onValueChange={(value) =>
-                          onFieldChange("loanDirection", value)
-                        }
-                        value={draft.loanDirection ?? "payable"}
-                      >
-                        <SelectTrigger
-                          aria-label="Dirección del préstamo"
+                    {/* La dirección se deriva de quién presta: el toggle
+                        marca al usuario logueado como prestamista (me deben);
+                        apagado, la contraparte es quien prestó (yo debo). */}
+                    <div className={styles.loanToggleRow}>
+                      <div className={styles.fieldControlWrapper}>
+                        <input
+                          checked={(draft.loanDirection ?? "payable") === "receivable"}
+                          className={styles.loanToggle}
                           id="expense-loan-direction"
-                        >
-                          <SelectValue placeholder="Dirección del préstamo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="payable">Yo debo</SelectItem>
-                          <SelectItem value="receivable">Me deben</SelectItem>
-                        </SelectContent>
-                      </Select>
+                          onChange={(event) =>
+                            onFieldChange(
+                              "loanDirection",
+                              event.target.checked ? "receivable" : "payable",
+                            )
+                          }
+                          type="checkbox"
+                        />
+                      </div>
+                      <div className={styles.loanToggleLabelGroup}>
+                        <Label htmlFor="expense-loan-direction">
+                          {getFieldLabel(
+                            "Yo soy el prestamista (me deben)",
+                            changedFields.has("loanDirection"),
+                          )}
+                        </Label>
+                        <LoanInfoPopover
+                          message={
+                            (draft.loanDirection ?? "payable") === "receivable"
+                              ? "La contraparte te debe esta deuda."
+                              : "Le debés esta deuda a la contraparte."
+                          }
+                        />
+                      </div>
                     </div>
 
                     <div className={styles.fieldGroup}>

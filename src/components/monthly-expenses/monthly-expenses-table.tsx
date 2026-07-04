@@ -260,7 +260,7 @@ const SORT_LABELS_BY_COLUMN_ID: Record<string, string> = {
   total: "Total",
   usd: "USD",
   paymentsProgress: "Pagos",
-  lenderName: "Prestamista",
+  lenderName: "Contraparte",
   [LOAN_INSTALLMENT_RANGE_COLUMN_ID]: "Vigencia",
 };
 
@@ -3134,8 +3134,8 @@ export function MonthlyExpensesTable({
             filterValue,
             getLoanDirectionFilterValue(row.original),
           ),
-        header: getSortableHeader("Prestamista"),
-        meta: { label: "Prestamista" },
+        header: getSortableHeader("Contraparte"),
+        meta: { label: "Contraparte" },
         sortingFn: (rowA, rowB) => {
           const relevanceComparison = compareRowsByDescriptionFilterRelevance(
             rowA.original,

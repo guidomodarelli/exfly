@@ -291,7 +291,10 @@ describe("ExpenseSheet", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the loan direction selector for loans", () => {
+  it("derives the loan direction from the self-lender toggle", async () => {
+    const user = userEvent.setup();
+    const onFieldChange = jest.fn();
+
     renderExpenseSheet({
       draft: {
         ...createDraftRow(),
@@ -302,11 +305,18 @@ describe("ExpenseSheet", () => {
         loanDirection: "receivable",
         startMonth: "2026-01",
       },
+      onFieldChange,
     });
 
-    expect(screen.getByLabelText("Dirección del préstamo")).toHaveTextContent(
-      "Me deben",
-    );
+    const selfLenderToggle = screen.getByRole("checkbox", {
+      name: "Yo soy el prestamista (me deben)",
+    });
+
+    expect(selfLenderToggle).toBeChecked();
+
+    await user.click(selfLenderToggle);
+
+    expect(onFieldChange).toHaveBeenCalledWith("loanDirection", "payable");
   });
 
   it("hides the loan checkbox while editing a non-loan expense", () => {

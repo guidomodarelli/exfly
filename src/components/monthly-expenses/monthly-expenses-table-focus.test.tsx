@@ -61,7 +61,7 @@ describe("MonthlyExpensesTable dialog autofocus", () => {
     ]);
 
     expect(
-      screen.getByRole("columnheader", { name: "Prestamista" }),
+      screen.getByRole("columnheader", { name: "Contraparte" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "Dirección" }),

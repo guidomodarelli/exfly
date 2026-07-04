@@ -35,7 +35,7 @@ export interface MonthlyExpenseFilterContext {
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
   /**
    * Nombre mostrado de cada prestamista por id. Permite que el enum
-   * `prestamista:<slug>` siga matcheando filas legacy que solo guardan
+   * `contraparte:<slug>` siga matcheando filas legacy que solo guardan
    * `lenderName` (sin `lenderId`), resolviendo el id seleccionado a su nombre.
    */
   lenderNamesById?: ReadonlyMap<string, string>;
@@ -133,7 +133,7 @@ function numberRangeMatcher(
 /**
  * Fallback de prestamista para filas legacy: documentos previos al id estable
  * guardan solo `lenderName` (con `lenderId` vacío) pero la tabla igual muestra
- * el nombre. Como el enum filtra por id, sin esto `prestamista:<slug>` excluiría
+ * el nombre. Como el enum filtra por id, sin esto `contraparte:<slug>` excluiría
  * la fila visible aunque el nombre coincida. Resuelve el id seleccionado a su
  * nombre vía el contexto y lo compara, normalizado, contra el nombre mostrado.
  */
@@ -218,7 +218,7 @@ export const MONTHLY_EXPENSES_FILTER_MATCHERS: Record<
       isPaymentCompleted(row) ? "completed" : "pending",
     ),
   moneda: (row, value) => matchesAdvancedEnumFilter(value, row.currency),
-  prestamista: (row, value, context) =>
+  contraparte: (row, value, context) =>
     value.kind === "textMatch"
       ? matchesTextMatch(value, row.lenderName)
       : matchesAdvancedEnumFilter(value, row.lenderId) ||
@@ -295,7 +295,7 @@ export const MONTHLY_EXPENSES_PRESENCE_PREDICATES: Record<
   // Todo gasto tiene estado y moneda: `tiene:`/`no:` no discriminan nada.
   estado: () => true,
   moneda: () => true,
-  prestamista: (row) => hasText(row.lenderName),
+  contraparte: (row) => hasText(row.lenderName),
   direccion: (row) => row.isLoan,
   deuda: (row) => row.isLoan && row.loanProgress.trim().length > 0,
   // Cubre recurrencias activas y canceladas, igual que el ícono de la fila.

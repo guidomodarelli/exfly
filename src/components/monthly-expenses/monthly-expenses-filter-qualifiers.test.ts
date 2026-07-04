@@ -47,7 +47,7 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
       "cuotas-restantes",
       "cuotas-total",
       "link",
-      "prestamista",
+      "contraparte",
       "direccion",
       "deuda",
       "recurrencia",
@@ -70,7 +70,7 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
     );
 
     expect(byKey.get("link")?.kind).toBe("textMatch");
-    expect(byKey.get("prestamista")?.kind).toBe("enum");
+    expect(byKey.get("contraparte")?.kind).toBe("enum");
     expect(byKey.get("carpeta")?.kind).toBe("folder");
     expect(byKey.get("subtotal")?.kind).toBe("numberRange");
     expect(byKey.get("subtotal")?.columnId).toBeUndefined();
@@ -100,7 +100,7 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
 
   it("builds prestamista options from the loaded lenders with a person icon", () => {
     const prestamista = buildQualifiers().find(
-      (qualifier) => qualifier.key === "prestamista",
+      (qualifier) => qualifier.key === "contraparte",
     );
 
     expect(prestamista?.iconName).toBe("user");
@@ -240,7 +240,7 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
     const prestamista = buildMonthlyExpensesFilterQualifiers({
       expenseFolders: [],
       lenders: [],
-    }).find((qualifier) => qualifier.key === "prestamista");
+    }).find((qualifier) => qualifier.key === "contraparte");
 
     expect(prestamista?.kind).toBe("textMatch");
     expect(prestamista?.iconName).toBe("user");
@@ -250,7 +250,7 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
   it("uses enum kind for prestamista when the lender catalog has entries", () => {
     // Confirma que la rama enum sigue activa cuando hay lenders cargados.
     const prestamista = buildQualifiers().find(
-      (qualifier) => qualifier.key === "prestamista",
+      (qualifier) => qualifier.key === "contraparte",
     );
 
     expect(prestamista?.kind).toBe("enum");
