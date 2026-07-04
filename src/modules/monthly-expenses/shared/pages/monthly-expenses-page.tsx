@@ -447,6 +447,41 @@ interface PendingUsdRateIntent {
   shouldFlushAfterRequest: boolean;
 }
 
+/** Row-shaped snapshot of the fields the details dialog edits. */
+interface ExpenseDetailsSnapshot {
+  occurrencesPerMonth: string;
+  occurrencesUnit: string;
+  subtotal: string;
+  subtotalUnit: MonthlyExpenseSubtotalUnit;
+}
+
+/**
+ * Pending optimistic mutation for a row's subtotal/quantity, keyed by expense
+ * id. Same shape as the USD-rate intent but without a debounce: the dialog
+ * submit is deliberate, so it flushes immediately and only coalesces edits
+ * that arrive while a request is in flight.
+ */
+interface PendingExpenseDetailsIntent {
+  baselineDetails: ExpenseDetailsSnapshot;
+  intendedDetails: ExpenseDetailsSnapshot;
+  isRequestInFlight: boolean;
+  /** Month the intent belongs to; a flush for another month is stale. */
+  month: string;
+  shouldFlushAfterRequest: boolean;
+}
+
+function areExpenseDetailsEqual(
+  leftDetails: ExpenseDetailsSnapshot,
+  rightDetails: ExpenseDetailsSnapshot,
+): boolean {
+  return (
+    leftDetails.occurrencesPerMonth === rightDetails.occurrencesPerMonth &&
+    leftDetails.occurrencesUnit === rightDetails.occurrencesUnit &&
+    leftDetails.subtotal === rightDetails.subtotal &&
+    leftDetails.subtotalUnit === rightDetails.subtotalUnit
+  );
+}
+
 function areUsdRateSettingsEqual(
   leftUsdRate: MonthlyExpenseUsdRateSettings,
   rightUsdRate: MonthlyExpenseUsdRateSettings,
@@ -1890,6 +1925,9 @@ export default function MonthlyExpensesPage({
   const pendingUsdRateIntentsByExpenseIdRef = useRef(
     new Map<string, PendingUsdRateIntent>(),
   );
+  const pendingExpenseDetailsIntentsByExpenseIdRef = useRef(
+    new Map<string, PendingExpenseDetailsIntent>(),
+  );
   const latestFormStateRef = useRef(formState);
 
   useEffect(() => {
@@ -2532,12 +2570,18 @@ export default function MonthlyExpensesPage({
     },
     options: {
       hasReplicatedFromPreviousMonth?: boolean;
+      /**
+       * Optimistic background saves keep the table interactive: they skip the
+       * global `isSubmitting` flag so other actions stay enabled meanwhile.
+       */
+      markSubmitting?: boolean;
       showToast?: boolean;
       throwOnError?: boolean;
     } = {},
   ) => {
     const {
       hasReplicatedFromPreviousMonth = formState.hasReplicatedFromPreviousMonth,
+      markSubmitting = true,
       showToast = true,
       throwOnError = false,
     } = options;
@@ -2551,7 +2595,7 @@ export default function MonthlyExpensesPage({
       ...currentState,
       error: null,
       errorCode: null,
-      isSubmitting: true,
+      ...(markSubmitting ? { isSubmitting: true } : {}),
     }));
 
     try {
@@ -4008,11 +4052,19 @@ export default function MonthlyExpensesPage({
     pendingIntent.shouldFlushAfterRequest = false;
 
     const flushedUsdRate = { ...pendingIntent.intendedUsdRate };
-    const rowsToPersist = latestFormStateRef.current.rows;
-    const wasSaved = await persistMonthlyExpensesRows(rowsToPersist, {
-      loading: "Guardando tipo de cambio...",
-      success: "Tipo de cambio guardado correctamente.",
-    });
+    // Apply the intent over the latest rows instead of trusting the render
+    // cycle to have flushed the optimistic state into the ref already.
+    const rowsToPersist = latestFormStateRef.current.rows.map((row) =>
+      row.id === expenseId ? { ...row, usdRate: { ...flushedUsdRate } } : row,
+    );
+    const wasSaved = await persistMonthlyExpensesRows(
+      rowsToPersist,
+      {
+        loading: "Guardando tipo de cambio...",
+        success: "Tipo de cambio guardado correctamente.",
+      },
+      { markSubmitting: false },
+    );
 
     pendingIntent.isRequestInFlight = false;
 
@@ -4134,6 +4186,113 @@ export default function MonthlyExpensesPage({
     schedulePendingUsdRateIntentFlush(expenseId);
   };
 
+  const applyExpenseDetailsToRows = ({
+    details,
+    expenseId,
+  }: {
+    details: ExpenseDetailsSnapshot;
+    expenseId: string;
+  }) => {
+    updateFormState((currentState) => ({
+      ...currentState,
+      // normalizeEditableRows recomputes the derived total for the new
+      // subtotal/quantity, so the optimistic row shows the right amount.
+      rows: normalizeEditableRows(
+        currentState.month,
+        currentState.rows.map((row) =>
+          row.id === expenseId ? { ...row, ...details } : row,
+        ),
+      ),
+    }));
+  };
+
+  const flushPendingExpenseDetailsIntent = async (expenseId: string) => {
+    const pendingIntent =
+      pendingExpenseDetailsIntentsByExpenseIdRef.current.get(expenseId);
+
+    if (!pendingIntent) {
+      return;
+    }
+
+    // Stale-scope guard: the month changed, so the rows no longer belong to
+    // the document this intent was captured against.
+    if (latestFormStateRef.current.month !== pendingIntent.month) {
+      pendingExpenseDetailsIntentsByExpenseIdRef.current.delete(expenseId);
+      return;
+    }
+
+    // Back to baseline: nothing meaningful to persist.
+    if (
+      areExpenseDetailsEqual(
+        pendingIntent.intendedDetails,
+        pendingIntent.baselineDetails,
+      )
+    ) {
+      pendingExpenseDetailsIntentsByExpenseIdRef.current.delete(expenseId);
+      return;
+    }
+
+    if (pendingIntent.isRequestInFlight) {
+      pendingIntent.shouldFlushAfterRequest = true;
+      return;
+    }
+
+    pendingIntent.isRequestInFlight = true;
+    pendingIntent.shouldFlushAfterRequest = false;
+
+    const flushedDetails = { ...pendingIntent.intendedDetails };
+    // Apply the intent over the latest rows instead of trusting the render
+    // cycle to have flushed the optimistic state into the ref already.
+    const rowsToPersist = normalizeEditableRows(
+      latestFormStateRef.current.month,
+      latestFormStateRef.current.rows.map((row) =>
+        row.id === expenseId ? { ...row, ...flushedDetails } : row,
+      ),
+    );
+    const wasSaved = await persistMonthlyExpensesRows(
+      rowsToPersist,
+      {
+        loading: "Actualizando gasto...",
+        success: "Gasto actualizado.",
+      },
+      { markSubmitting: false },
+    );
+
+    pendingIntent.isRequestInFlight = false;
+
+    if (!wasSaved) {
+      // Rollback to the captured baseline, not to any intermediate state.
+      applyExpenseDetailsToRows({
+        details: pendingIntent.baselineDetails,
+        expenseId,
+      });
+      pendingExpenseDetailsIntentsByExpenseIdRef.current.delete(expenseId);
+      toast.error("No pudimos actualizar el gasto.");
+      return;
+    }
+
+    const hasNewerIntent =
+      pendingIntent.shouldFlushAfterRequest ||
+      !areExpenseDetailsEqual(pendingIntent.intendedDetails, flushedDetails);
+
+    if (!hasNewerIntent) {
+      pendingExpenseDetailsIntentsByExpenseIdRef.current.delete(expenseId);
+      return;
+    }
+
+    // The response is older than the latest intent: promote what was just
+    // persisted to the new baseline, reapply the latest intent on top (the
+    // save response overwrote the rows with the flushed snapshot) and flush
+    // again.
+    pendingIntent.baselineDetails = flushedDetails;
+    pendingIntent.shouldFlushAfterRequest = false;
+    applyExpenseDetailsToRows({
+      details: pendingIntent.intendedDetails,
+      expenseId,
+    });
+    void flushPendingExpenseDetailsIntent(expenseId);
+  };
+
   const handleUpdateExpenseDetails = async ({
     expenseId,
     occurrencesPerMonth,
@@ -4204,29 +4363,45 @@ export default function MonthlyExpensesPage({
       return;
     }
 
-    const nextRows = normalizeEditableRows(
-      formState.month,
-      formState.rows.map((row) =>
-        row.id === expenseId
-          ? {
-              ...row,
-              occurrencesPerMonth: formatEditableNumber(occurrencesPerMonth),
-              occurrencesUnit: normalizedOccurrencesUnit,
-              subtotal: formatEditableNumber(subtotal),
-              subtotalUnit,
-            }
-          : row,
-      ),
-    );
+    const intendedDetails: ExpenseDetailsSnapshot = {
+      occurrencesPerMonth: formatEditableNumber(occurrencesPerMonth),
+      occurrencesUnit: normalizedOccurrencesUnit,
+      subtotal: formatEditableNumber(subtotal),
+      subtotalUnit,
+    };
+    const pendingIntents = pendingExpenseDetailsIntentsByExpenseIdRef.current;
+    let pendingIntent = pendingIntents.get(expenseId);
 
-    const wasSaved = await persistMonthlyExpensesRows(nextRows, {
-      loading: "Actualizando gasto...",
-      success: "Gasto actualizado.",
-    });
-
-    if (!wasSaved) {
-      toast.error("No pudimos actualizar el gasto.");
+    if (!pendingIntent) {
+      // First edit of the burst: the visible row still holds persisted state,
+      // so it is the baseline for skip-on-return and rollback.
+      pendingIntent = {
+        baselineDetails: {
+          occurrencesPerMonth: expenseRow.occurrencesPerMonth,
+          occurrencesUnit: expenseRow.occurrencesUnit,
+          subtotal: expenseRow.subtotal,
+          subtotalUnit: expenseRow.subtotalUnit ?? "occurrence",
+        },
+        intendedDetails,
+        isRequestInFlight: false,
+        month: latestFormStateRef.current.month,
+        shouldFlushAfterRequest: false,
+      };
+      pendingIntents.set(expenseId, pendingIntent);
+    } else {
+      pendingIntent.intendedDetails = intendedDetails;
     }
+
+    // Optimistic feedback first: the row (and its derived total) update
+    // immediately; the request follows.
+    applyExpenseDetailsToRows({ details: intendedDetails, expenseId });
+
+    if (pendingIntent.isRequestInFlight) {
+      pendingIntent.shouldFlushAfterRequest = true;
+      return;
+    }
+
+    await flushPendingExpenseDetailsIntent(expenseId);
   };
 
   const handleUpdateExpenseReceiptShare = async ({

@@ -1982,7 +1982,9 @@ export function MonthlyExpensesTable({
 
     setOccurrencesDraftError(null);
     setOccurrencesUnitDraftError(null);
-    await onUpdateExpenseDetails({
+    // Optimistic save: the row updates immediately on the caller side, so the
+    // dialog closes without waiting for the request to resolve.
+    void onUpdateExpenseDetails({
       expenseId: detailsDialogState.expenseId,
       occurrencesPerMonth: normalizedOccurrences,
       occurrencesUnit: occurrencesUnitForSave,
