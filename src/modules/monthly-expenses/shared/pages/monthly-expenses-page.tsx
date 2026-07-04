@@ -3957,6 +3957,47 @@ export default function MonthlyExpensesPage({
       return false;
     }
 
+    // Optimista: el pago se refleja al instante con un registro provisorio y
+    // el dialog se cierra; la subida a Drive + guardado siguen en background.
+    const optimisticPaymentRecordId = createPaymentRecordId();
+    const optimisticRegisteredAt = new Date().toISOString();
+
+    updateFormState((currentState) => ({
+      ...currentState,
+      rows: currentState.rows.map((row) =>
+        row.id === expenseId
+          ? synchronizeRowPaymentCoverage({
+              ...row,
+              paymentRecords: [
+                ...(row.paymentRecords ?? []),
+                {
+                  coveredPayments,
+                  id: optimisticPaymentRecordId,
+                  registeredAt: optimisticRegisteredAt,
+                },
+              ],
+            })
+          : row,
+      ),
+    }));
+
+    const removeOptimisticPaymentRecord = () => {
+      updateFormState((currentState) => ({
+        ...currentState,
+        rows: currentState.rows.map((row) =>
+          row.id === expenseId
+            ? synchronizeRowPaymentCoverage({
+                ...row,
+                paymentRecords: (row.paymentRecords ?? []).filter(
+                  (paymentRecord) =>
+                    paymentRecord.id !== optimisticPaymentRecordId,
+                ),
+              })
+            : row,
+        ),
+      }));
+    };
+
     const registerReceiptPromise = (async (): Promise<boolean> => {
       const contentBase64 = await fileToBase64WithProgress(file, () => undefined);
       const receiptUpload = await uploadMonthlyExpenseReceiptViaApi({
@@ -3968,7 +4009,9 @@ export default function MonthlyExpensesPage({
         mimeType: receiptMimeType,
       });
 
-      const nextRows = formState.rows.map((row) =>
+      // Reemplaza el registro provisorio por el definitivo con comprobante,
+      // sobre el estado mas reciente (pudo haber otros cambios en el medio).
+      const nextRows = latestFormStateRef.current.rows.map((row) =>
         row.id === expenseRow.id
           ? synchronizeRowPaymentCoverage({
               ...row,
@@ -3979,7 +4022,10 @@ export default function MonthlyExpensesPage({
               monthlyFolderStatus: undefined,
               monthlyFolderViewUrl: receiptUpload.monthlyFolderViewUrl,
               paymentRecords: [
-                ...(row.paymentRecords ?? []),
+                ...(row.paymentRecords ?? []).filter(
+                  (paymentRecord) =>
+                    paymentRecord.id !== optimisticPaymentRecordId,
+                ),
                 {
                   coveredPayments: receiptUpload.coveredPayments,
                   id: createPaymentRecordId(),
@@ -4008,6 +4054,7 @@ export default function MonthlyExpensesPage({
           success: "Comprobante subido correctamente.",
         },
         {
+          markSubmitting: false,
           showToast: false,
           throwOnError: true,
         },
@@ -4027,11 +4074,14 @@ export default function MonthlyExpensesPage({
       },
     );
 
-    try {
-      return await registerReceiptPromise;
-    } catch {
-      return false;
-    }
+    void registerReceiptPromise.catch(async (registerError) => {
+      removeOptimisticPaymentRecord();
+      await handleAuthenticationRecovery(registerError);
+    });
+
+    // El dialog se cierra ya: la fila muestra el pago provisorio y el toast
+    // acompana el resto del flujo en background.
+    return true;
   };
 
   const handleDeleteManualPaymentRecord = async ({

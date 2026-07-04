@@ -1094,13 +1094,21 @@
 }
 
 .receiptShareStatusPending {
-  color: #875500;
-  background: color-mix(in srgb, #fbbc04 18%, var(--background));
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+
+  svg {
+    color: #d97706;
+  }
 }
 
 .receiptShareStatusSent {
-  color: #1b6f36;
-  background: color-mix(in srgb, #34a853 16%, var(--background));
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+
+  svg {
+    color: #16a34a;
+  }
 }
 
 .paymentLinkActionButton {
