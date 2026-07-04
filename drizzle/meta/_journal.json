@@ -113,6 +113,13 @@
       "when": 1783123535496,
       "tag": "0015_jazzy_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1783212000000,
+      "tag": "0016_usd_rate_surcharges",
+      "breakpoints": true
     }
   ]
 }

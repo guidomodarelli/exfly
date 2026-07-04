@@ -212,9 +212,14 @@ const googleDriveMonthlyExpenseItemSchema = z.object({
   receipts: z.array(monthlyExpenseReceiptSchema).optional(),
   subtotal: z.number().positive(),
   subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
-  customUsdRate: z.number().positive().nullable().optional(),
-  usdRateType: z
-    .enum(["blue", "officialWithIibb", "official", "custom"])
+  usdRate: z
+    .object({
+      appliesIibb: z.boolean().optional(),
+      appliesIva: z.boolean().optional(),
+      base: z.enum(["blue", "official", "custom"]),
+      customRate: z.number().positive().nullable().optional(),
+    })
+    .strict()
     .nullable()
     .optional(),
 }).strict().superRefine((value, context) => {
@@ -298,7 +303,6 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
         items: document.items.map(
           ({
             currency,
-            customUsdRate,
             description,
             folders,
             id,
@@ -316,7 +320,7 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             receipts,
             subtotal,
             subtotalUnit,
-            usdRateType,
+            usdRate,
           }) => ({
             currency,
             description,
@@ -396,8 +400,18 @@ export function mapMonthlyExpensesDocumentToGoogleDriveFile(
             occurrencesPerMonth,
             ...(occurrencesUnit ? { occurrencesUnit } : {}),
             paymentLink,
-            ...(usdRateType ? { usdRateType } : {}),
-            ...(customUsdRate !== undefined ? { customUsdRate } : {}),
+            ...(usdRate
+              ? {
+                  usdRate: {
+                    appliesIibb: usdRate.appliesIibb,
+                    appliesIva: usdRate.appliesIva,
+                    base: usdRate.base,
+                    ...(usdRate.customRate !== undefined
+                      ? { customRate: usdRate.customRate }
+                      : {}),
+                  },
+                }
+              : {}),
             ...(receiptShareMessage
               ? { receiptShareMessage }
               : {}),
@@ -535,12 +549,7 @@ export function parseGoogleDriveMonthlyExpensesContent(
           ...(item.subtotalUnit !== undefined
             ? { subtotalUnit: item.subtotalUnit }
             : {}),
-          ...(item.usdRateType != null
-            ? { usdRateType: item.usdRateType }
-            : {}),
-          ...(item.customUsdRate != null
-            ? { customUsdRate: item.customUsdRate }
-            : {}),
+          ...(item.usdRate != null ? { usdRate: item.usdRate } : {}),
         };
       }),
     };

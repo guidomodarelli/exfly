@@ -42,8 +42,12 @@ function createDraftRow(): MonthlyExpensesEditableRow {
     subtotal: "100",
     subtotalUnit: "occurrence",
     total: "100.00",
-    customUsdRate: null,
-    usdRateType: "officialWithIibb",
+    usdRate: {
+      appliesIibb: true,
+      appliesIva: false,
+      base: "official" as const,
+      customRate: null,
+    },
   };
 }
 

@@ -205,10 +205,12 @@ import type {
   MonthlyExpenseSubtotalUnit,
   MonthlyExpensesEditableRow,
   MonthlyExpensesReplicableOption,
-  MonthlyExpenseUsdRateType,
+  MonthlyExpenseUsdRateBase,
+  MonthlyExpenseUsdRateSettings,
   TechnicalErrorCode,
   VigenciaSortMode,
 } from "./monthly-expenses-table.types";
+import { DEFAULT_USD_RATE_SETTINGS } from "./monthly-expenses-table.types";
 
 export type {
   MonthlyExpenseDriveResourceStatus,
@@ -582,9 +584,8 @@ interface MonthlyExpensesTableProps {
     paymentLink: string;
   }) => void | Promise<void>;
   onUpdateUsdRate: (args: {
-    customUsdRate: number | null;
     expenseId: string;
-    usdRateType: MonthlyExpenseUsdRateType;
+    usdRate: MonthlyExpenseUsdRateSettings;
   }) => void | Promise<void>;
   onUpdateExpenseDetails: (args: {
     expenseId: string;
@@ -884,16 +885,14 @@ function getExcludeFilterMetrics(
 }
 
 function formatArsWithUsdSecondary({
-  customUsdRate,
   exchangeRateSnapshot,
   rowCurrency,
-  usdRateType,
+  usdRate,
   value,
 }: {
-  customUsdRate: number | null;
   exchangeRateSnapshot: ExchangeRateSnapshot | null;
   rowCurrency: MonthlyExpenseCurrency;
-  usdRateType: MonthlyExpenseUsdRateType;
+  usdRate: MonthlyExpenseUsdRateSettings;
   value: string;
 }) {
   if (rowCurrency === "ARS") {
@@ -902,11 +901,10 @@ function formatArsWithUsdSecondary({
 
   const arsAmount = getConvertedAmountForCurrency({
     currency: "ARS",
-    customUsdRate,
     exchangeRateSnapshot,
     rowCurrency,
     total: Number(value),
-    usdRateType,
+    usdRate,
   });
 
   return (
@@ -1881,11 +1879,18 @@ export function MonthlyExpensesTable({
       return;
     }
 
+    const currentUsdRate =
+      rows.find((row) => row.id === customUsdRateDialogState.expenseId)
+        ?.usdRate ?? DEFAULT_USD_RATE_SETTINGS;
+
     setCustomUsdRateDraftError(null);
     await onUpdateUsdRate({
-      customUsdRate: parsedCustomUsdRate,
       expenseId: customUsdRateDialogState.expenseId,
-      usdRateType: "custom",
+      usdRate: {
+        ...currentUsdRate,
+        base: "custom",
+        customRate: parsedCustomUsdRate,
+      },
     });
     handleCloseCustomUsdRateDialog();
   };
@@ -2366,10 +2371,10 @@ export function MonthlyExpensesTable({
                 })}
               {...(row.original.currency === "USD"
                 ? {
-                    onSelectUsdRateType: (usdRateType: MonthlyExpenseUsdRateType) => {
-                      if (usdRateType === "custom") {
+                    onSelectUsdRateBase: (usdRateBase: MonthlyExpenseUsdRateBase) => {
+                      if (usdRateBase === "custom") {
                         handleOpenCustomUsdRateDialog({
-                          customUsdRate: row.original.customUsdRate,
+                          customUsdRate: row.original.usdRate.customRate,
                           expenseDescription: expenseDescriptionLabel,
                           expenseId: row.original.id,
                         });
@@ -2377,12 +2382,26 @@ export function MonthlyExpensesTable({
                       }
 
                       void onUpdateUsdRate({
-                        customUsdRate: null,
                         expenseId: row.original.id,
-                        usdRateType,
+                        usdRate: {
+                          ...row.original.usdRate,
+                          base: usdRateBase,
+                          customRate: null,
+                        },
                       });
                     },
-                    usdRateType: row.original.usdRateType,
+                    onToggleUsdRateSurcharge: (surcharge: "iibb" | "iva") => {
+                      void onUpdateUsdRate({
+                        expenseId: row.original.id,
+                        usdRate: {
+                          ...row.original.usdRate,
+                          ...(surcharge === "iibb"
+                            ? { appliesIibb: !row.original.usdRate.appliesIibb }
+                            : { appliesIva: !row.original.usdRate.appliesIva }),
+                        },
+                      });
+                    },
+                    usdRate: row.original.usdRate,
                   }
                 : {})}
             />
@@ -2531,10 +2550,9 @@ export function MonthlyExpensesTable({
             (subtotalUnit === "hour" || occurrencesPerMonth !== 1);
           const formatRowArsAmount = (value: string) =>
             formatArsWithUsdSecondary({
-              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
-              usdRateType: row.original.usdRateType,
+              usdRate: row.original.usdRate,
               value,
             });
 
@@ -2616,10 +2634,9 @@ export function MonthlyExpensesTable({
           matchesAdvancedNumberRangeFilter(
             filterValue,
             getArsComparableAmount({
-              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
-              usdRateType: row.original.usdRateType,
+              usdRate: row.original.usdRate,
               value: row.original.total,
             }),
           ),
@@ -2638,17 +2655,15 @@ export function MonthlyExpensesTable({
           return compareValuesKeepingInvalidLast({
             compareValidValues: (leftValue, rightValue) => leftValue - rightValue,
             leftValue: getArsComparableAmount({
-              customUsdRate: rowA.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: rowA.original.currency,
-              usdRateType: rowA.original.usdRateType,
+              usdRate: rowA.original.usdRate,
               value: rowA.original.total,
             }),
             rightValue: getArsComparableAmount({
-              customUsdRate: rowB.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: rowB.original.currency,
-              usdRateType: rowB.original.usdRateType,
+              usdRate: rowB.original.usdRate,
               value: rowB.original.total,
             }),
             sortDirection: getSortDirection("total"),
@@ -2661,11 +2676,10 @@ export function MonthlyExpensesTable({
           const total = Number(row.original.total);
           const usdAmount = getConvertedAmountForCurrency({
             currency: "USD",
-            customUsdRate: row.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: row.original.currency,
             total,
-            usdRateType: row.original.usdRateType,
+            usdRate: row.original.usdRate,
           });
 
           return formatConvertedAmount("USD", usdAmount);
@@ -2675,11 +2689,10 @@ export function MonthlyExpensesTable({
             filterValue,
             getConvertedAmountForCurrency({
               currency: "USD",
-              customUsdRate: row.original.customUsdRate,
               exchangeRateSnapshot,
               rowCurrency: row.original.currency,
               total: Number(row.original.total),
-              usdRateType: row.original.usdRateType,
+              usdRate: row.original.usdRate,
             }),
           ),
         footer: ({ table }) => (
@@ -2703,19 +2716,17 @@ export function MonthlyExpensesTable({
 
           const leftAmount = getConvertedAmountForCurrency({
             currency: "USD",
-            customUsdRate: rowA.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: rowA.original.currency,
             total: Number(rowA.original.total),
-            usdRateType: rowA.original.usdRateType,
+            usdRate: rowA.original.usdRate,
           });
           const rightAmount = getConvertedAmountForCurrency({
             currency: "USD",
-            customUsdRate: rowB.original.customUsdRate,
             exchangeRateSnapshot,
             rowCurrency: rowB.original.currency,
             total: Number(rowB.original.total),
-            usdRateType: rowB.original.usdRateType,
+            usdRate: rowB.original.usdRate,
           });
 
           return compareValuesKeepingInvalidLast({

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b8953019-eec8-4b79-b0aa-6c9386be8452",
+  "id": "68c26781-e268-4c36-881b-7776b768cecd",
   "prevId": "ca196d77-4d4d-42dd-ba44-1e63caf38a85",
   "tables": {
     "application_settings_documents": {
@@ -597,8 +597,22 @@
           "notNull": true,
           "autoincrement": false
         },
-        "usd_rate_type": {
-          "name": "usd_rate_type",
+        "usd_rate_applies_iibb": {
+          "name": "usd_rate_applies_iibb",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usd_rate_applies_iva": {
+          "name": "usd_rate_applies_iva",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "usd_rate_base": {
+          "name": "usd_rate_base",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

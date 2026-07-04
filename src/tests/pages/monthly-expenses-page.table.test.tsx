@@ -3592,8 +3592,12 @@ registerMonthlyExpensesPageDefaultHooks({
         startMonth: "2026-01",
         subtotal: "10",
         total: "30.00",
-        customUsdRate: null,
-        usdRateType: "officialWithIibb",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "official" as const,
+          customRate: null,
+        },
       },
     ]);
 
@@ -3650,8 +3654,12 @@ registerMonthlyExpensesPageDefaultHooks({
         startMonth: "2025-03",
         subtotal: "1000",
         total: "1000.00",
-        customUsdRate: null,
-        usdRateType: "officialWithIibb",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "official" as const,
+          customRate: null,
+        },
       },
       {
         allReceiptsFolderId: "",
@@ -3687,8 +3695,12 @@ registerMonthlyExpensesPageDefaultHooks({
         startMonth: "2026-01",
         subtotal: "2000",
         total: "2000.00",
-        customUsdRate: null,
-        usdRateType: "officialWithIibb",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "official" as const,
+          customRate: null,
+        },
       },
       {
         allReceiptsFolderId: "",
@@ -3724,8 +3736,12 @@ registerMonthlyExpensesPageDefaultHooks({
         startMonth: "",
         subtotal: "20",
         total: "20.00",
-        customUsdRate: null,
-        usdRateType: "officialWithIibb",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "official" as const,
+          customRate: null,
+        },
       },
     ]);
 
@@ -3769,8 +3785,12 @@ registerMonthlyExpensesPageDefaultHooks({
         startMonth: "2026-01",
         subtotal: "1000",
         total: "1000.00",
-        customUsdRate: null,
-        usdRateType: "officialWithIibb",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "official" as const,
+          customRate: null,
+        },
       },
     ]);
 

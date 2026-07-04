@@ -170,8 +170,9 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
       await selectUsdRateFromRowMenu(user, "Dólar blue");
       await flushDeferredMenuSelection();
 
-      // Feedback inmediato: 10 USD × blue (1500), aún sin ningún POST.
-      expect(getTableTextNormalized()).toContain("15.000");
+      // Feedback inmediato: 10 USD × blue (1500) × IIBB (1,3) = 19.500,
+      // aún sin ningún POST.
+      expect(getTableTextNormalized()).toContain("19.500");
       expect(getSaveCalls(fetchMock)).toHaveLength(0);
 
       // El flush llega después del debounce, con la última intención.
@@ -187,7 +188,11 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
       ];
       const payload = JSON.parse(String(requestInit.body));
 
-      expect(payload.items[0].usdRateType).toBe("blue");
+      expect(payload.items[0].usdRate).toEqual({
+        appliesIibb: true,
+        appliesIva: false,
+        base: "blue",
+      });
     } finally {
       jest.useRealTimers();
     }
@@ -234,10 +239,10 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
       expect(getSaveCalls(fetchMock)).toHaveLength(1);
     });
 
-    // Con el request en vuelo, el usuario cambia de idea: la UI refleja la
-    // nueva intención de inmediato (10 × 1000).
+    // Con el request en vuelo, el usuario cambia de idea y vuelve al
+    // default (oficial + IIBB): la UI lo refleja de inmediato (13.000).
     await selectUsdRateFromRowMenu(user, "Oficial");
-    expect(getTableTextNormalized()).toContain("10.000");
+    expect(getTableTextNormalized()).toContain("13.000");
 
     deferredFirstSave.resolve?.();
 
@@ -253,9 +258,10 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
     ];
     const secondPayload = JSON.parse(String(secondRequestInit.body));
 
-    expect(secondPayload.items[0].usdRateType).toBe("official");
+    // El default es implícito: el segundo guardado viaja sin usdRate.
+    expect(secondPayload.items[0].usdRate).toBeUndefined();
     await waitFor(() => {
-      expect(getTableTextNormalized()).toContain("10.000");
+      expect(getTableTextNormalized()).toContain("13.000");
     });
 
     // Y no queda ningún request rezagado extra.
@@ -286,7 +292,7 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
 
       await selectUsdRateFromRowMenu(user, "Dólar blue");
       await flushDeferredMenuSelection();
-      await selectUsdRateFromRowMenu(user, "Oficial + IIBB");
+      await selectUsdRateFromRowMenu(user, "Oficial");
       await flushDeferredMenuSelection();
 
       expect(getTableTextNormalized()).toContain("13.000");
@@ -315,7 +321,7 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
 
     await selectUsdRateFromRowMenu(user, "Dólar blue");
 
-    expect(getTableTextNormalized()).toContain("15.000");
+    expect(getTableTextNormalized()).toContain("19.500");
 
     await waitFor(() => {
       expect(getSaveCalls(fetchMock)).toHaveLength(1);
@@ -325,7 +331,7 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
     await waitFor(() => {
       expect(getTableTextNormalized()).toContain("13.000");
     });
-    expect(getTableTextNormalized()).not.toContain("15.000");
+    expect(getTableTextNormalized()).not.toContain("19.500");
     await waitFor(() => {
       expect(mockedToast.error).toHaveBeenCalledWith(
         "No pudimos guardar el tipo de cambio.",

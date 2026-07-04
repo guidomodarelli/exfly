@@ -7,7 +7,10 @@ import {
   createRow,
   renderMonthlyExpensesTable,
 } from "./monthly-expenses-table-test-utils";
-import type { ExchangeRateSnapshot } from "./monthly-expenses-table.types";
+import type {
+  ExchangeRateSnapshot,
+  MonthlyExpenseUsdRateSettings,
+} from "./monthly-expenses-table.types";
 
 const SNAPSHOT: ExchangeRateSnapshot = {
   blueRate: 1500,
@@ -15,6 +18,18 @@ const SNAPSHOT: ExchangeRateSnapshot = {
   officialRate: 1000,
   solidarityRate: 1300,
 };
+
+function buildUsdRate(
+  overrides: Partial<MonthlyExpenseUsdRateSettings> = {},
+): MonthlyExpenseUsdRateSettings {
+  return {
+    appliesIibb: false,
+    appliesIva: false,
+    base: "official",
+    customRate: null,
+    ...overrides,
+  };
+}
 
 function normalizeSpaces(text: string): string {
   return text.replace(/\s/g, " ");
@@ -25,7 +40,7 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     window.localStorage.clear();
   });
 
-  it("offers the rate-type submenu only for USD expenses", async () => {
+  it("offers base quotes and surcharge toggles only for USD expenses", async () => {
     const user = userEvent.setup();
 
     renderMonthlyExpensesTable([
@@ -37,19 +52,20 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "Tipo de cambio" }));
 
-    for (const optionName of [
-      "Oficial + IIBB",
-      "Oficial",
-      "Dólar blue",
-      "Personalizada…",
-    ]) {
+    for (const baseOptionName of ["Oficial", "Dólar blue", "Personalizada…"]) {
       expect(
-        await screen.findByRole("menuitemradio", { name: optionName }),
+        await screen.findByRole("menuitemradio", { name: baseOptionName }),
+      ).toBeInTheDocument();
+    }
+
+    for (const surchargeName of ["Sumar IIBB", "Sumar IVA 21%"]) {
+      expect(
+        screen.getByRole("menuitemcheckbox", { name: surchargeName }),
       ).toBeInTheDocument();
     }
   });
 
-  it("does not offer the rate-type submenu for ARS expenses", async () => {
+  it("does not offer the rate submenu for ARS expenses", async () => {
     const user = userEvent.setup();
 
     renderMonthlyExpensesTable([
@@ -65,12 +81,19 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("selects the blue rate through the submenu", async () => {
+  it("selects the blue base keeping the current surcharges", async () => {
     const onUpdateUsdRate = jest.fn();
     const user = userEvent.setup();
 
     renderMonthlyExpensesTable(
-      [createRow({ currency: "USD", description: "Netflix", id: "expense-1" })],
+      [
+        createRow({
+          currency: "USD",
+          description: "Netflix",
+          id: "expense-1",
+          usdRate: buildUsdRate({ appliesIibb: true }),
+        }),
+      ],
       { onUpdateUsdRate },
     );
 
@@ -86,19 +109,69 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
 
     await waitFor(() => {
       expect(onUpdateUsdRate).toHaveBeenCalledWith({
-        customUsdRate: null,
         expenseId: "expense-1",
-        usdRateType: "blue",
+        usdRate: {
+          appliesIibb: true,
+          appliesIva: false,
+          base: "blue",
+          customRate: null,
+        },
       });
     });
   });
 
-  it("opens the custom-rate dialog and saves the manual rate", async () => {
+  it("toggles the IVA surcharge from the submenu", async () => {
     const onUpdateUsdRate = jest.fn();
     const user = userEvent.setup();
 
     renderMonthlyExpensesTable(
-      [createRow({ currency: "USD", description: "Spotify", id: "expense-1" })],
+      [
+        createRow({
+          currency: "USD",
+          description: "Netflix",
+          id: "expense-1",
+          usdRate: buildUsdRate({ base: "blue" }),
+        }),
+      ],
+      { onUpdateUsdRate },
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Netflix" }),
+    );
+    await selectDropdownSubmenuItem(
+      user,
+      "Tipo de cambio",
+      "Sumar IVA 21%",
+      "menuitemcheckbox",
+    );
+
+    await waitFor(() => {
+      expect(onUpdateUsdRate).toHaveBeenCalledWith({
+        expenseId: "expense-1",
+        usdRate: {
+          appliesIibb: false,
+          appliesIva: true,
+          base: "blue",
+          customRate: null,
+        },
+      });
+    });
+  });
+
+  it("opens the custom-rate dialog and saves the manual rate keeping surcharges", async () => {
+    const onUpdateUsdRate = jest.fn();
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({
+          currency: "USD",
+          description: "Spotify",
+          id: "expense-1",
+          usdRate: buildUsdRate({ appliesIva: true }),
+        }),
+      ],
       { onUpdateUsdRate },
     );
 
@@ -121,9 +194,13 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
 
     await waitFor(() => {
       expect(onUpdateUsdRate).toHaveBeenCalledWith({
-        customUsdRate: 1480.5,
         expenseId: "expense-1",
-        usdRateType: "custom",
+        usdRate: {
+          appliesIibb: false,
+          appliesIva: true,
+          base: "custom",
+          customRate: 1480.5,
+        },
       });
     });
   });
@@ -154,13 +231,11 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     await user.type(rateInput, "0");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      /mayor a 0/,
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(/mayor a 0/);
     expect(onUpdateUsdRate).not.toHaveBeenCalled();
   });
 
-  it("converts the total with the per-row rate type", () => {
+  it("converts the total stacking base, IIBB and IVA", () => {
     renderMonthlyExpensesTable(
       [
         createRow({
@@ -169,17 +244,30 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
           id: "expense-1",
           subtotal: "10",
           total: "10",
-          usdRateType: "blue",
+          usdRate: buildUsdRate({ base: "blue" }),
+        }),
+        createRow({
+          currency: "USD",
+          description: "Online full",
+          id: "expense-2",
+          subtotal: "10",
+          total: "10",
+          usdRate: buildUsdRate({
+            appliesIibb: true,
+            appliesIva: true,
+            base: "official",
+          }),
         }),
       ],
       { exchangeRateSnapshot: SNAPSHOT },
     );
 
-    // 10 USD × blue (1500) = 15.000 ARS, no el solidario (13.000).
     const table = screen.getAllByRole("table")[0];
+    const tableText = normalizeSpaces(table.textContent ?? "");
 
-    expect(normalizeSpaces(table.textContent ?? "")).toContain("15.000");
-    expect(normalizeSpaces(table.textContent ?? "")).not.toContain("13.000");
+    // 10 × blue (1500) = 15.000; 10 × 1000 × 1,3 (IIBB) × 1,21 (IVA) = 15.730.
+    expect(tableText).toContain("15.000");
+    expect(tableText).toContain("15.730");
   });
 
   it("converts the total with the custom rate", () => {
@@ -187,12 +275,11 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
       [
         createRow({
           currency: "USD",
-          customUsdRate: 2000,
           description: "Tasa manual",
           id: "expense-1",
           subtotal: "10",
           total: "10",
-          usdRateType: "custom",
+          usdRate: buildUsdRate({ base: "custom", customRate: 2000 }),
         }),
       ],
       { exchangeRateSnapshot: SNAPSHOT },

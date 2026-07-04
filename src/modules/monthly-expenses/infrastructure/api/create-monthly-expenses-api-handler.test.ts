@@ -757,16 +757,15 @@ describe("createMonthlyExpensesApiHandler", () => {
             id: "expense-1",
             occurrencesPerMonth: 1,
             subtotal: 10,
-            usdRateType: "blue",
+            usdRate: { appliesIva: true, base: "blue" },
           },
           {
             currency: "USD",
-            customUsdRate: 1480.5,
             description: "Suscripción custom",
             id: "expense-2",
             occurrencesPerMonth: 1,
             subtotal: 20,
-            usdRateType: "custom",
+            usdRate: { base: "custom", customRate: 1480.5 },
           },
         ],
         month: "2026-03",
@@ -781,10 +780,11 @@ describe("createMonthlyExpensesApiHandler", () => {
       expect.objectContaining({
         command: expect.objectContaining({
           items: [
-            expect.objectContaining({ usdRateType: "blue" }),
             expect.objectContaining({
-              customUsdRate: 1480.5,
-              usdRateType: "custom",
+              usdRate: { appliesIva: true, base: "blue" },
+            }),
+            expect.objectContaining({
+              usdRate: { base: "custom", customRate: 1480.5 },
             }),
           ],
         }),
@@ -793,7 +793,7 @@ describe("createMonthlyExpensesApiHandler", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("returns 400 when a custom usd rate type comes without its rate", async () => {
+  it("returns 400 when a custom usd rate base comes without its rate", async () => {
     const database = {} as TursoDatabase;
     const save = jest.fn();
     const handler = createMonthlyExpensesApiHandler({
@@ -812,7 +812,7 @@ describe("createMonthlyExpensesApiHandler", () => {
             id: "expense-1",
             occurrencesPerMonth: 1,
             subtotal: 20,
-            usdRateType: "custom",
+            usdRate: { base: "custom" },
           },
         ],
         month: "2026-03",

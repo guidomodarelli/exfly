@@ -52,8 +52,12 @@ export function createRow(
     subtotal: "1000",
     subtotalUnit: "occurrence",
     total: "1000",
-    customUsdRate: null,
-    usdRateType: "officialWithIibb",
+    usdRate: {
+      appliesIibb: true,
+      appliesIva: false,
+      base: "official",
+      customRate: null,
+    },
     ...overrides,
   };
 }

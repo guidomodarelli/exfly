@@ -292,12 +292,11 @@ describe("DrizzleMonthlyExpensesRepository", () => {
         items: [
           {
             currency: "USD",
-            customUsdRate: 1480.5,
             description: "Suscripción custom",
             id: "custom-rate-id",
             occurrencesPerMonth: 1,
             subtotal: 10,
-            usdRateType: "custom",
+            usdRate: { base: "custom", customRate: 1480.5 },
           },
           {
             currency: "USD",
@@ -305,7 +304,7 @@ describe("DrizzleMonthlyExpensesRepository", () => {
             id: "blue-rate-id",
             occurrencesPerMonth: 1,
             subtotal: 15,
-            usdRateType: "blue",
+            usdRate: { appliesIibb: true, appliesIva: true, base: "blue" },
           },
           {
             currency: "USD",
@@ -331,12 +330,18 @@ describe("DrizzleMonthlyExpensesRepository", () => {
     const defaultRow = insertedExpenseRows.find(
       (row) => row.expenseId === "default-rate-id",
     );
-    expect(customRow?.usdRateType).toBe("custom");
+    expect(customRow?.usdRateBase).toBe("custom");
     expect(customRow?.customUsdRate).toBe(1480.5);
-    expect(blueRow?.usdRateType).toBe("blue");
+    expect(customRow?.usdRateAppliesIibb).toBe(0);
+    expect(customRow?.usdRateAppliesIva).toBe(0);
+    expect(blueRow?.usdRateBase).toBe("blue");
     expect(blueRow?.customUsdRate).toBeNull();
-    expect(defaultRow?.usdRateType).toBeNull();
+    expect(blueRow?.usdRateAppliesIibb).toBe(1);
+    expect(blueRow?.usdRateAppliesIva).toBe(1);
+    expect(defaultRow?.usdRateBase).toBeNull();
     expect(defaultRow?.customUsdRate).toBeNull();
+    expect(defaultRow?.usdRateAppliesIibb).toBeNull();
+    expect(defaultRow?.usdRateAppliesIva).toBeNull();
   });
 
   it("orders normalized reads by created timestamp and expense id", async () => {

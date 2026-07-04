@@ -24,12 +24,26 @@ const RECEIPT_VIEW_URL_SCHEMA = z.url({
 });
 const RECEIPT_SHARE_STATUSES = ["pending", "sent"] as const;
 const LOAN_DIRECTIONS = ["payable", "receivable"] as const;
-const USD_RATE_TYPES = [
-  "blue",
-  "officialWithIibb",
-  "official",
-  "custom",
-] as const;
+const USD_RATE_BASES = ["blue", "official", "custom"] as const;
+
+const usdRateSchema = z
+  .object({
+    appliesIibb: z.boolean().optional(),
+    appliesIva: z.boolean().optional(),
+    base: z.enum(USD_RATE_BASES),
+    customRate: z.number().positive().nullable().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.base === "custom" && !value.customRate) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "monthly-expenses-api requires usdRate.customRate when the base is custom.",
+        path: ["customRate"],
+      });
+    }
+  });
 
 function normalizeHttpPaymentLink(value: string): string {
   const normalizedValue = value.trim();
@@ -221,18 +235,8 @@ const monthlyExpenseItemSchema = z.object({
   sortOrder: z.number().int().nonnegative().nullable().optional(),
   subtotal: z.number().positive(),
   subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
-  customUsdRate: z.number().positive().nullable().optional(),
-  usdRateType: z.enum(USD_RATE_TYPES).nullable().optional(),
+  usdRate: usdRateSchema.nullable().optional(),
 }).strict().superRefine((value, context) => {
-  if (value.usdRateType === "custom" && !value.customUsdRate) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message:
-        "monthly-expenses-api requires customUsdRate when usdRateType is custom.",
-      path: ["customUsdRate"],
-    });
-  }
-
   if (value.requiresReceiptShare === true && !value.receiptSharePhoneDigits) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
@@ -385,8 +389,15 @@ const monthlyExpensesDocumentEnvelopeSchema = z.object({
         subtotal: z.number().positive(),
         subtotalUnit: z.enum(["occurrence", "hour"]).optional(),
         total: z.number().nonnegative(),
-        customUsdRate: z.number().positive().optional(),
-        usdRateType: z.enum(USD_RATE_TYPES).optional(),
+        usdRate: z
+          .object({
+            appliesIibb: z.boolean(),
+            appliesIva: z.boolean(),
+            base: z.enum(USD_RATE_BASES),
+            customRate: z.number().positive().optional(),
+          })
+          .strict()
+          .optional(),
       }).strict().superRefine((value, context) => {
         if (value.requiresReceiptShare === true && !value.receiptSharePhoneDigits) {
           context.addIssue({

@@ -72,7 +72,9 @@ export const expensesTable = sqliteTable(
     requiresReceiptShare: integer("requires_receipt_share").notNull().default(0),
     sortOrder: integer("sort_order"),
     updatedAtIso: text("updated_at_iso").notNull(),
-    usdRateType: text("usd_rate_type"),
+    usdRateAppliesIibb: integer("usd_rate_applies_iibb"),
+    usdRateAppliesIva: integer("usd_rate_applies_iva"),
+    usdRateBase: text("usd_rate_base"),
     userSubject: text("user_subject").notNull(),
   },
   (table) => [

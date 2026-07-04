@@ -15,19 +15,31 @@ export type MonthlyExpenseSubtotalUnit = "occurrence" | "hour";
 
 export type MonthlyExpenseReceiptShareStatus = "pending" | "sent";
 
-/**
- * Per-expense USD→ARS conversion rate:
- * `blue` (cash), `officialWithIibb` (online with IIBB perception, the default),
- * `official` (online without perceptions) or `custom` (manual rate).
- */
-export type MonthlyExpenseUsdRateType =
-  | "blue"
-  | "officialWithIibb"
-  | "official"
-  | "custom";
+/** Base dollar quote for a USD expense: informal, official or a manual rate. */
+export type MonthlyExpenseUsdRateBase = "blue" | "official" | "custom";
 
-export const DEFAULT_USD_RATE_TYPE: MonthlyExpenseUsdRateType =
-  "officialWithIibb";
+/**
+ * Per-expense USD→ARS conversion settings: a base quote plus optional
+ * surcharges (IIBB perception and 21% VAT) stacked on top.
+ */
+export interface MonthlyExpenseUsdRateSettings {
+  appliesIibb: boolean;
+  appliesIva: boolean;
+  base: MonthlyExpenseUsdRateBase;
+  /** Manual ARS-per-USD rate, only meaningful when `base` is `custom`. */
+  customRate: number | null;
+}
+
+/** Historical default: official quote with the IIBB perception (solidario). */
+export const DEFAULT_USD_RATE_SETTINGS: MonthlyExpenseUsdRateSettings = {
+  appliesIibb: true,
+  appliesIva: false,
+  base: "official",
+  customRate: null,
+};
+
+/** VAT surcharge factor applied when `appliesIva` is on. */
+export const USD_RATE_IVA_FACTOR = 1.21;
 
 /** Sort criterion for the unified loan "Deuda / cuotas" column. */
 export type LoanSortMode =
@@ -119,9 +131,7 @@ export interface MonthlyExpensesEditableRow {
   subtotal: string;
   subtotalUnit?: MonthlyExpenseSubtotalUnit;
   total: string;
-  /** Manual ARS-per-USD rate; only meaningful when `usdRateType` is `custom`. */
-  customUsdRate: number | null;
-  usdRateType: MonthlyExpenseUsdRateType;
+  usdRate: MonthlyExpenseUsdRateSettings;
 }
 
 export interface MonthlyExpensesReplicableOption {

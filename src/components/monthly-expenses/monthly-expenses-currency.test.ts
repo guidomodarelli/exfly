@@ -2,7 +2,10 @@ import {
   getConvertedAmountForCurrency,
   getUsdRateForRow,
 } from "./monthly-expenses-currency";
-import type { ExchangeRateSnapshot } from "./monthly-expenses-table.types";
+import type {
+  ExchangeRateSnapshot,
+  MonthlyExpenseUsdRateSettings,
+} from "./monthly-expenses-table.types";
 
 const SNAPSHOT: ExchangeRateSnapshot = {
   blueRate: 1500,
@@ -11,73 +14,136 @@ const SNAPSHOT: ExchangeRateSnapshot = {
   solidarityRate: 1300,
 };
 
+function buildUsdRate(
+  overrides: Partial<MonthlyExpenseUsdRateSettings> = {},
+): MonthlyExpenseUsdRateSettings {
+  return {
+    appliesIibb: false,
+    appliesIva: false,
+    base: "official",
+    customRate: null,
+    ...overrides,
+  };
+}
+
 describe("getUsdRateForRow", () => {
-  it("resolves each rate type against the snapshot", () => {
+  it("resolves each base against the snapshot", () => {
     expect(
       getUsdRateForRow({
-        customUsdRate: null,
         exchangeRateSnapshot: SNAPSHOT,
-        usdRateType: "blue",
+        usdRate: buildUsdRate({ base: "blue" }),
       }),
     ).toBe(1500);
     expect(
       getUsdRateForRow({
-        customUsdRate: null,
         exchangeRateSnapshot: SNAPSHOT,
-        usdRateType: "officialWithIibb",
-      }),
-    ).toBe(1300);
-    expect(
-      getUsdRateForRow({
-        customUsdRate: null,
-        exchangeRateSnapshot: SNAPSHOT,
-        usdRateType: "official",
+        usdRate: buildUsdRate({ base: "official" }),
       }),
     ).toBe(1000);
-  });
-
-  it("uses the manual rate for the custom type even without a snapshot", () => {
     expect(
       getUsdRateForRow({
-        customUsdRate: 1480.5,
-        exchangeRateSnapshot: null,
-        usdRateType: "custom",
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({ base: "custom", customRate: 1480.5 }),
       }),
     ).toBe(1480.5);
   });
 
-  it("returns null when the snapshot is missing or the custom rate is invalid", () => {
+  it("adds the IIBB perception derived from the snapshot", () => {
+    // Factor IIBB = solidario / oficial = 1300 / 1000 = 1.3.
     expect(
       getUsdRateForRow({
-        customUsdRate: null,
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({ appliesIibb: true, base: "official" }),
+      }),
+    ).toBe(1300);
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({ appliesIibb: true, base: "blue" }),
+      }),
+    ).toBeCloseTo(1950);
+  });
+
+  it("adds the 21% VAT surcharge on top of the base and IIBB", () => {
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({ appliesIva: true, base: "official" }),
+      }),
+    ).toBeCloseTo(1210);
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({
+          appliesIibb: true,
+          appliesIva: true,
+          base: "official",
+        }),
+      }),
+    ).toBeCloseTo(1573);
+  });
+
+  it("supports surcharges over a custom base without needing the base quotes", () => {
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: SNAPSHOT,
+        usdRate: buildUsdRate({
+          appliesIva: true,
+          base: "custom",
+          customRate: 1000,
+        }),
+      }),
+    ).toBeCloseTo(1210);
+  });
+
+  it("returns null when a needed snapshot is missing or the custom rate is invalid", () => {
+    expect(
+      getUsdRateForRow({
         exchangeRateSnapshot: null,
-        usdRateType: "blue",
+        usdRate: buildUsdRate({ base: "blue" }),
+      }),
+    ).toBeNull();
+    // Un custom sin IIBB no necesita snapshot…
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: null,
+        usdRate: buildUsdRate({ base: "custom", customRate: 2000 }),
+      }),
+    ).toBe(2000);
+    // …pero con IIBB sí (el factor sale del snapshot).
+    expect(
+      getUsdRateForRow({
+        exchangeRateSnapshot: null,
+        usdRate: buildUsdRate({
+          appliesIibb: true,
+          base: "custom",
+          customRate: 2000,
+        }),
       }),
     ).toBeNull();
     expect(
       getUsdRateForRow({
-        customUsdRate: 0,
         exchangeRateSnapshot: SNAPSHOT,
-        usdRateType: "custom",
+        usdRate: buildUsdRate({ base: "custom", customRate: 0 }),
       }),
     ).toBeNull();
   });
 });
 
 describe("getConvertedAmountForCurrency", () => {
-  it("converts USD to ARS with the per-row rate type", () => {
+  it("converts USD to ARS with the per-row settings", () => {
     expect(
       getConvertedAmountForCurrency({
         currency: "ARS",
         exchangeRateSnapshot: SNAPSHOT,
         rowCurrency: "USD",
         total: 10,
-        usdRateType: "blue",
+        usdRate: buildUsdRate({ base: "blue" }),
       }),
     ).toBe(15000);
   });
 
-  it("keeps the solidarity rate as the default when no rate type is given", () => {
+  it("keeps official + IIBB (solidario) as the default when no settings are given", () => {
     expect(
       getConvertedAmountForCurrency({
         currency: "ARS",
@@ -92,11 +158,10 @@ describe("getConvertedAmountForCurrency", () => {
     expect(
       getConvertedAmountForCurrency({
         currency: "USD",
-        customUsdRate: 2000,
         exchangeRateSnapshot: SNAPSHOT,
         rowCurrency: "ARS",
         total: 4000,
-        usdRateType: "custom",
+        usdRate: buildUsdRate({ base: "custom", customRate: 2000 }),
       }),
     ).toBe(2);
   });

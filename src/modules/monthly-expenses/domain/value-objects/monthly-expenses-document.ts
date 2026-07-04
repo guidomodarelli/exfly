@@ -23,17 +23,16 @@ export const MONTHLY_EXPENSE_RECEIPT_SHARE_STATUSES = [
   "sent",
 ] as const;
 /**
- * How a USD expense converts to ARS:
+ * Base dollar quote a USD expense converts with:
  *
  * - `blue`: informal ("blue") rate, typical for cash payments.
- * - `officialWithIibb`: official rate plus IIBB perception (online purchases
- *   with local tax withholding). This is the implicit default.
- * - `official`: plain official rate, for online purchases without perceptions.
- * - `custom`: a manual per-expense rate (`customUsdRate`).
+ * - `official`: official rate, typical for online purchases.
+ * - `custom`: a manual per-expense rate (`customRate`).
+ *
+ * Optional surcharges (IIBB perception, 21% VAT) stack on top of the base.
  */
-export const MONTHLY_EXPENSE_USD_RATE_TYPES = [
+export const MONTHLY_EXPENSE_USD_RATE_BASES = [
   "blue",
-  "officialWithIibb",
   "official",
   "custom",
 ] as const;
@@ -46,11 +45,23 @@ export type MonthlyExpenseLoanDirection =
 export type MonthlyExpenseReceiptShareStatus =
   (typeof MONTHLY_EXPENSE_RECEIPT_SHARE_STATUSES)[number];
 
-export type MonthlyExpenseUsdRateType =
-  (typeof MONTHLY_EXPENSE_USD_RATE_TYPES)[number];
+export type MonthlyExpenseUsdRateBase =
+  (typeof MONTHLY_EXPENSE_USD_RATE_BASES)[number];
 
-export const DEFAULT_MONTHLY_EXPENSE_USD_RATE_TYPE: MonthlyExpenseUsdRateType =
-  "officialWithIibb";
+export interface MonthlyExpenseUsdRateInput {
+  appliesIibb?: boolean;
+  appliesIva?: boolean;
+  base: MonthlyExpenseUsdRateBase;
+  /** Manual ARS-per-USD rate, only meaningful when `base` is `custom`. */
+  customRate?: number | null;
+}
+
+export interface MonthlyExpenseUsdRate {
+  appliesIibb: boolean;
+  appliesIva: boolean;
+  base: MonthlyExpenseUsdRateBase;
+  customRate?: number;
+}
 
 export interface MonthlyExpenseLoanInput {
   direction?: MonthlyExpenseLoanDirection;
@@ -164,9 +175,7 @@ export interface MonthlyExpenseItemInput {
   sortOrder?: number | null;
   subtotal: number;
   subtotalUnit?: MonthlyExpenseSubtotalUnit | null;
-  /** Manual ARS-per-USD rate, only meaningful when `usdRateType` is `custom`. */
-  customUsdRate?: number | null;
-  usdRateType?: MonthlyExpenseUsdRateType | null;
+  usdRate?: MonthlyExpenseUsdRateInput | null;
 }
 
 export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
@@ -185,8 +194,7 @@ export interface MonthlyExpenseItem extends MonthlyExpenseItemInput {
   sortOrder?: number | null;
   subtotalUnit?: MonthlyExpenseSubtotalUnit;
   total: number;
-  customUsdRate?: number;
-  usdRateType?: MonthlyExpenseUsdRateType;
+  usdRate?: MonthlyExpenseUsdRate;
 }
 
 /**
@@ -568,55 +576,61 @@ function validatePaymentLink(
   }
 }
 
-function isValidUsdRateType(
-  usdRateType: string,
-): usdRateType is MonthlyExpenseUsdRateType {
-  return MONTHLY_EXPENSE_USD_RATE_TYPES.includes(
-    usdRateType as MonthlyExpenseUsdRateType,
+function isValidUsdRateBase(
+  usdRateBase: string,
+): usdRateBase is MonthlyExpenseUsdRateBase {
+  return MONTHLY_EXPENSE_USD_RATE_BASES.includes(
+    usdRateBase as MonthlyExpenseUsdRateBase,
   );
 }
 
 /**
  * Validates the per-expense USD conversion settings. Non-USD expenses drop
- * both fields silently; a `custom` rate type requires a positive manual rate.
+ * the whole object silently; a `custom` base requires a positive manual rate.
  */
-function validateUsdRateSettings(
+function validateUsdRate(
   {
     currency,
-    customUsdRate,
-    usdRateType,
+    usdRate,
   }: {
     currency: string;
-    customUsdRate: number | null | undefined;
-    usdRateType: string | null | undefined;
+    usdRate: MonthlyExpenseUsdRateInput | null | undefined;
   },
   operationName: string,
-): { customUsdRate?: number; usdRateType?: MonthlyExpenseUsdRateType } {
-  if (usdRateType == null || currency !== "USD") {
+): { usdRate?: MonthlyExpenseUsdRate } {
+  if (usdRate == null || currency !== "USD") {
     return {};
   }
 
-  if (!isValidUsdRateType(usdRateType)) {
+  if (!isValidUsdRateBase(usdRate.base)) {
     throw new Error(
-      `${operationName} requires every USD rate type to be one of: ${MONTHLY_EXPENSE_USD_RATE_TYPES.join(", ")}.`,
+      `${operationName} requires every USD rate base to be one of: ${MONTHLY_EXPENSE_USD_RATE_BASES.join(", ")}.`,
     );
   }
 
-  if (usdRateType !== "custom") {
-    return { usdRateType };
+  const normalizedUsdRate: MonthlyExpenseUsdRate = {
+    appliesIibb: usdRate.appliesIibb === true,
+    appliesIva: usdRate.appliesIva === true,
+    base: usdRate.base,
+  };
+
+  if (usdRate.base !== "custom") {
+    return { usdRate: normalizedUsdRate };
   }
 
   if (
-    typeof customUsdRate !== "number" ||
-    !Number.isFinite(customUsdRate) ||
-    customUsdRate <= 0
+    typeof usdRate.customRate !== "number" ||
+    !Number.isFinite(usdRate.customRate) ||
+    usdRate.customRate <= 0
   ) {
     throw new Error(
-      `${operationName} requires a custom USD rate greater than 0 when the USD rate type is custom.`,
+      `${operationName} requires a custom USD rate greater than 0 when the USD rate base is custom.`,
     );
   }
 
-  return { customUsdRate, usdRateType };
+  return {
+    usdRate: { ...normalizedUsdRate, customRate: usdRate.customRate },
+  };
 }
 
 function validateReceiptSharePhoneDigits(
@@ -1026,7 +1040,6 @@ function validateItem(
   targetMonth: string,
 ): MonthlyExpenseItem {
   const {
-    customUsdRate,
     expenseFolderId,
     folders,
     isPaid,
@@ -1035,7 +1048,7 @@ function validateItem(
     manualCoveredPayments,
     occurrencesUnit,
     paymentLink,
-    usdRateType,
+    usdRate,
     receiptShareMessage,
     receiptSharePhoneDigits,
     receiptShareStatus,
@@ -1060,11 +1073,10 @@ function validateItem(
   const normalizedSortOrder = normalizeSortOrder(sortOrder, operationName);
   const normalizedFolders = validateFolders(folders, operationName);
   const normalizedPaymentLink = validatePaymentLink(paymentLink, operationName);
-  const normalizedUsdRateSettings = validateUsdRateSettings(
+  const normalizedUsdRateSettings = validateUsdRate(
     {
       currency: normalizedItem.currency,
-      customUsdRate,
-      usdRateType,
+      usdRate,
     },
     operationName,
   );
@@ -1431,9 +1443,17 @@ export function toMonthlyExpensesDocumentInput(
         ? { occurrencesUnit: item.occurrencesUnit }
         : {}),
       paymentLink: item.paymentLink,
-      ...(item.usdRateType ? { usdRateType: item.usdRateType } : {}),
-      ...(item.customUsdRate !== undefined
-        ? { customUsdRate: item.customUsdRate }
+      ...(item.usdRate
+        ? {
+            usdRate: {
+              appliesIibb: item.usdRate.appliesIibb,
+              appliesIva: item.usdRate.appliesIva,
+              base: item.usdRate.base,
+              ...(item.usdRate.customRate !== undefined
+                ? { customRate: item.usdRate.customRate }
+                : {}),
+            },
+          }
         : {}),
       ...(item.receiptShareMessage
         ? {

@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
@@ -38,10 +39,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import type { MonthlyExpenseUsdRateType } from "./monthly-expenses-table.types";
+import type {
+  MonthlyExpenseUsdRateBase,
+  MonthlyExpenseUsdRateSettings,
+} from "./monthly-expenses-table.types";
 import {
-  USD_RATE_TYPE_LABELS,
-  USD_RATE_TYPE_MENU_ORDER,
+  USD_RATE_BASE_LABELS,
+  USD_RATE_BASE_MENU_ORDER,
+  USD_RATE_IIBB_SURCHARGE_LABEL,
+  USD_RATE_IVA_SURCHARGE_LABEL,
 } from "./usd-rate-type-labels";
 import styles from "./expense-row-actions.module.scss";
 
@@ -68,12 +74,14 @@ interface ExpenseRowActionsProps {
   onManagePaymentLink: () => void;
   onReactivateRecurrence: () => void;
   /**
-   * Selects the USD→ARS rate type for a USD expense. `custom` is expected to
+   * Selects the USD base quote for a USD expense. `custom` is expected to
    * open the manual-rate dialog on the caller side.
    */
-  onSelectUsdRateType?: (usdRateType: MonthlyExpenseUsdRateType) => void;
-  /** Current rate type; the submenu renders only for USD expenses. */
-  usdRateType?: MonthlyExpenseUsdRateType;
+  onSelectUsdRateBase?: (usdRateBase: MonthlyExpenseUsdRateBase) => void;
+  /** Toggles the IIBB / IVA surcharges over the current base. */
+  onToggleUsdRateSurcharge?: (surcharge: "iibb" | "iva") => void;
+  /** Current settings; the submenu renders only for USD expenses. */
+  usdRate?: MonthlyExpenseUsdRateSettings;
 }
 
 export function ExpenseRowActions({
@@ -95,8 +103,9 @@ export function ExpenseRowActions({
   onEdit,
   onManagePaymentLink,
   onReactivateRecurrence,
-  onSelectUsdRateType,
-  usdRateType,
+  onSelectUsdRateBase,
+  onToggleUsdRateSurcharge,
+  usdRate,
 }: ExpenseRowActionsProps) {
   const normalizedDescription = description.trim() || "este gasto";
   const [confirmActionType, setConfirmActionType] = useState<
@@ -264,7 +273,7 @@ export function ExpenseRowActions({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           ) : null}
-          {onSelectUsdRateType && usdRateType ? (
+          {onSelectUsdRateBase && onToggleUsdRateSurcharge && usdRate ? (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <span className={styles.menuItem}>
@@ -274,24 +283,45 @@ export function ExpenseRowActions({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuRadioGroup
-                  onValueChange={(nextUsdRateType) => {
+                  onValueChange={(nextUsdRateBase) => {
                     setIsMenuOpen(false);
                     window.setTimeout(() => {
-                      onSelectUsdRateType(
-                        nextUsdRateType as MonthlyExpenseUsdRateType,
+                      onSelectUsdRateBase(
+                        nextUsdRateBase as MonthlyExpenseUsdRateBase,
                       );
                     }, 0);
                   }}
-                  value={usdRateType}
+                  value={usdRate.base}
                 >
-                  {USD_RATE_TYPE_MENU_ORDER.map((rateType) => (
-                    <DropdownMenuRadioItem key={rateType} value={rateType}>
-                      {rateType === "custom"
-                        ? `${USD_RATE_TYPE_LABELS.custom}…`
-                        : USD_RATE_TYPE_LABELS[rateType]}
+                  {USD_RATE_BASE_MENU_ORDER.map((usdRateBase) => (
+                    <DropdownMenuRadioItem key={usdRateBase} value={usdRateBase}>
+                      {usdRateBase === "custom"
+                        ? `${USD_RATE_BASE_LABELS.custom}…`
+                        : USD_RATE_BASE_LABELS[usdRateBase]}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={usdRate.appliesIibb}
+                  onSelect={(event) => {
+                    // Keep the submenu open so both surcharges can be toggled
+                    // in one visit.
+                    event.preventDefault();
+                    onToggleUsdRateSurcharge("iibb");
+                  }}
+                >
+                  {USD_RATE_IIBB_SURCHARGE_LABEL}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={usdRate.appliesIva}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    onToggleUsdRateSurcharge("iva");
+                  }}
+                >
+                  {USD_RATE_IVA_SURCHARGE_LABEL}
+                </DropdownMenuCheckboxItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           ) : null}

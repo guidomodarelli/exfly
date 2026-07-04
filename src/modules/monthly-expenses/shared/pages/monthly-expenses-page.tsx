@@ -49,8 +49,8 @@ import {
   type MonthlyExpenseSubtotalUnit,
 } from "@/components/monthly-expenses/monthly-expenses-table";
 import {
-  DEFAULT_USD_RATE_TYPE,
-  type MonthlyExpenseUsdRateType,
+  DEFAULT_USD_RATE_SETTINGS,
+  type MonthlyExpenseUsdRateSettings,
 } from "@/components/monthly-expenses/monthly-expenses-table.types";
 import {
   parseOccurrenceDuration,
@@ -438,15 +438,25 @@ const USD_RATE_INTENT_FLUSH_DEBOUNCE_MS = 400;
  * is the rollback target; the intended fields track the latest user action.
  */
 interface PendingUsdRateIntent {
-  baselineCustomUsdRate: number | null;
-  baselineUsdRateType: MonthlyExpenseUsdRateType;
+  baselineUsdRate: MonthlyExpenseUsdRateSettings;
   debounceTimerId: number | null;
-  intendedCustomUsdRate: number | null;
-  intendedUsdRateType: MonthlyExpenseUsdRateType;
+  intendedUsdRate: MonthlyExpenseUsdRateSettings;
   isRequestInFlight: boolean;
   /** Month the intent belongs to; a flush for another month is stale. */
   month: string;
   shouldFlushAfterRequest: boolean;
+}
+
+function areUsdRateSettingsEqual(
+  leftUsdRate: MonthlyExpenseUsdRateSettings,
+  rightUsdRate: MonthlyExpenseUsdRateSettings,
+): boolean {
+  return (
+    leftUsdRate.appliesIibb === rightUsdRate.appliesIibb &&
+    leftUsdRate.appliesIva === rightUsdRate.appliesIva &&
+    leftUsdRate.base === rightUsdRate.base &&
+    leftUsdRate.customRate === rightUsdRate.customRate
+  );
 }
 
 function createEmptyRow(): MonthlyExpensesEditableRow {
@@ -487,8 +497,7 @@ function createEmptyRow(): MonthlyExpensesEditableRow {
     subtotal: "",
     subtotalUnit: "occurrence",
     total: "0.00",
-    customUsdRate: null,
-    usdRateType: DEFAULT_USD_RATE_TYPE,
+    usdRate: { ...DEFAULT_USD_RATE_SETTINGS },
   };
 }
 
@@ -752,8 +761,14 @@ export function toEditableRows(
     subtotal: formatEditableNumber(item.subtotal),
     subtotalUnit: item.subtotalUnit ?? "occurrence",
     total: item.total.toFixed(2),
-    customUsdRate: item.customUsdRate ?? null,
-    usdRateType: item.usdRateType ?? DEFAULT_USD_RATE_TYPE,
+    usdRate: item.usdRate
+      ? {
+          appliesIibb: item.usdRate.appliesIibb,
+          appliesIva: item.usdRate.appliesIva,
+          base: item.usdRate.base,
+          customRate: item.usdRate.customRate ?? null,
+        }
+      : { ...DEFAULT_USD_RATE_SETTINGS },
     });
   });
 }
@@ -1691,13 +1706,18 @@ export function toSaveMonthlyExpensesCommand(
         ...(row.subtotalUnit === "hour"
           ? { subtotalUnit: "hour" as const }
           : {}),
-        // The default rate type is implicit: only explicit deviations travel.
-        ...(row.currency === "USD" && row.usdRateType !== DEFAULT_USD_RATE_TYPE
+        // The default settings are implicit: only explicit deviations travel.
+        ...(row.currency === "USD" &&
+        !areUsdRateSettingsEqual(row.usdRate, DEFAULT_USD_RATE_SETTINGS)
           ? {
-              usdRateType: row.usdRateType,
-              ...(row.usdRateType === "custom" && row.customUsdRate
-                ? { customUsdRate: row.customUsdRate }
-                : {}),
+              usdRate: {
+                appliesIibb: row.usdRate.appliesIibb,
+                appliesIva: row.usdRate.appliesIva,
+                base: row.usdRate.base,
+                ...(row.usdRate.base === "custom" && row.usdRate.customRate
+                  ? { customRate: row.usdRate.customRate }
+                  : {}),
+              },
             }
           : {}),
       };
@@ -2934,8 +2954,7 @@ export default function MonthlyExpensesPage({
       subtotal: row.subtotal,
       subtotalUnit: row.subtotalUnit,
       total: row.total,
-      customUsdRate: row.customUsdRate,
-      usdRateType: row.usdRateType,
+      usdRate: { ...row.usdRate },
     };
 
     updateExpenseSheetState(() => ({
@@ -3927,20 +3946,16 @@ export default function MonthlyExpensesPage({
   };
 
   const applyUsdRateToRows = ({
-    customUsdRate,
     expenseId,
-    usdRateType,
+    usdRate,
   }: {
-    customUsdRate: number | null;
     expenseId: string;
-    usdRateType: MonthlyExpenseUsdRateType;
+    usdRate: MonthlyExpenseUsdRateSettings;
   }) => {
     updateFormState((currentState) => ({
       ...currentState,
       rows: currentState.rows.map((row) =>
-        row.id === expenseId
-          ? { ...row, customUsdRate, usdRateType }
-          : row,
+        row.id === expenseId ? { ...row, usdRate: { ...usdRate } } : row,
       ),
     }));
   };
@@ -3975,8 +3990,10 @@ export default function MonthlyExpensesPage({
 
     // Back to baseline: nothing meaningful to persist.
     if (
-      pendingIntent.intendedUsdRateType === pendingIntent.baselineUsdRateType &&
-      pendingIntent.intendedCustomUsdRate === pendingIntent.baselineCustomUsdRate
+      areUsdRateSettingsEqual(
+        pendingIntent.intendedUsdRate,
+        pendingIntent.baselineUsdRate,
+      )
     ) {
       clearPendingUsdRateIntent(expenseId);
       return;
@@ -3990,8 +4007,7 @@ export default function MonthlyExpensesPage({
     pendingIntent.isRequestInFlight = true;
     pendingIntent.shouldFlushAfterRequest = false;
 
-    const flushedUsdRateType = pendingIntent.intendedUsdRateType;
-    const flushedCustomUsdRate = pendingIntent.intendedCustomUsdRate;
+    const flushedUsdRate = { ...pendingIntent.intendedUsdRate };
     const rowsToPersist = latestFormStateRef.current.rows;
     const wasSaved = await persistMonthlyExpensesRows(rowsToPersist, {
       loading: "Guardando tipo de cambio...",
@@ -4003,9 +4019,8 @@ export default function MonthlyExpensesPage({
     if (!wasSaved) {
       // Rollback to the captured baseline, not to any intermediate state.
       applyUsdRateToRows({
-        customUsdRate: pendingIntent.baselineCustomUsdRate,
         expenseId,
-        usdRateType: pendingIntent.baselineUsdRateType,
+        usdRate: pendingIntent.baselineUsdRate,
       });
       clearPendingUsdRateIntent(expenseId);
       toast.error("No pudimos guardar el tipo de cambio.");
@@ -4014,8 +4029,7 @@ export default function MonthlyExpensesPage({
 
     const hasNewerIntent =
       pendingIntent.shouldFlushAfterRequest ||
-      pendingIntent.intendedUsdRateType !== flushedUsdRateType ||
-      pendingIntent.intendedCustomUsdRate !== flushedCustomUsdRate;
+      !areUsdRateSettingsEqual(pendingIntent.intendedUsdRate, flushedUsdRate);
 
     if (!hasNewerIntent) {
       clearPendingUsdRateIntent(expenseId);
@@ -4026,13 +4040,11 @@ export default function MonthlyExpensesPage({
     // persisted to the new baseline, reapply the latest intent on top (the
     // save response overwrote the rows with the flushed snapshot) and flush
     // again.
-    pendingIntent.baselineUsdRateType = flushedUsdRateType;
-    pendingIntent.baselineCustomUsdRate = flushedCustomUsdRate;
+    pendingIntent.baselineUsdRate = flushedUsdRate;
     pendingIntent.shouldFlushAfterRequest = false;
     applyUsdRateToRows({
-      customUsdRate: pendingIntent.intendedCustomUsdRate,
       expenseId,
-      usdRateType: pendingIntent.intendedUsdRateType,
+      usdRate: pendingIntent.intendedUsdRate,
     });
     void flushPendingUsdRateIntent(expenseId);
   };
@@ -4055,13 +4067,11 @@ export default function MonthlyExpensesPage({
   };
 
   const handleUpdateUsdRate = ({
-    customUsdRate,
     expenseId,
-    usdRateType,
+    usdRate,
   }: {
-    customUsdRate: number | null;
     expenseId: string;
-    usdRateType: MonthlyExpenseUsdRateType;
+    usdRate: MonthlyExpenseUsdRateSettings;
   }) => {
     if (!isOAuthConfigured || !isAuthenticated) {
       toast.warning("Conectate con Google para actualizar el tipo de cambio.");
@@ -4078,17 +4088,19 @@ export default function MonthlyExpensesPage({
     }
 
     if (
-      usdRateType === "custom" &&
-      (customUsdRate == null ||
-        !Number.isFinite(customUsdRate) ||
-        customUsdRate <= 0)
+      usdRate.base === "custom" &&
+      (usdRate.customRate == null ||
+        !Number.isFinite(usdRate.customRate) ||
+        usdRate.customRate <= 0)
     ) {
       toast.warning("Ingresá una cotización mayor a 0 para la tasa personalizada.");
       return;
     }
 
-    const normalizedCustomUsdRate =
-      usdRateType === "custom" ? customUsdRate : null;
+    const normalizedUsdRate: MonthlyExpenseUsdRateSettings = {
+      ...usdRate,
+      customRate: usdRate.base === "custom" ? usdRate.customRate : null,
+    };
     const pendingIntents = pendingUsdRateIntentsByExpenseIdRef.current;
     let pendingIntent = pendingIntents.get(expenseId);
 
@@ -4096,26 +4108,22 @@ export default function MonthlyExpensesPage({
       // First action of the burst: the visible row still holds persisted
       // state, so it is the baseline for skip-on-return and rollback.
       pendingIntent = {
-        baselineCustomUsdRate: expenseRow.customUsdRate,
-        baselineUsdRateType: expenseRow.usdRateType,
+        baselineUsdRate: { ...expenseRow.usdRate },
         debounceTimerId: null,
-        intendedCustomUsdRate: normalizedCustomUsdRate,
-        intendedUsdRateType: usdRateType,
+        intendedUsdRate: normalizedUsdRate,
         isRequestInFlight: false,
         month: latestFormStateRef.current.month,
         shouldFlushAfterRequest: false,
       };
       pendingIntents.set(expenseId, pendingIntent);
     } else {
-      pendingIntent.intendedUsdRateType = usdRateType;
-      pendingIntent.intendedCustomUsdRate = normalizedCustomUsdRate;
+      pendingIntent.intendedUsdRate = normalizedUsdRate;
     }
 
     // Optimistic feedback first; only the request is debounced.
     applyUsdRateToRows({
-      customUsdRate: normalizedCustomUsdRate,
       expenseId,
-      usdRateType,
+      usdRate: normalizedUsdRate,
     });
 
     if (pendingIntent.isRequestInFlight) {
