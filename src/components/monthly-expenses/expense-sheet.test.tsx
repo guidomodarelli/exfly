@@ -217,7 +217,7 @@ describe("ExpenseSheet", () => {
 
     expect(summaryText).toContain("USD");
     expect(summaryText).toContain("US$ 144");
-    expect(summaryText).toContain("1 vez/es por mes");
+    expect(summaryText).toContain("1 por mes");
     expect(summaryText).toContain("blue + IVA");
 
     await user.click(

@@ -219,6 +219,15 @@ function getFieldErrors(
   return fieldErrors;
 }
 
+/**
+ * Whether an alert dialog is stacked on top of the sheet (e.g. the details
+ * dialog opened from the read-only summary). While one is open, the sheet
+ * must ignore the outside-interaction/focus signals it produces.
+ */
+function hasStackedAlertDialogOpen(): boolean {
+  return document.querySelector('[role="alertdialog"]') !== null;
+}
+
 function shouldSubmitOnEnterFromTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLInputElement)) {
     return false;
@@ -372,7 +381,7 @@ function ExpenseSheetContent({
     <>
       <Dialog
         onOpenChange={(nextOpen) => {
-          if (!nextOpen) {
+          if (!nextOpen && !hasStackedAlertDialogOpen()) {
             onRequestClose();
           }
         }}
@@ -382,11 +391,24 @@ function ExpenseSheetContent({
           className={styles.content}
           onEscapeKeyDown={(event) => {
             event.preventDefault();
-            onRequestClose();
+
+            if (!hasStackedAlertDialogOpen()) {
+              onRequestClose();
+            }
+          }}
+          onFocusOutside={(event) => {
+            // Un dialog apilado (p. ej. «Editar subtotal y cantidad») roba el
+            // foco al abrirse: no debe cerrar el sheet.
+            if (hasStackedAlertDialogOpen()) {
+              event.preventDefault();
+            }
           }}
           onInteractOutside={(event) => {
             event.preventDefault();
-            onRequestClose();
+
+            if (!hasStackedAlertDialogOpen()) {
+              onRequestClose();
+            }
           }}
           showCloseButton={false}
         >
@@ -493,7 +515,7 @@ function ExpenseSheetContent({
                         <dd>
                           {isHourlySubtotal
                             ? draft.occurrencesUnit || "-"
-                            : `${draft.occurrencesPerMonth} vez/es por mes`}
+                            : `${draft.occurrencesPerMonth} por mes`}
                         </dd>
                       </div>
                       <div className={styles.editSummaryItem}>

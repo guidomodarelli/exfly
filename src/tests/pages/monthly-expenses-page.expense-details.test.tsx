@@ -240,6 +240,47 @@ describe("MonthlyExpensesPage optimistic expense details", () => {
     });
   });
 
+  it("keeps the edit sheet open while the details dialog is stacked on top", async () => {
+    authenticateSession();
+    const fetchMock = createMonthlyExpensesFetchMock();
+    global.fetch = fetchMock as typeof fetch;
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MonthlyExpensesPage {...basePageProps} initialDocument={INITIAL_DOCUMENT} />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Internet" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Editar gasto" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Editar subtotal y cantidad" }),
+    );
+
+    // El dialog de detalles se apila sin cerrar el sheet de edición. Radix
+    // marca el fondo aria-hidden mientras el alertdialog está arriba, así que
+    // el heading del sheet se busca incluyendo elementos ocultos.
+    expect(
+      await screen.findByRole("heading", { name: "Editar subtotal y cantidad" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { hidden: true, name: "Editar gasto" }),
+    ).toBeInTheDocument();
+
+    // Al cancelar el dialog, el sheet vuelve a quedar accesible.
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Editar gasto" }),
+    ).toBeInTheDocument();
+  });
+
   it("rolls back to the baseline values when the save fails", async () => {
     authenticateSession();
 
