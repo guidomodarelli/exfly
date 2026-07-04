@@ -134,6 +134,7 @@ export function QuickAddExpenseForm({
         value={descriptionValue}
       />
       <Button
+        className={styles.quickAddSubmit}
         disabled={actionDisabled}
         size="sm"
         type="submit"

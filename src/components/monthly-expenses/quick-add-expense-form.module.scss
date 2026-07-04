@@ -26,6 +26,32 @@
   flex: 0 1 8.5rem;
 }
 
+.quickAddSubmit {
+  flex: 0 0 auto;
+}
+
+// En pantallas angostas la línea única no entra y el wrap automático dejaba
+// filas desparejas: se apila en moneda+monto / descripción / botón.
+@media (max-width: 767.98px) {
+  .quickAddCurrency {
+    flex: 0 0 auto;
+  }
+
+  .quickAddAmount {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .quickAddDescription {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .quickAddSubmit {
+    flex-basis: 100%;
+  }
+}
+
 .quickAddError {
   flex-basis: 100%;
   margin: 0;
