@@ -171,7 +171,7 @@
 .monthSummary {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 1.5rem;
+  gap: 0.5rem 2.5rem;
 }
 
 .monthSummaryCard {
@@ -180,9 +180,9 @@
 
   // Separador vertical sutil entre métricas, en lugar de cards.
   & + & {
-    padding-left: 1.5rem;
+    padding-left: 1.25rem;
     border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
-    margin-left: -1.5rem;
+    margin-left: -1.25rem;
   }
 }
 
