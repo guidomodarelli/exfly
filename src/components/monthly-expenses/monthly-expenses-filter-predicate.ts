@@ -279,17 +279,9 @@ export const MONTHLY_EXPENSES_PRESENCE_PREDICATES: Record<
 > = {
   subtotal: (row) => hasNonZeroAmount(row.subtotal),
   total: (row) => hasNonZeroAmount(row.total),
-  usd: (row, context) => {
-    const convertedUsd = getConvertedAmountForCurrency({
-      currency: "USD",
-      exchangeRateSnapshot: context.exchangeRateSnapshot,
-      rowCurrency: row.currency,
-      total: Number(row.total),
-      usdRate: row.usdRate,
-    });
-
-    return convertedUsd != null && convertedUsd !== 0;
-  },
+  // tiene:/no:usd filtra por la moneda de base del gasto: con snapshot, toda
+  // fila ARS convertiría a USD y el filtro no distinguiría nada.
+  usd: (row) => row.currency === "USD",
   pagos: (row) => getPaymentProgress(row).coveredPayments > 0,
   registros: (row) => (row.paymentRecords ?? []).length > 0,
   enviados: (row) => getSentReceiptsCount(row) > 0,

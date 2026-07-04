@@ -398,27 +398,12 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
     expect(matches(usdRow)).toBe(true);
   });
 
-  it("bases USD presence on the converted value, matching the displayed column", () => {
+  it("bases USD presence on the row currency, not on the converted value", () => {
     const arsRow = createRow({ currency: "ARS", total: "1000" });
     const usdRow = createRow({ currency: "USD", total: "50" });
 
-    // Sin snapshot, la columna USD de una fila ARS muestra "-": tiene:usd debe ser
-    // falso (y no:usd verdadero) aunque el total crudo sea no-cero.
-    const hasUsdNoRate = buildMonthlyExpensesQueryPredicate(
-      [{ key: "usd", negated: false, value: { kind: "presence", value: "hasValue" } }],
-      { exchangeRateSnapshot: null },
-    );
-    const lacksUsdNoRate = buildMonthlyExpensesQueryPredicate(
-      [{ key: "usd", negated: false, value: { kind: "presence", value: "noValue" } }],
-      { exchangeRateSnapshot: null },
-    );
-
-    expect(hasUsdNoRate(arsRow)).toBe(false);
-    expect(lacksUsdNoRate(arsRow)).toBe(true);
-    // Una fila USD ya está en USD: tiene valor convertido aun sin snapshot.
-    expect(hasUsdNoRate(usdRow)).toBe(true);
-
-    // Con snapshot válido la fila ARS sí convierte a USD y queda presente.
+    // tiene:usd = gastos cuya moneda de base es USD; la conversión no cuenta
+    // (con snapshot, cualquier fila ARS convertiría y el filtro no serviría).
     const context: MonthlyExpenseFilterContext = {
       exchangeRateSnapshot: {
         blueRate: 1500,
@@ -427,12 +412,19 @@ describe("buildMonthlyExpensesQueryPredicate", () => {
         solidarityRate: 1300,
       },
     };
-    const hasUsdWithRate = buildMonthlyExpensesQueryPredicate(
+    const hasUsd = buildMonthlyExpensesQueryPredicate(
       [{ key: "usd", negated: false, value: { kind: "presence", value: "hasValue" } }],
       context,
     );
+    const lacksUsd = buildMonthlyExpensesQueryPredicate(
+      [{ key: "usd", negated: false, value: { kind: "presence", value: "noValue" } }],
+      context,
+    );
 
-    expect(hasUsdWithRate(arsRow)).toBe(true);
+    expect(hasUsd(usdRow)).toBe(true);
+    expect(hasUsd(arsRow)).toBe(false);
+    expect(lacksUsd(arsRow)).toBe(true);
+    expect(lacksUsd(usdRow)).toBe(false);
   });
 
   it("matches prestamista by lender id (enum)", () => {
