@@ -14,6 +14,8 @@ import styles from "./confirm-delete-button.module.scss";
 
 interface ConfirmDeleteButtonProps {
   confirmLabel?: string;
+  /** Ítems extra del menú (p. ej. Editar), renderizados antes de Eliminar. */
+  extraMenuItems?: React.ReactNode;
   message: string;
   menuAriaLabel?: string;
   onConfirm: () => void;
@@ -21,6 +23,7 @@ interface ConfirmDeleteButtonProps {
 
 export function ConfirmDeleteButton({
   confirmLabel = "Confirmar",
+  extraMenuItems = null,
   message,
   menuAriaLabel = "Abrir acciones",
   onConfirm,
@@ -118,6 +121,7 @@ export function ConfirmDeleteButton({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {extraMenuItems}
           <DropdownMenuItem
             onSelect={() => {
               updatePopoverPosition();

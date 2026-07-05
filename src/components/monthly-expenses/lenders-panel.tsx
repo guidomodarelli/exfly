@@ -1,8 +1,10 @@
 import { useMemo } from "react";
+import { Pencil } from "lucide-react";
 
 import { ConfirmDeleteButton } from "@/components/monthly-expenses/confirm-delete-button";
 import type { LenderOption } from "@/components/monthly-expenses/lender-picker";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 import styles from "./lenders-panel.module.scss";
@@ -16,6 +18,7 @@ interface LendersPanelProps {
   isCreateModalOpen: boolean;
   lenders: LenderOption[];
   onDelete: (lenderId: string) => void;
+  onEdit: (lenderId: string) => void;
   onOpenCreateModal: () => void;
 }
 
@@ -43,6 +46,7 @@ export function LendersPanel({
   isCreateModalOpen,
   lenders,
   onDelete,
+  onEdit,
   onOpenCreateModal,
 }: LendersPanelProps) {
   const shouldRenderPanelFeedback = useMemo(
@@ -95,6 +99,12 @@ export function LendersPanel({
                   ) : null}
                 </div>
                 <ConfirmDeleteButton
+                  extraMenuItems={
+                    <DropdownMenuItem onSelect={() => onEdit(lender.id)}>
+                      <Pencil />
+                      Editar
+                    </DropdownMenuItem>
+                  }
                   message={`¿Querés eliminar a ${lender.name} del catálogo?`}
                   menuAriaLabel={`Abrir acciones para ${lender.name}`}
                   onConfirm={() => onDelete(lender.id)}

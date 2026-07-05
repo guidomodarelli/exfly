@@ -1916,6 +1916,8 @@ export default function MonthlyExpensesPage({
       createClosedExpenseReceiptCoverageEditState(),
     );
   const [isLenderCreateModalOpen, setIsLenderCreateModalOpen] = useState(false);
+  // Id del prestamista en edición; null = el modal crea uno nuevo.
+  const [editingLenderId, setEditingLenderId] = useState<string | null>(null);
   const [isMonthTransitionPending, setIsMonthTransitionPending] = useState(false);
   const [pendingMonth, setPendingMonth] = useState<string | null>(null);
   const shouldIgnoreNextExpenseSheetCloseRef = useRef(false);
@@ -5378,7 +5380,7 @@ export default function MonthlyExpensesPage({
   const handleLendersSubmit = async () => {
 
     const lenderName = lendersState.name.trim();
-    const newLenderId = createLenderId();
+    const isEditingLender = editingLenderId !== null;
 
     if (!isOAuthConfigured || !isAuthenticated) {
       toast.warning("Conectate con Google para guardar prestamistas.");
@@ -5395,9 +5397,11 @@ export default function MonthlyExpensesPage({
       return false;
     }
 
+    // En edición, el propio prestamista no cuenta como duplicado.
     if (
       lendersState.lenders.some(
         (lender) =>
+          lender.id !== editingLenderId &&
           lender.name.toLocaleLowerCase() === lenderName.toLocaleLowerCase(),
       )
     ) {
@@ -5410,15 +5414,19 @@ export default function MonthlyExpensesPage({
       return false;
     }
 
-    const nextLenders = [
-      ...lendersState.lenders,
-      {
-        id: newLenderId,
-        name: lenderName,
-        ...(lendersState.notes.trim() ? { notes: lendersState.notes.trim() } : {}),
-        type: lendersState.type,
-      },
-    ].sort((left, right) => left.name.localeCompare(right.name, "es"));
+    const editedLenderEntry = {
+      id: editingLenderId ?? createLenderId(),
+      name: lenderName,
+      ...(lendersState.notes.trim() ? { notes: lendersState.notes.trim() } : {}),
+      type: lendersState.type,
+    };
+    const nextLenders = (
+      isEditingLender
+        ? lendersState.lenders.map((lender) =>
+            lender.id === editingLenderId ? editedLenderEntry : lender,
+          )
+        : [...lendersState.lenders, editedLenderEntry]
+    ).sort((left, right) => left.name.localeCompare(right.name, "es"));
 
     updateLendersState((currentState) => ({
       ...currentState,
@@ -5438,6 +5446,10 @@ export default function MonthlyExpensesPage({
         })),
       });
 
+      const successMessage = isEditingLender
+        ? "Prestamista actualizado correctamente."
+        : "Prestamista guardado correctamente.";
+
       void toast.promise(
         savePromise,
         {
@@ -5447,7 +5459,7 @@ export default function MonthlyExpensesPage({
               getTechnicalErrorCode(error),
             ),
           loading: "Guardando prestamista...",
-          success: "Prestamista guardado correctamente.",
+          success: successMessage,
         },
       );
       await savePromise;
@@ -5459,9 +5471,24 @@ export default function MonthlyExpensesPage({
         lenders: nextLenders,
         name: "",
         notes: "",
-        successMessage: "Prestamista guardado correctamente.",
+        successMessage,
         type: "family",
       }));
+
+      // El nombre vive denormalizado en las filas del mes: se refresca en
+      // memoria para que la tabla no muestre el nombre viejo hasta recargar.
+      if (isEditingLender) {
+        setEditingLenderId(null);
+        updateFormState((currentState) => ({
+          ...currentState,
+          rows: currentState.rows.map((row) =>
+            row.lenderId === editedLenderEntry.id
+              ? { ...row, lenderName: editedLenderEntry.name }
+              : row,
+          ),
+        }));
+      }
+
       await refreshLoansReport(nextLenders);
       return true;
     } catch (error) {
@@ -5474,6 +5501,37 @@ export default function MonthlyExpensesPage({
         isSubmitting: false,
       }));
       return false;
+    }
+  };
+
+  const handleEditLender = (lenderId: string) => {
+    const lenderToEdit = lendersState.lenders.find(
+      (lender) => lender.id === lenderId,
+    );
+
+    if (!lenderToEdit) {
+      return;
+    }
+
+    setEditingLenderId(lenderId);
+    updateLendersState((currentState) => ({
+      ...currentState,
+      error: null,
+      errorCode: null,
+      name: lenderToEdit.name,
+      notes: lenderToEdit.notes ?? "",
+      successMessage: null,
+      type: lenderToEdit.type,
+    }));
+    setIsLenderCreateModalOpen(true);
+  };
+
+  const handleLenderModalOpenChange = (nextOpen: boolean) => {
+    setIsLenderCreateModalOpen(nextOpen);
+
+    if (!nextOpen) {
+      setEditingLenderId(null);
+      handleResetLendersForm();
     }
   };
 
@@ -5793,6 +5851,10 @@ export default function MonthlyExpensesPage({
     }
   };
 
+  const editingLender = editingLenderId
+    ? lendersState.lenders.find((lender) => lender.id === editingLenderId) ??
+      null
+    : null;
   const pageHeading = getPageHeadingByTab(activeTab);
   useFinanceAppShellNavigation({
     activeSection: activeTab,
@@ -5903,6 +5965,7 @@ export default function MonthlyExpensesPage({
                 isCreateModalOpen={isLenderCreateModalOpen}
                 lenders={lendersState.lenders}
                 onDelete={handleDeleteLender}
+                onEdit={handleEditLender}
                 onOpenCreateModal={() => setIsLenderCreateModalOpen(true)}
               />
       ) : null}
@@ -5977,6 +6040,15 @@ export default function MonthlyExpensesPage({
       </Dialog>
 
       <LenderCreateDialog
+        baselineFormValues={
+          editingLender
+            ? {
+                name: editingLender.name,
+                notes: editingLender.notes ?? "",
+                type: editingLender.type,
+              }
+            : undefined
+        }
         feedbackMessage={lendersFeedbackMessage}
         feedbackErrorCode={lendersFeedbackErrorCode}
         feedbackTone={lendersFeedbackTone}
@@ -5987,9 +6059,10 @@ export default function MonthlyExpensesPage({
         }}
         isOpen={isLenderCreateModalOpen}
         isSubmitting={lendersState.isSubmitting}
+        mode={editingLender ? "edit" : "create"}
         onDiscardUnsavedChanges={handleDiscardUnsavedLendersChanges}
         onFieldChange={handleLenderFieldChange}
-        onOpenChange={setIsLenderCreateModalOpen}
+        onOpenChange={handleLenderModalOpenChange}
         onSubmit={handleLendersSubmit}
       />
     </>

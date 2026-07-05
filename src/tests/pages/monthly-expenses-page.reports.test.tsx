@@ -382,6 +382,74 @@ registerMonthlyExpensesPageDefaultHooks({
     ).not.toBeInTheDocument();
   });
 
+  it("edits an existing lender from the row actions menu", async () => {
+    const user = userEvent.setup();
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: async () => ({
+        data: { id: "stored-doc", name: "lenders-catalog" },
+      }),
+      ok: true,
+    });
+
+    mockedUseSession.mockReturnValue({
+      data: {
+        expires: "2099-01-01T00:00:00.000Z",
+        user: {
+          email: "gus@example.com",
+          name: "Gus",
+        },
+      },
+      status: "authenticated",
+      update: jest.fn(),
+    } as ReturnType<typeof useSession>);
+    global.fetch = fetchMock as typeof fetch;
+
+    renderWithProviders(
+      <MonthlyExpensesPage
+        {...basePageProps}
+        initialActiveTab="lenders"
+        initialDocument={{
+          items: [],
+          month: "2026-03",
+        }}
+        initialLendersCatalog={{
+          lenders: [{ id: "lender-1", name: "Camila", type: "other" }],
+        }}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Abrir acciones para Camila" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Editar" }));
+
+    const editDialog = await screen.findByRole("dialog", {
+      name: "Editar prestamista",
+    });
+    const nameInput = within(editDialog).getByLabelText("Nombre");
+
+    // El formulario llega precargado con los datos del prestamista.
+    expect(nameInput).toHaveValue("Camila");
+
+    await user.clear(nameInput);
+    await user.type(nameInput, "Camila Morales");
+    await user.click(
+      within(editDialog).getByRole("button", { name: "Guardar cambios" }),
+    );
+
+    // La lista refleja el nombre nuevo y el guardado reemplaza (no duplica).
+    expect(await screen.findByText("Camila Morales")).toBeInTheDocument();
+    expect(screen.queryByText(/^Camila$/)).not.toBeInTheDocument();
+
+    const lendersSaveCall = fetchMock.mock.calls.find(([, requestInit]) =>
+      String(requestInit?.body ?? "").includes("lenders"),
+    );
+    const savedPayload = JSON.parse(String(lendersSaveCall?.[1]?.body));
+    expect(savedPayload.lenders).toEqual([
+      { id: "lender-1", name: "Camila Morales", type: "other" },
+    ]);
+  });
+
   it("renders converted amounts in the total column while hiding the USD column by default", () => {
     renderWithProviders(
       <MonthlyExpensesPage

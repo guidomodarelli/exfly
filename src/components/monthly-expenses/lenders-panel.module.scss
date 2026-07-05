@@ -98,6 +98,9 @@
 
 .list {
   display: grid;
+  // Lista angosta y alineada a la izquierda: a ancho completo el kebab de
+  // acciones queda a media pantalla del contenido.
+  max-width: 36rem;
 }
 
 .listItem {

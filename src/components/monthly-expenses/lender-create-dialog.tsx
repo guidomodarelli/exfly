@@ -28,6 +28,16 @@ import styles from "./lenders-panel.module.scss";
 type TechnicalErrorCode = `E${number}${number}${number}${number}`;
 
 interface LenderCreateDialogProps {
+  /**
+   * Valores contra los que se detectan cambios sin guardar. En modo creación
+   * es el formulario vacío (default); en edición, los datos originales del
+   * prestamista.
+   */
+  baselineFormValues?: {
+    name: string;
+    notes: string;
+    type: LenderOption["type"];
+  };
   feedbackMessage: string | null;
   feedbackErrorCode?: TechnicalErrorCode | null;
   feedbackTone: "default" | "error" | "success";
@@ -38,19 +48,29 @@ interface LenderCreateDialogProps {
   };
   isOpen: boolean;
   isSubmitting: boolean;
+  /** Creación (default) o edición de un prestamista existente. */
+  mode?: "create" | "edit";
   onDiscardUnsavedChanges: () => void;
   onFieldChange: (fieldName: "name" | "notes" | "type", value: string) => void;
   onOpenChange: (nextOpen: boolean) => void;
   onSubmit: () => Promise<boolean>;
 }
 
+const EMPTY_LENDER_FORM_VALUES = {
+  name: "",
+  notes: "",
+  type: "family",
+} as const;
+
 export function LenderCreateDialog({
+  baselineFormValues = EMPTY_LENDER_FORM_VALUES,
   feedbackMessage,
   feedbackErrorCode = null,
   feedbackTone,
   formValues,
   isOpen,
   isSubmitting,
+  mode = "create",
   onDiscardUnsavedChanges,
   onFieldChange,
   onOpenChange,
@@ -60,10 +80,10 @@ export function LenderCreateDialog({
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const hasUnsavedChanges = useMemo(
     () =>
-      formValues.name.trim().length > 0 ||
-      formValues.notes.trim().length > 0 ||
-      formValues.type !== "family",
-    [formValues.name, formValues.notes, formValues.type],
+      formValues.name.trim() !== baselineFormValues.name.trim() ||
+      formValues.notes.trim() !== baselineFormValues.notes.trim() ||
+      formValues.type !== baselineFormValues.type,
+    [baselineFormValues, formValues.name, formValues.notes, formValues.type],
   );
   const hasRequiredNameError =
     hasAttemptedSubmit && formValues.name.trim().length === 0;
@@ -124,9 +144,13 @@ export function LenderCreateDialog({
       <Dialog onOpenChange={handleCreateModalOpenChange} open={isOpen}>
         <DialogContent className={styles.dialogContent}>
           <DialogHeader>
-            <DialogTitle>Nuevo prestamista</DialogTitle>
+            <DialogTitle>
+              {mode === "edit" ? "Editar prestamista" : "Nuevo prestamista"}
+            </DialogTitle>
             <DialogDescription>
-              Completá y guardá este prestamista para reutilizarlo en tus deudas.
+              {mode === "edit"
+                ? "Actualizá los datos de este prestamista."
+                : "Completá y guardá este prestamista para reutilizarlo en tus deudas."}
             </DialogDescription>
           </DialogHeader>
 
@@ -198,7 +222,11 @@ export function LenderCreateDialog({
                 Cancelar
               </Button>
               <Button disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Guardando prestamista..." : "Guardar prestamista"}
+                {isSubmitting
+                  ? "Guardando prestamista..."
+                  : mode === "edit"
+                    ? "Guardar cambios"
+                    : "Guardar prestamista"}
               </Button>
             </DialogFooter>
           </form>
