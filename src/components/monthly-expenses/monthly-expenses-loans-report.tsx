@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Flag, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Flag } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { FilterQueryBar } from "@/components/ui/filter-query-bar";
+import { parseFilterQuery } from "@/components/ui/filter-query-grammar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +15,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import {
+  buildLoansReportFilterQualifiers,
+  filterLoansReportEntries,
+  getLoansReportSortKey,
+  type LoansReportSortKey,
+} from "./monthly-expenses-loans-report-filter";
 import styles from "./monthly-expenses-loans-report.module.scss";
 
 type TechnicalErrorCode = `E${number}${number}${number}${number}`;
@@ -36,7 +36,6 @@ type MonthlyExpensesLenderType =
   | "other"
   | "unassigned";
 
-type LoansReportSortKey = "amount" | "due" | "lender";
 type LoansReportAmountMode = "month" | "total";
 
 const arsCurrencyFormatter = new Intl.NumberFormat("es-AR", {
@@ -97,8 +96,6 @@ interface MonthlyExpensesLoansReportProps {
     id: string;
     label: string;
   }>;
-  selectedLenderFilter: string;
-  selectedTypeFilter: string;
   summary: {
     activeLoanCount: number;
     payableCurrentMonthAmount: number;
@@ -111,9 +108,6 @@ interface MonthlyExpensesLoansReportProps {
     remainingAmount: number;
     trackedLoanCount: number;
   };
-  onLenderFilterChange: (value: string) => void;
-  onResetFilters: () => void;
-  onTypeFilterChange: (value: string) => void;
 }
 
 function getTypeLabel(type: MonthlyExpensesLenderType): string {
@@ -673,15 +667,24 @@ export function MonthlyExpensesLoansReport({
   feedbackErrorCode = null,
   isLoading = false,
   providerFilterOptions,
-  selectedLenderFilter,
-  selectedTypeFilter,
   summary,
-  onLenderFilterChange,
-  onResetFilters,
-  onTypeFilterChange,
 }: MonthlyExpensesLoansReportProps) {
-  const [sortKey, setSortKey] = useState<LoansReportSortKey>("amount");
+  const [filterQuery, setFilterQuery] = useState("");
   const [amountMode, setAmountMode] = useState<LoansReportAmountMode>("total");
+
+  const filterQualifiers = useMemo(
+    () => buildLoansReportFilterQualifiers(providerFilterOptions),
+    [providerFilterOptions],
+  );
+  const parsedFilterQuery = useMemo(
+    () => parseFilterQuery(filterQuery, filterQualifiers),
+    [filterQualifiers, filterQuery],
+  );
+  const filteredEntries = useMemo(
+    () => filterLoansReportEntries(entries, parsedFilterQuery),
+    [entries, parsedFilterQuery],
+  );
+  const sortKey: LoansReportSortKey = getLoansReportSortKey(parsedFilterQuery);
 
   if (isLoading) {
     return <LoansReportSkeleton />;
@@ -701,7 +704,7 @@ export function MonthlyExpensesLoansReport({
   const netBalancePosition = receivableShown - payableShown;
   const netTone = getNetBalanceTone(netBalancePosition);
 
-  const sortedEntries = sortReportEntries(entries, sortKey);
+  const sortedEntries = sortReportEntries(filteredEntries, sortKey);
   const sections = (
     [
       { direction: "payable", title: "Yo debo" },
@@ -724,7 +727,7 @@ export function MonthlyExpensesLoansReport({
     })
     .filter((section) => section.entries.length > 0);
 
-  const payableByLenderType = getPayableAmountByLenderType(entries);
+  const payableByLenderType = getPayableAmountByLenderType(filteredEntries);
   const payableTypeTotal = payableByLenderType.reduce(
     (total, segment) => total + segment.amount,
     0,
@@ -843,84 +846,13 @@ export function MonthlyExpensesLoansReport({
       ) : null}
 
       <div className={styles.filters}>
-        <div className={styles.filterField}>
-          <Label className={styles.filterLabel} htmlFor="loan-report-type-filter">
-            Tipo
-          </Label>
-          <Select onValueChange={onTypeFilterChange} value={selectedTypeFilter}>
-            <SelectTrigger
-              aria-label="Filtrar por tipo"
-              id="loan-report-type-filter"
-            >
-              <SelectValue placeholder="Todos los tipos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los tipos</SelectItem>
-              <SelectItem value="bank">Bancos</SelectItem>
-              <SelectItem value="family">Familiares</SelectItem>
-              <SelectItem value="friend">Amigos</SelectItem>
-              <SelectItem value="other">Otros</SelectItem>
-              <SelectItem value="unassigned">Sin prestamista</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className={styles.filterField}>
-          <Label
-            className={styles.filterLabel}
-            htmlFor="loan-report-lender-filter"
-          >
-            Prestamista
-          </Label>
-          <Select
-            onValueChange={onLenderFilterChange}
-            value={selectedLenderFilter}
-          >
-            <SelectTrigger
-              aria-label="Filtrar por prestamista"
-              id="loan-report-lender-filter"
-            >
-              <SelectValue placeholder="Todos los prestamistas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los prestamistas</SelectItem>
-              {providerFilterOptions.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className={styles.filterField}>
-          <Label className={styles.filterLabel} htmlFor="loan-report-sort">
-            Ordenar por
-          </Label>
-          <Select
-            onValueChange={(value) => setSortKey(value as LoansReportSortKey)}
-            value={sortKey}
-          >
-            <SelectTrigger aria-label="Ordenar deudas" id="loan-report-sort">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="amount">Monto</SelectItem>
-              <SelectItem value="due">Vencimiento</SelectItem>
-              <SelectItem value="lender">Prestamista</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <Button
-          className={styles.resetButton}
-          onClick={onResetFilters}
-          type="button"
-          variant="outline"
-        >
-          <RotateCcw aria-hidden />
-          Limpiar filtros
-        </Button>
+        <FilterQueryBar
+          ariaLabel="Filtro unificado de deudas"
+          configs={filterQualifiers}
+          onValueChange={setFilterQuery}
+          placeholder="Filtrar por campo o palabra (ej. tipo:banco orden:vencimiento)"
+          value={filterQuery}
+        />
       </div>
 
       {feedbackMessage ? (

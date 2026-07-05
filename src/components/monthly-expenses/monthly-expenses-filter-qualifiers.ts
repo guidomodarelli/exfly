@@ -1,5 +1,6 @@
 import {
   normalizeFilterSlug,
+  UNASSIGNED_FOLDER_FILTER_VALUE,
   type FilterQualifierConfig,
   type FilterQualifierOption,
 } from "@/components/ui/filter-query-grammar";
@@ -158,18 +159,33 @@ function buildUniqueSlugOptions(
   }));
 }
 
-/** Opciones de carpeta: una por carpeta existente (slug único). */
+/** Slug tipeable de la opción "Sin carpeta" (sentinel de sin asignar). */
+const UNASSIGNED_FOLDER_QUALIFIER_SLUG = "sin-carpeta";
+
+/**
+ * Opciones de carpeta: "Sin carpeta" (sentinel, permite `carpeta:sin-carpeta`
+ * y que el chip homónimo serialice su filtro) más una por carpeta existente
+ * (slug único; `sin-carpeta` queda reservado para el sentinel).
+ */
 function buildFolderQualifierOptions(
   expenseFolders: ExpenseFolderOption[],
 ): FilterQualifierOption[] {
-  return buildUniqueSlugOptions(expenseFolders, {
-    fallbackSlug: "carpeta",
-  });
+  return [
+    {
+      label: "Sin carpeta",
+      slug: UNASSIGNED_FOLDER_QUALIFIER_SLUG,
+      value: UNASSIGNED_FOLDER_FILTER_VALUE,
+    },
+    ...buildUniqueSlugOptions(expenseFolders, {
+      fallbackSlug: "carpeta",
+      reservedSlugs: [UNASSIGNED_FOLDER_QUALIFIER_SLUG],
+    }),
+  ];
 }
 
 /** Opciones de prestamista: una por prestamista cargado (slug único, valor=id). */
-function buildLenderQualifierOptions(
-  lenders: LenderOption[],
+export function buildLenderQualifierOptions(
+  lenders: ReadonlyArray<{ id: string; name: string }>,
 ): FilterQualifierOption[] {
   return buildUniqueSlugOptions(lenders, {
     fallbackSlug: "prestamista",

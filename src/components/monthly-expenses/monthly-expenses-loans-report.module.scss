@@ -105,37 +105,10 @@
   color: var(--destructive);
 }
 
+// Barra unificada de filtros (un solo input estilo GitHub, como en /gastos).
 .filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  align-items: flex-end;
   padding-top: 1.25rem;
   border-top: 1px solid var(--border);
-}
-
-.filters :global([data-slot="select-trigger"]) {
-  width: 100%;
-}
-
-.filterField {
-  display: grid;
-  gap: 0.4rem;
-  flex: 1 1 12rem;
-  min-width: 11rem;
-}
-
-.filterLabel {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--foreground);
-}
-
-.resetButton {
-  flex: 0 0 auto;
-  align-self: flex-end;
-  margin-left: auto;
 }
 
 .feedback {

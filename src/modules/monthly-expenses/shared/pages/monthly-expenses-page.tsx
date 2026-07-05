@@ -175,8 +175,6 @@ interface LoansReportState {
   error: string | null;
   errorCode: TechnicalErrorCode | null;
   isLoading: boolean;
-  lenderFilter: string;
-  typeFilter: string;
   summary: NormalizedLoansReportSummary;
 }
 
@@ -1115,9 +1113,7 @@ function createLoansReportState(
     error: error ? getSafeLoansReportErrorMessage(error) : null,
     errorCode,
     isLoading,
-    lenderFilter: "all",
     summary: normalizeLoansReportSummary(report.summary),
-    typeFilter: "all",
   };
 }
 
@@ -1811,20 +1807,6 @@ function mapReportEntriesToCurrentLenders(
   });
 }
 
-function getFilteredLoansReportEntries(
-  reportState: LoansReportState,
-): NormalizedLoansReportEntry[] {
-  return reportState.entries.filter((entry) => {
-    const matchesType =
-      reportState.typeFilter === "all" || entry.lenderType === reportState.typeFilter;
-    const matchesLender =
-      reportState.lenderFilter === "all" ||
-      entry.lenderId === reportState.lenderFilter;
-
-    return matchesType && matchesLender;
-  });
-}
-
 function getRequestedMonthFromQuery(
   queryValue: string | string[] | undefined,
 ): string | null {
@@ -2021,7 +2003,6 @@ export default function MonthlyExpensesPage({
       ? dirtyExpenseFields
       : new Set<string>();
   const isExpenseSheetDirty = dirtyExpenseFields.size > 0;
-  const filteredReportEntries = getFilteredLoansReportEntries(reportState);
   const reportProviderFilterOptions = getReportProviderFilterOptions(
     reportState.entries,
     lendersState.lenders,
@@ -5548,11 +5529,6 @@ export default function MonthlyExpensesPage({
             : row,
         ),
       }));
-      updateReportState((currentState) => ({
-        ...currentState,
-        lenderFilter:
-          currentState.lenderFilter === lenderId ? "all" : currentState.lenderFilter,
-      }));
       updateLendersState((currentState) => ({
         ...currentState,
         error: null,
@@ -5817,29 +5793,6 @@ export default function MonthlyExpensesPage({
     }
   };
 
-  const handleReportTypeFilterChange = (value: string) => {
-    updateReportState((currentState) => ({
-      ...currentState,
-      typeFilter: value,
-    }));
-  };
-
-  const handleReportLenderFilterChange = (value: string) => {
-    updateReportState((currentState) => ({
-      ...currentState,
-      lenderFilter: value,
-    }));
-  };
-
-  const handleReportFiltersReset = () => {
-    updateReportState((currentState) => ({
-      ...currentState,
-      lenderFilter: "all",
-      typeFilter: "all",
-    }));
-    toast.info("Filtros del reporte restablecidos.");
-  };
-
   const pageHeading = getPageHeadingByTab(activeTab);
   useFinanceAppShellNavigation({
     activeSection: activeTab,
@@ -5956,17 +5909,12 @@ export default function MonthlyExpensesPage({
 
       {activeTab === "debts" ? (
               <MonthlyExpensesLoansReport
-                entries={filteredReportEntries}
+                entries={reportState.entries}
                 feedbackMessage={reportState.error}
                 feedbackErrorCode={reportState.errorCode}
                 isLoading={reportState.isLoading}
                 providerFilterOptions={reportProviderFilterOptions}
-                selectedLenderFilter={reportState.lenderFilter}
-                selectedTypeFilter={reportState.typeFilter}
                 summary={reportState.summary}
-                onLenderFilterChange={handleReportLenderFilterChange}
-                onResetFilters={handleReportFiltersReset}
-                onTypeFilterChange={handleReportTypeFilterChange}
               />
       ) : null}
 

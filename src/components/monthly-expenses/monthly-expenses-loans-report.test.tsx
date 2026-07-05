@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { MonthlyExpensesLoansReport } from "./monthly-expenses-loans-report";
@@ -28,11 +28,7 @@ function buildActiveLoan(overrides: Partial<ActiveLoan> = {}): ActiveLoan {
 }
 
 function renderReport(overrides: RenderOverrides = {}) {
-  const onLenderFilterChange = jest.fn();
-  const onResetFilters = jest.fn();
-  const onTypeFilterChange = jest.fn();
-
-  render(
+  return render(
     <MonthlyExpensesLoansReport
       entries={[
         {
@@ -58,12 +54,7 @@ function renderReport(overrides: RenderOverrides = {}) {
         },
       ]}
       feedbackMessage={null}
-      onLenderFilterChange={onLenderFilterChange}
-      onResetFilters={onResetFilters}
-      onTypeFilterChange={onTypeFilterChange}
       providerFilterOptions={[]}
-      selectedLenderFilter="all"
-      selectedTypeFilter="all"
       summary={{
         activeLoanCount: 2,
         payableCurrentMonthAmount: 30000,
@@ -82,12 +73,6 @@ function renderReport(overrides: RenderOverrides = {}) {
       {...overrides}
     />,
   );
-
-  return {
-    onLenderFilterChange,
-    onResetFilters,
-    onTypeFilterChange,
-  };
 }
 
 describe("MonthlyExpensesLoansReport", () => {
@@ -334,10 +319,199 @@ describe("MonthlyExpensesLoansReport", () => {
     expect(screen.getByRole("heading", { name: "Me deben" })).toBeInTheDocument();
   });
 
-  it("offers a sort control for the debt listing", () => {
+  it("offers a single unified filter input instead of separate selects", () => {
     renderReport();
 
-    expect(screen.getByLabelText("Ordenar deudas")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Filtro unificado de deudas" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Filtrar por tipo")).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Filtrar por prestamista"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Ordenar deudas")).not.toBeInTheDocument();
+  });
+
+  it("filters entries by lender type with the tipo qualifier", async () => {
+    const user = userEvent.setup();
+
+    renderReport({
+      entries: [
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Préstamo" })],
+          direction: "payable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-2",
+          lenderName: "Banco Nación",
+          lenderType: "bank",
+          remainingAmount: 70500.75,
+          trackedLoanCount: 1,
+        },
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Tarjeta" })],
+          direction: "receivable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-1",
+          lenderName: "Vero",
+          lenderType: "family",
+          remainingAmount: 50000,
+          trackedLoanCount: 1,
+        },
+      ],
+    });
+
+    const filterInput = screen.getByRole("combobox", {
+      name: "Filtro unificado de deudas",
+    });
+    await user.click(filterInput);
+    await user.type(filterInput, "tipo:banco ");
+
+    expect(screen.getByText("Banco Nación")).toBeInTheDocument();
+    expect(screen.queryByText("Vero")).not.toBeInTheDocument();
+  });
+
+  it("filters entries by lender with the prestamista qualifier", async () => {
+    const user = userEvent.setup();
+
+    renderReport({
+      entries: [
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Préstamo" })],
+          direction: "payable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-2",
+          lenderName: "Banco Nación",
+          lenderType: "bank",
+          remainingAmount: 70500.75,
+          trackedLoanCount: 1,
+        },
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Tarjeta" })],
+          direction: "receivable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-1",
+          lenderName: "Vero",
+          lenderType: "family",
+          remainingAmount: 50000,
+          trackedLoanCount: 1,
+        },
+      ],
+      providerFilterOptions: [
+        { id: "lender-2", label: "Banco Nación" },
+        { id: "lender-1", label: "Vero" },
+      ],
+    });
+
+    const filterInput = screen.getByRole("combobox", {
+      name: "Filtro unificado de deudas",
+    });
+    await user.click(filterInput);
+    await user.type(filterInput, "prestamista:vero ");
+
+    expect(screen.getByText("Vero")).toBeInTheDocument();
+    expect(screen.queryByText("Banco Nación")).not.toBeInTheDocument();
+  });
+
+  it("filters entries by free text over the lender name", async () => {
+    const user = userEvent.setup();
+
+    renderReport({
+      entries: [
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Préstamo" })],
+          direction: "payable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-2",
+          lenderName: "Banco Nación",
+          lenderType: "bank",
+          remainingAmount: 70500.75,
+          trackedLoanCount: 1,
+        },
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Tarjeta" })],
+          direction: "receivable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-1",
+          lenderName: "Vero",
+          lenderType: "family",
+          remainingAmount: 50000,
+          trackedLoanCount: 1,
+        },
+      ],
+    });
+
+    const filterInput = screen.getByRole("combobox", {
+      name: "Filtro unificado de deudas",
+    });
+    await user.click(filterInput);
+    await user.type(filterInput, "nacion");
+
+    expect(screen.getByText("Banco Nación")).toBeInTheDocument();
+    expect(screen.queryByText("Vero")).not.toBeInTheDocument();
+  });
+
+  it("sorts entries with the orden qualifier", async () => {
+    const user = userEvent.setup();
+
+    renderReport({
+      entries: [
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Préstamo" })],
+          direction: "payable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-2",
+          lenderName: "Zeta Bank",
+          lenderType: "bank",
+          remainingAmount: 900000,
+          trackedLoanCount: 1,
+        },
+        {
+          activeLoanCount: 1,
+          activeLoans: [buildActiveLoan({ description: "Tarjeta" })],
+          direction: "payable",
+          firstDebtMonth: "2026-01",
+          latestRecordedMonth: "2026-06",
+          lenderId: "lender-1",
+          lenderName: "Alfa Bank",
+          lenderType: "bank",
+          remainingAmount: 50000,
+          trackedLoanCount: 1,
+        },
+      ],
+    });
+
+    const getEntryTitles = () =>
+      screen
+        .getAllByRole("article")
+        .map(
+          (entry) =>
+            within(entry).getByRole("heading", { level: 3 }).textContent,
+        );
+
+    // Por defecto ordena por monto: Zeta (900k) antes que Alfa (50k).
+    expect(getEntryTitles()).toEqual(["Zeta Bank", "Alfa Bank"]);
+
+    const filterInput = screen.getByRole("combobox", {
+      name: "Filtro unificado de deudas",
+    });
+    await user.click(filterInput);
+    await user.type(filterInput, "orden:prestamista ");
+
+    expect(getEntryTitles()).toEqual(["Alfa Bank", "Zeta Bank"]);
   });
 
   it("repeats the amount-mode toggle in the balance and each section", () => {
@@ -436,14 +610,6 @@ describe("MonthlyExpensesLoansReport", () => {
       screen.getByText("Lo que pagás los próximos meses"),
     ).toBeInTheDocument();
     expect(screen.getByTitle("06/26: $ 20.000")).toBeInTheDocument();
-  });
-
-  it("resets every filter when the clear action is used", () => {
-    const { onResetFilters } = renderReport();
-
-    fireEvent.click(screen.getByRole("button", { name: /limpiar/i }));
-
-    expect(onResetFilters).toHaveBeenCalledTimes(1);
   });
 
   it("shows an empty message when there are no entries and no feedback", () => {

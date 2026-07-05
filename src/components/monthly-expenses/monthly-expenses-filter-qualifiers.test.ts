@@ -110,15 +110,34 @@ describe("buildMonthlyExpensesFilterQualifiers", () => {
     ]);
   });
 
-  it("builds folder options from existing folders only", () => {
+  it("builds folder options from existing folders plus the unassigned option", () => {
     const carpeta = buildQualifiers().find(
       (qualifier) => qualifier.key === "carpeta",
     );
 
     expect(carpeta?.options).toEqual([
+      { label: "Sin carpeta", slug: "sin-carpeta", value: "__unassigned__" },
       { label: "Hogar", slug: "hogar", value: "folder-1" },
       { label: "Tarjeta", slug: "tarjeta", value: "folder-2" },
     ]);
+  });
+
+  it("keeps the sin-carpeta slug reserved when a folder shares that name", () => {
+    const carpeta = buildMonthlyExpensesFilterQualifiers({
+      expenseFolders: [
+        { color: "blue", icon: "home", id: "folder-x", name: "Sin carpeta" },
+      ],
+      lenders: [],
+    }).find((qualifier) => qualifier.key === "carpeta");
+    const unassignedOption = carpeta?.options?.find(
+      (option) => option.value === "__unassigned__",
+    );
+    const folderOption = carpeta?.options?.find(
+      (option) => option.value === "folder-x",
+    );
+
+    expect(unassignedOption?.slug).toBe("sin-carpeta");
+    expect(folderOption?.slug).not.toBe("sin-carpeta");
   });
 
   it("slugifies multi-word folder names into a single token", () => {
