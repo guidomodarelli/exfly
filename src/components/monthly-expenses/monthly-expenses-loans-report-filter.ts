@@ -13,8 +13,8 @@ export type LoansReportSortKey = "amount" | "due" | "lender";
 
 export const DEFAULT_LOANS_REPORT_SORT_KEY: LoansReportSortKey = "amount";
 
-/** Etiqueta del qualifier de texto libre (fuzzy sobre el nombre del prestamista). */
-export const LOANS_REPORT_TEXT_QUALIFIER_LABEL = "Prestamista";
+/** Etiqueta del qualifier de texto libre (fuzzy sobre el nombre de la contraparte). */
+export const LOANS_REPORT_TEXT_QUALIFIER_LABEL = "Contraparte";
 
 const LENDER_TYPE_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
   { label: "Bancos", slug: "banco", value: "bank" },
@@ -24,14 +24,15 @@ const LENDER_TYPE_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
   { label: "Sin prestamista", slug: "sin-prestamista", value: "unassigned" },
 ];
 
-const SORT_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
-  { label: "Monto", slug: "monto", value: "amount" },
-  { label: "Vencimiento", slug: "vencimiento", value: "due" },
-  { label: "Prestamista", slug: "prestamista", value: "lender" },
+/** Opciones del dropdown "Ordenar por" del listado de deudas. */
+export const LOANS_REPORT_SORT_OPTIONS: Array<{
+  label: string;
+  value: LoansReportSortKey;
+}> = [
+  { label: "Monto", value: "amount" },
+  { label: "Vencimiento", value: "due" },
+  { label: "Contraparte", value: "lender" },
 ];
-
-/** Clave del qualifier de orden; no filtra, elige el criterio de orden. */
-export const LOANS_REPORT_SORT_QUALIFIER_KEY = "orden";
 
 export interface LoansReportLenderFilterOption {
   id: string;
@@ -40,8 +41,10 @@ export interface LoansReportLenderFilterOption {
 
 /**
  * Qualifiers de la barra unificada del reporte de deudas: texto libre por
- * nombre de prestamista, `tipo:`, `prestamista:` (una opción por prestamista
- * con deuda) y `orden:` para el criterio de orden del listado.
+ * nombre de contraparte, `tipo:` y `contraparte:` (una opción por contraparte
+ * con deuda). Todas las entradas tienen tipo y contraparte, así que ningún
+ * campo ofrece las meta-claves de presencia (`tiene:`/`no:`). El orden del
+ * listado vive en un dropdown aparte, no en la barra.
  */
 export function buildLoansReportFilterQualifiers(
   lenderOptions: LoansReportLenderFilterOption[],
@@ -53,27 +56,29 @@ export function buildLoansReportFilterQualifiers(
       kind: "enum",
       label: "Tipo",
       options: LENDER_TYPE_QUALIFIER_OPTIONS,
+      supportsPresence: false,
     },
     lenderOptions.length > 0
       ? {
           iconName: "user",
-          key: "prestamista",
+          key: "contraparte",
           kind: "enum",
-          label: "Prestamista",
+          label: "Contraparte",
           options: buildLenderQualifierOptions(
             lenderOptions.map((option) => ({
               id: option.id,
               name: option.label,
             })),
           ),
+          supportsPresence: false,
         }
-      : { iconName: "user", key: "prestamista", kind: "textMatch", label: "Prestamista" },
-    {
-      key: LOANS_REPORT_SORT_QUALIFIER_KEY,
-      kind: "enum",
-      label: "Ordenar por",
-      options: SORT_QUALIFIER_OPTIONS,
-    },
+      : {
+          iconName: "user",
+          key: "contraparte",
+          kind: "textMatch",
+          label: "Contraparte",
+          supportsPresence: false,
+        },
   ];
 }
 
@@ -109,9 +114,9 @@ function matchesLenderNameText(
 }
 
 /**
- * Aplica la query parseada a las entradas del reporte: `tipo:`/`prestamista:`
+ * Aplica la query parseada a las entradas del reporte: `tipo:`/`contraparte:`
  * (OR entre valores repetidos, exclusión con `-`), y el texto libre matchea el
- * nombre del prestamista. `orden:` no filtra (ver {@link getLoansReportSortKey}).
+ * nombre de la contraparte. `orden:` no filtra (ver {@link getLoansReportSortKey}).
  */
 export function filterLoansReportEntries<T extends LoansReportFilterableEntry>(
   entries: T[],
@@ -121,12 +126,12 @@ export function filterLoansReportEntries<T extends LoansReportFilterableEntry>(
   const excludedTypes = getEnumFilterValues(parsed.appliedFilters, "tipo", true);
   const includedLenderIds = getEnumFilterValues(
     parsed.appliedFilters,
-    "prestamista",
+    "contraparte",
     false,
   );
   const excludedLenderIds = getEnumFilterValues(
     parsed.appliedFilters,
-    "prestamista",
+    "contraparte",
     true,
   );
   const freeText = parsed.descriptionFilter.trim();
@@ -167,20 +172,3 @@ export function filterLoansReportEntries<T extends LoansReportFilterableEntry>(
   });
 }
 
-/** Criterio de orden elegido con `orden:`; el último token gana. */
-export function getLoansReportSortKey(
-  parsed: ParsedFilterQuery,
-): LoansReportSortKey {
-  const sortValues = getEnumFilterValues(
-    parsed.appliedFilters,
-    LOANS_REPORT_SORT_QUALIFIER_KEY,
-    false,
-  );
-  const lastSortValue = sortValues[sortValues.length - 1];
-
-  return lastSortValue === "due" ||
-    lastSortValue === "lender" ||
-    lastSortValue === "amount"
-    ? lastSortValue
-    : DEFAULT_LOANS_REPORT_SORT_KEY;
-}

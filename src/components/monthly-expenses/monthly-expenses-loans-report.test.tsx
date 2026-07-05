@@ -374,7 +374,35 @@ describe("MonthlyExpensesLoansReport", () => {
     expect(screen.queryByText("Vero")).not.toBeInTheDocument();
   });
 
-  it("filters entries by lender with the prestamista qualifier", async () => {
+  it("does not offer presence meta-keys because every entry has type and counterpart", async () => {
+    const user = userEvent.setup();
+
+    renderReport({
+      providerFilterOptions: [{ id: "lender-1", label: "Banco Ciudad" }],
+    });
+
+    const filterInput = screen.getByRole("combobox", {
+      name: "Filtro unificado de deudas",
+    });
+    await user.click(filterInput);
+
+    const optionLabels = screen
+      .getAllByRole("option")
+      .map((option) => option.textContent ?? "");
+
+    expect(optionLabels.some((label) => label.includes("Tiene"))).toBe(false);
+    expect(optionLabels.some((label) => label.includes("No tiene"))).toBe(
+      false,
+    );
+    expect(optionLabels.some((label) => label.includes("Contraparte"))).toBe(
+      true,
+    );
+    expect(
+      optionLabels.some((label) => label.includes("Prestamista")),
+    ).toBe(false);
+  });
+
+  it("filters entries by lender with the contraparte qualifier", async () => {
     const user = userEvent.setup();
 
     renderReport({
@@ -414,7 +442,7 @@ describe("MonthlyExpensesLoansReport", () => {
       name: "Filtro unificado de deudas",
     });
     await user.click(filterInput);
-    await user.type(filterInput, "prestamista:vero ");
+    await user.type(filterInput, "contraparte:vero ");
 
     expect(screen.getByText("Vero")).toBeInTheDocument();
     expect(screen.queryByText("Banco Nación")).not.toBeInTheDocument();
@@ -462,7 +490,7 @@ describe("MonthlyExpensesLoansReport", () => {
     expect(screen.queryByText("Vero")).not.toBeInTheDocument();
   });
 
-  it("sorts entries with the orden qualifier", async () => {
+  it("sorts entries with the Ordenar por dropdown", async () => {
     const user = userEvent.setup();
 
     renderReport({
@@ -505,11 +533,12 @@ describe("MonthlyExpensesLoansReport", () => {
     // Por defecto ordena por monto: Zeta (900k) antes que Alfa (50k).
     expect(getEntryTitles()).toEqual(["Zeta Bank", "Alfa Bank"]);
 
-    const filterInput = screen.getByRole("combobox", {
-      name: "Filtro unificado de deudas",
-    });
-    await user.click(filterInput);
-    await user.type(filterInput, "orden:prestamista ");
+    await user.click(
+      screen.getByRole("button", { name: /^Ordenar por: Monto/ }),
+    );
+    await user.click(
+      screen.getByRole("menuitemradio", { name: "Contraparte" }),
+    );
 
     expect(getEntryTitles()).toEqual(["Alfa Bank", "Zeta Bank"]);
   });

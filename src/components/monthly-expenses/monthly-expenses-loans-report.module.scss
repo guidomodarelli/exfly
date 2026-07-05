@@ -105,10 +105,20 @@
   color: var(--destructive);
 }
 
-// Barra unificada de filtros (un solo input estilo GitHub, como en /gastos).
+// Barra unificada de filtros (un solo input estilo GitHub, como en /gastos)
+// más el dropdown "Ordenar por" a su derecha.
 .filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--border);
+}
+
+.filterQueryBar {
+  flex: 1 1 16rem;
+  min-width: 14rem;
 }
 
 .feedback {

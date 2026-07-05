@@ -223,8 +223,15 @@ function buildKeySuggestions(
     }));
 
   // Meta-claves de presencia como campos de primer nivel (`tiene:` / `no:`); no
-  // se ofrecen en modo exclusión (la ausencia ya se cubre con `no:`).
-  const metaSuggestions = negated
+  // se ofrecen en modo exclusión (la ausencia ya se cubre con `no:`) ni cuando
+  // ningún campo soporta presencia (todos tienen valor siempre).
+  const hasPresenceCapableFields = configs.some(
+    (config) =>
+      config.kind !== "text" &&
+      Boolean(config.key) &&
+      config.supportsPresence !== false,
+  );
+  const metaSuggestions = negated || !hasPresenceCapableFields
     ? []
     : PRESENCE_META_KEY_SUGGESTIONS.filter(
         (meta) =>
@@ -269,6 +276,7 @@ function buildMetaValueSuggestions(
 ): FilterSuggestion[] {
   return configs
     .filter((config) => config.kind !== "text" && config.key)
+    .filter((config) => config.supportsPresence !== false)
     .filter(
       (config) =>
         !hasPresenceMetaFilterAlreadyApplied(config, appliedFilters),
@@ -300,9 +308,10 @@ function buildPresenceAndExcludeSuggestions(
   const appliedPresenceValue = getAppliedPresenceValue(config, appliedFilters);
   const hasAppliedPresence = appliedPresenceValue != null;
 
-  const suggestions: FilterSuggestion[] = hasAppliedPresence
-    ? []
-    : [
+  const suggestions: FilterSuggestion[] =
+    hasAppliedPresence || config.supportsPresence === false
+      ? []
+      : [
         {
           group: "meta",
           icon: CircleSlash,

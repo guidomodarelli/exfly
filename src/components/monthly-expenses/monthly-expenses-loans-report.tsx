@@ -5,6 +5,13 @@ import { ChevronDown, ChevronUp, Flag } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { FilterQueryBar } from "@/components/ui/filter-query-bar";
 import { parseFilterQuery } from "@/components/ui/filter-query-grammar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,8 +24,9 @@ import {
 
 import {
   buildLoansReportFilterQualifiers,
+  DEFAULT_LOANS_REPORT_SORT_KEY,
   filterLoansReportEntries,
-  getLoansReportSortKey,
+  LOANS_REPORT_SORT_OPTIONS,
   type LoansReportSortKey,
 } from "./monthly-expenses-loans-report-filter";
 import styles from "./monthly-expenses-loans-report.module.scss";
@@ -684,7 +692,9 @@ export function MonthlyExpensesLoansReport({
     () => filterLoansReportEntries(entries, parsedFilterQuery),
     [entries, parsedFilterQuery],
   );
-  const sortKey: LoansReportSortKey = getLoansReportSortKey(parsedFilterQuery);
+  const [sortKey, setSortKey] = useState<LoansReportSortKey>(
+    DEFAULT_LOANS_REPORT_SORT_KEY,
+  );
 
   if (isLoading) {
     return <LoansReportSkeleton />;
@@ -848,11 +858,41 @@ export function MonthlyExpensesLoansReport({
       <div className={styles.filters}>
         <FilterQueryBar
           ariaLabel="Filtro unificado de deudas"
+          className={styles.filterQueryBar}
           configs={filterQualifiers}
           onValueChange={setFilterQuery}
-          placeholder="Filtrar por campo o palabra (ej. tipo:banco orden:vencimiento)"
+          placeholder="Filtrar por campo o palabra (ej. tipo:banco contraparte:vero)"
           value={filterQuery}
         />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline">
+              {`Ordenar por: ${
+                LOANS_REPORT_SORT_OPTIONS.find(
+                  (sortOption) => sortOption.value === sortKey,
+                )?.label ?? "Monto"
+              }`}
+              <ChevronDown aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuRadioGroup
+              onValueChange={(nextValue) =>
+                setSortKey(nextValue as LoansReportSortKey)
+              }
+              value={sortKey}
+            >
+              {LOANS_REPORT_SORT_OPTIONS.map((sortOption) => (
+                <DropdownMenuRadioItem
+                  key={sortOption.value}
+                  value={sortOption.value}
+                >
+                  {sortOption.label}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {feedbackMessage ? (

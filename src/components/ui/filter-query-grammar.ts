@@ -113,6 +113,12 @@ export interface FilterQualifierConfig {
    * default icon for the `kind`.
    */
   iconName?: string;
+  /**
+   * `false` cuando el campo siempre tiene valor y las meta-claves de presencia
+   * (`tiene:<clave>` / `no:<clave>`) no tienen sentido: la barra no las sugiere
+   * y el parser las rechaza como token inválido. Default: `true`.
+   */
+  supportsPresence?: boolean;
 }
 
 export interface FilterQueryToken {
@@ -772,7 +778,7 @@ export function parseFilterQuery(
 
         const fieldConfig = lookup.get(fieldKey);
 
-        if (!fieldConfig) {
+        if (!fieldConfig || fieldConfig.supportsPresence === false) {
           invalidTokens.push({ raw: token.raw, reason: "invalidValue" });
           continue;
         }
