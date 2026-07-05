@@ -154,8 +154,10 @@
 .entries {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-  grid-auto-rows: 1fr;
   gap: 1rem;
+  /* Cada card conserva su alto propio: sin esto (y con grid-auto-rows: 1fr)
+     expandir una card estiraba a todas las de la fila. */
+  align-items: start;
 }
 
 .entry {
