@@ -9,6 +9,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type ComponentProps,
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -38,6 +39,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 import styles from "./finance-app-shell.module.scss";
@@ -156,6 +158,90 @@ export function useFinanceAppShellNavigation(
   ]);
 }
 
+interface FinanceAppShellSidebarNavigationProps {
+  activeSection: FinanceAppSectionKey;
+  expensesHref: ComponentProps<typeof Link>["href"];
+}
+
+/**
+ * Section links of the sidebar. Lives inside SidebarProvider so it can close
+ * the mobile sheet when a section is selected.
+ */
+function FinanceAppShellSidebarNavigation({
+  activeSection,
+  expensesHref,
+}: FinanceAppShellSidebarNavigationProps) {
+  const { setOpenMobile } = useSidebar();
+
+  // En mobile la sidebar es un sheet superpuesto: al navegar debe cerrarse.
+  // En desktop setOpenMobile no afecta el estado del panel fijo.
+  const handleNavigate = () => {
+    setOpenMobile(false);
+  };
+
+  return (
+    <SidebarGroup className={styles.sidebarGroup}>
+      <SidebarGroupLabel className={styles.sidebarGroupLabel}>
+        Secciones
+      </SidebarGroupLabel>
+      <SidebarMenu className={styles.sidebarMenu}>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            className={styles.sidebarMenuButton}
+            isActive={activeSection === "expenses"}
+            tooltip="Control mensual"
+          >
+            <Link href={expensesHref} onClick={handleNavigate}>
+              <IconCalendarDollar />
+              <span>Control mensual</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            className={styles.sidebarMenuButton}
+            isActive={activeSection === "exchange-rates"}
+            tooltip="Cotizaciones del dólar"
+          >
+            <Link href="/cotizaciones" onClick={handleNavigate}>
+              <IconCashBanknote />
+              <span>Cotizaciones del dólar</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            className={styles.sidebarMenuButton}
+            isActive={activeSection === "lenders"}
+            tooltip="Prestamistas"
+          >
+            <Link href="/prestamistas" onClick={handleNavigate}>
+              <IconBuildingBank />
+              <span>Prestamistas</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            asChild
+            className={styles.sidebarMenuButton}
+            isActive={activeSection === "debts"}
+            tooltip="Reporte de deudas"
+          >
+            <Link href="/reportes/deudas" onClick={handleNavigate}>
+              <IconReportMoney />
+              <span>Reporte de deudas</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
 export function FinanceAppShell({
   children,
   initialSidebarOpen = true,
@@ -250,63 +336,10 @@ export function FinanceAppShell({
             </div>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup className={styles.sidebarGroup}>
-              <SidebarGroupLabel className={styles.sidebarGroupLabel}>Secciones</SidebarGroupLabel>
-              <SidebarMenu className={styles.sidebarMenu}>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className={styles.sidebarMenuButton}
-                    isActive={activeSection === "expenses"}
-                    tooltip="Control mensual"
-                  >
-                    <Link href={expensesHref}>
-                      <IconCalendarDollar />
-                      <span>Control mensual</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className={styles.sidebarMenuButton}
-                    isActive={activeSection === "exchange-rates"}
-                    tooltip="Cotizaciones del dólar"
-                  >
-                    <Link href="/cotizaciones">
-                      <IconCashBanknote />
-                      <span>Cotizaciones del dólar</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className={styles.sidebarMenuButton}
-                    isActive={activeSection === "lenders"}
-                    tooltip="Prestamistas"
-                  >
-                    <Link href="/prestamistas">
-                      <IconBuildingBank />
-                      <span>Prestamistas</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className={styles.sidebarMenuButton}
-                    isActive={activeSection === "debts"}
-                    tooltip="Reporte de deudas"
-                  >
-                    <Link href="/reportes/deudas">
-                      <IconReportMoney />
-                      <span>Reporte de deudas</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
+            <FinanceAppShellSidebarNavigation
+              activeSection={activeSection}
+              expensesHref={expensesHref}
+            />
           </SidebarContent>
           <SidebarFooter className={styles.sidebarFooter}>
             <AccountMenu

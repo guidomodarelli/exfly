@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -195,6 +195,61 @@ describe("FinanceAppShell", () => {
     expect(
       screen.getByRole("link", { name: "Control mensual" }),
     ).toHaveAttribute("data-active", "false");
+  });
+
+  it("closes the mobile sidebar sheet when selecting a section", async () => {
+    const user = userEvent.setup();
+    const originalInnerWidth = window.innerWidth;
+    const originalMatchMedia = window.matchMedia;
+
+    // Viewport mobile para useIsMobile (innerWidth < 768 + matchMedia).
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 400,
+      writable: true,
+    });
+    window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      addEventListener: jest.fn(),
+      addListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+      matches: true,
+      media: query,
+      onchange: null,
+      removeEventListener: jest.fn(),
+      removeListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      render(
+        <TooltipProvider>
+          <FinanceAppShell initialSidebarOpen isOAuthConfigured>
+            <h1>Page content</h1>
+          </FinanceAppShell>
+        </TooltipProvider>,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Abrir menu lateral" }),
+      );
+
+      const mobileSidebarSheet = await screen.findByRole("dialog");
+      await user.click(
+        within(mobileSidebarSheet).getByRole("link", {
+          name: "Cotizaciones del dólar",
+        }),
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    } finally {
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+        writable: true,
+      });
+      window.matchMedia = originalMatchMedia;
+    }
   });
 
   it("uses the root path as auth callback from auth routes", async () => {

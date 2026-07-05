@@ -1499,6 +1499,12 @@
     overflow: visible;
   }
 
+  /* Con los totales en su propia línea, el header de grupo necesita dos
+     líneas de alto (la altura sigue fija para anclar las cards debajo). */
+  .tableWrapper {
+    --mobile-group-header-height: 4.5rem;
+  }
+
   /* Sin header de columnas en cards: el grupo se pega arriba de la página.
      La celda sticky no puede moverse dentro de su propia fila (miden lo
      mismo), así que en mobile el sticky va en la fila del grupo completa. */
@@ -1526,6 +1532,33 @@
     box-shadow: none;
     height: 100%;
     align-items: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Los totales del grupo en una sola línea no deben fijar el ancho mínimo de
+     la página (empujaban todo el layout y aparecía scroll horizontal): pasan
+     completos a una segunda línea dentro del header, alineados con el pill. */
+  .tableWrapper :global([data-slot="table-group-header-row"]) button {
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 0.125rem;
+  }
+
+  /* El total acompaña al pill en la primera línea; el desglose ocupa la
+     segunda completa (total + desglose juntos no entran en una sola). */
+  .tableWrapper .groupHeaderTotals {
+    display: contents;
+  }
+
+  .tableWrapper .groupHeaderTotalsBreakdown {
+    flex: 1 0 100%;
+    margin-left: 1.375rem;
+    min-width: 0;
+    /* Fallback para pantallas muy angostas donde ni la línea propia alcanza. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .tableWrapper :global([data-slot="table"]) {
@@ -1542,6 +1575,14 @@
   .tableWrapper :global([data-slot="table-footer"]) {
     display: grid;
     gap: 0.75rem;
+  }
+
+  /* Como grid items, las filas tienen min-width auto (min-content): el
+     contenido en una línea de los headers de grupo empujaba el ancho de toda
+     la página y aparecía scroll horizontal. */
+  .tableWrapper :global([data-slot="table-row"]),
+  .tableWrapper :global([data-slot="table-group-header-row"]) {
+    min-width: 0;
   }
 
   /* El footer es la card de totales: se separa del cuerpo y pierde el fondo

@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { StrictMode, type ComponentProps } from "react";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -83,6 +83,13 @@ export function getTableTextOrder(texts: string[]): string[] {
 export function renderMonthlyExpensesTable(
   rows: MonthlyExpensesEditableRow[],
   overrides: Partial<MonthlyExpensesTableProps> = {},
+  options: {
+    /**
+     * Wraps the tree in React.StrictMode to reproduce the dev double-mount,
+     * where mount effects run twice (needed for persistence race regressions).
+     */
+    strictMode?: boolean;
+  } = {},
 ) {
   const defaultProps: MonthlyExpensesTableProps = {
     actionDisabled: false,
@@ -161,12 +168,14 @@ export function renderMonthlyExpensesTable(
     ...overrides,
   };
 
+  const tree = (
+    <TooltipProvider>
+      <MonthlyExpensesTable {...props} />
+    </TooltipProvider>
+  );
+
   return {
     props,
-    ...render(
-      <TooltipProvider>
-        <MonthlyExpensesTable {...props} />
-      </TooltipProvider>,
-    ),
+    ...render(options.strictMode ? <StrictMode>{tree}</StrictMode> : tree),
   };
 }

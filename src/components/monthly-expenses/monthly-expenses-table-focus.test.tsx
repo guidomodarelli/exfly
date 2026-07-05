@@ -22,6 +22,12 @@ async function openQuickEditDialog({
 }
 
 describe("MonthlyExpensesTable dialog autofocus", () => {
+  beforeEach(() => {
+    // Las preferencias de tabla persisten en localStorage: sin limpiar, el
+    // restore asincrónico aplica el estado que dejó el test anterior.
+    window.localStorage.clear();
+  });
+
   it("toggles visible row selection when clicking the header selection cell", async () => {
     const user = userEvent.setup();
 

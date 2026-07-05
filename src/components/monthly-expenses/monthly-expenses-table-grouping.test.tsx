@@ -267,4 +267,43 @@ describe("MonthlyExpensesTable group by folder", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Alquiler")).toBeInTheDocument();
   });
+
+  it("does not overwrite the persisted preferences with defaults during the StrictMode remount", async () => {
+    const preferencesStorageKey =
+      "control-mensual.monthly-expenses.table-preferences";
+    window.localStorage.setItem(
+      preferencesStorageKey,
+      JSON.stringify({
+        collapsedGroupKeys: [],
+        columnVisibility: {},
+        groupByMode: "folder",
+        loanSortMode: "paidInstallments",
+        moveCompletedToEnd: true,
+        sorting: [],
+        vigenciaSortMode: "startMonth",
+      }),
+    );
+
+    renderMonthlyExpensesTable(
+      ROWS,
+      { expenseFolders: FOLDERS },
+      { strictMode: true },
+    );
+
+    // El restore corre en un requestAnimationFrame posterior al montaje: hasta
+    // entonces la preferencia guardada no debe pisarse con los defaults.
+    const persistedPreferencesAfterMount = JSON.parse(
+      window.localStorage.getItem(preferencesStorageKey) ?? "{}",
+    );
+    expect(persistedPreferencesAfterMount.groupByMode).toBe("folder");
+
+    // Y al terminar el restore, el agrupado guardado vuelve activo.
+    expect(
+      await screen.findByLabelText("Grupo Servicios: 2 gastos"),
+    ).toBeInTheDocument();
+    expect(
+      JSON.parse(window.localStorage.getItem(preferencesStorageKey) ?? "{}")
+        .groupByMode,
+    ).toBe("folder");
+  });
 });

@@ -1126,7 +1126,6 @@ export function MonthlyExpensesTable({
   showUnsavedChangesDialog,
   validationMessage,
 }: MonthlyExpensesTableProps) {
-  const hasSkippedInitialPersistence = useRef(false);
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const [isTableHorizontallyScrolled, setIsTableHorizontallyScrolled] =
     useState(false);
@@ -1456,7 +1455,10 @@ export function MonthlyExpensesTable({
   useEffect(() => {
     const persistedPreferences = getPersistedMonthlyExpensesTablePreferences();
 
-    const restoreFrameId = window.requestAnimationFrame(() => {
+    // setTimeout y no requestAnimationFrame: los rAF no corren en pestañas en
+    // background, y el restore quedaba pendiente (tabla "restaurando" y sin
+    // agrupado) hasta que la pestaña recibiera foco.
+    const restoreTimeoutId = window.setTimeout(() => {
       if (persistedPreferences) {
         setLoanSortMode(persistedPreferences.loanSortMode);
         setVigenciaSortMode(persistedPreferences.vigenciaSortMode);
@@ -1476,16 +1478,19 @@ export function MonthlyExpensesTable({
       }
 
       setIsRestoringTablePreferences(false);
-    });
+    }, 0);
 
     return () => {
-      window.cancelAnimationFrame(restoreFrameId);
+      window.clearTimeout(restoreTimeoutId);
     };
   }, []);
 
   useEffect(() => {
-    if (!hasSkippedInitialPersistence.current) {
-      hasSkippedInitialPersistence.current = true;
+    // Mientras el restore (que corre en un requestAnimationFrame) no haya
+    // aplicado lo guardado, el estado son los defaults: persistirlos pisaría
+    // las preferencias del usuario (p. ej. en el double-mount de StrictMode,
+    // donde un guard por ref ya quedó consumido por el primer montaje).
+    if (isRestoringTablePreferences) {
       return;
     }
 
@@ -1506,6 +1511,7 @@ export function MonthlyExpensesTable({
     collapsedGroupKeys,
     columnVisibility,
     groupByMode,
+    isRestoringTablePreferences,
     loanSortMode,
     moveCompletedToEnd,
     sorting,
