@@ -46,9 +46,12 @@ export type MonthlyExpensesGroupByMode =
   | "none"
   | "folder"
   | "lender"
+  | "lenderType"
   | "currency"
   | "direction"
-  | "paymentStatus";
+  | "paymentStatus"
+  | "recurrence"
+  | "vigencia";
 
 /** Sort criterion for the unified loan "Deuda / cuotas" column. */
 export type LoanSortMode =

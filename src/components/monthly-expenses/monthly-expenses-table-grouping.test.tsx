@@ -418,6 +418,130 @@ describe("MonthlyExpensesTable group by folder", () => {
     ).toEqual(["Préstamo recibido", "Préstamo otorgado", "Compra suelta"]);
   });
 
+  it("groups the rows by lender type with unassigned rows at the end", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({ description: "Sin deuda", id: "expense-1" }),
+        createRow({
+          description: "Cuota fintech",
+          id: "expense-2",
+          isLoan: true,
+          lenderId: "lender-mp",
+          lenderName: "Mercado Pago",
+        }),
+        createRow({
+          description: "Cuota banco",
+          id: "expense-3",
+          isLoan: true,
+          lenderId: "lender-banco",
+          lenderName: "Banco Nación",
+        }),
+      ],
+      {
+        lenders: [
+          { id: "lender-mp", name: "Mercado Pago", type: "fintech" },
+          { id: "lender-banco", name: "Banco Nación", type: "bank" },
+        ],
+      },
+    );
+
+    await selectGroupByMode(user, /Tipo de contraparte/);
+
+    expect(
+      await screen.findByLabelText("Grupo Banco: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Fintech / Billetera: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Sin contraparte: 1 gasto"),
+    ).toBeInTheDocument();
+    // Banco antes que Fintech; sin contraparte al final.
+    expect(
+      getTableTextOrder(["Cuota banco", "Cuota fintech", "Sin deuda"]),
+    ).toEqual(["Cuota banco", "Cuota fintech", "Sin deuda"]);
+  });
+
+  it("groups the rows by recurrence with loans as their own recurrence kind", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({ description: "Compra puntual", id: "expense-1" }),
+      createRow({
+        description: "Cuota del préstamo",
+        id: "expense-2",
+        isLoan: true,
+        lenderId: "lender-1",
+        lenderName: "Banco",
+        loanEndMonth: "2026-12",
+      }),
+      createRow({
+        description: "Alquiler mensual",
+        id: "expense-3",
+        isRecurring: true,
+        recurrenceIsActive: true,
+        recurrenceStartMonth: "2026-01",
+      }),
+    ]);
+
+    await selectGroupByMode(user, /Recurrencia/);
+
+    expect(
+      await screen.findByLabelText("Grupo Recurrentes: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Deuda / cuotas: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Puntuales: 1 gasto"),
+    ).toBeInTheDocument();
+    // Recurrentes → Deuda / cuotas → Puntuales.
+    expect(
+      getTableTextOrder([
+        "Alquiler mensual",
+        "Cuota del préstamo",
+        "Compra puntual",
+      ]),
+    ).toEqual(["Alquiler mensual", "Cuota del préstamo", "Compra puntual"]);
+  });
+
+  it("groups the rows by vigencia end month in chronological order", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({ description: "Sin plazo", id: "expense-1" }),
+      createRow({
+        description: "Cuota larga",
+        id: "expense-2",
+        isLoan: true,
+        loanEndMonth: "2027-02",
+      }),
+      createRow({
+        description: "Cuota corta",
+        id: "expense-3",
+        isLoan: true,
+        loanEndMonth: "2026-08",
+      }),
+    ]);
+
+    await selectGroupByMode(user, /Vigencia/);
+
+    expect(
+      await screen.findByLabelText("Grupo Termina 08/26: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Termina 02/27: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Sin vigencia: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      getTableTextOrder(["Cuota corta", "Cuota larga", "Sin plazo"]),
+    ).toEqual(["Cuota corta", "Cuota larga", "Sin plazo"]);
+  });
+
   it("does not overwrite the persisted preferences with defaults during the StrictMode remount", async () => {
     const preferencesStorageKey =
       "control-mensual.monthly-expenses.table-preferences";

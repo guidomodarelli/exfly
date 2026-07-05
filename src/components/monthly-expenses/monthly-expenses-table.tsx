@@ -1588,6 +1588,10 @@ export function MonthlyExpensesTable({
     () => new Map(lenders.map((lender) => [lender.id, lender.name])),
     [lenders],
   );
+  const lenderTypesById = useMemo(
+    () => new Map(lenders.map((lender) => [lender.id, lender.type])),
+    [lenders],
+  );
   const rowsMatchingQueryPredicate = useMemo(() => {
     if (queryPredicateFilters.length === 0) {
       return rowsExcludingDescriptions;
@@ -2243,7 +2247,7 @@ export function MonthlyExpensesTable({
       return null;
     }
 
-    const groupModeContext = { foldersById, lenderNamesById };
+    const groupModeContext = { foldersById, lenderNamesById, lenderTypesById };
     const rowsByGroupKey = new Map<string, MonthlyExpensesEditableRow[]>();
 
     for (const row of rowsForTable) {
@@ -2271,7 +2275,14 @@ export function MonthlyExpensesTable({
     }
 
     return totalsByGroupKey;
-  }, [exchangeRateSnapshot, foldersById, groupByMode, lenderNamesById, rowsForTable]);
+  }, [
+    exchangeRateSnapshot,
+    foldersById,
+    groupByMode,
+    lenderNamesById,
+    lenderTypesById,
+    rowsForTable,
+  ]);
   // Config de grupos para el DataTable. Memoizada para no invalidar la memo del
   // cuerpo de la tabla en cada render; `undefined` desactiva el agrupado.
   const rowGroups = useMemo(() => {
@@ -2279,7 +2290,7 @@ export function MonthlyExpensesTable({
       return undefined;
     }
 
-    const groupModeContext = { foldersById, lenderNamesById };
+    const groupModeContext = { foldersById, lenderNamesById, lenderTypesById };
     const folderPositionById = new Map(
       expenseFolders.map((folder, folderIndex) => [folder.id, folderIndex]),
     );
@@ -2361,6 +2372,7 @@ export function MonthlyExpensesTable({
     groupTotalsByKey,
     handleGroupToggle,
     lenderNamesById,
+    lenderTypesById,
   ]);
   const folderCounts = useMemo(() => {
     const countsByFolderId: Record<string, number> = {};
@@ -2406,6 +2418,7 @@ export function MonthlyExpensesTable({
             folderPositionById,
             foldersById,
             lenderNamesById,
+            lenderTypesById,
           };
           const leftPosition = getGroupPositionForMode(
             activeGroupByMode,
@@ -3364,6 +3377,7 @@ export function MonthlyExpensesTable({
       foldersById,
       groupByMode,
       lenderNamesById,
+      lenderTypesById,
       vigenciaSortMode,
   ]);
 

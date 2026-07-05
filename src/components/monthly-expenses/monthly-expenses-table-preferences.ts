@@ -95,7 +95,17 @@ function parsePersistedVigenciaSortMode(
 }
 
 const PERSISTABLE_GROUP_BY_MODES: ReadonlySet<MonthlyExpensesGroupByMode> =
-  new Set(["none", "folder", "lender", "currency", "direction", "paymentStatus"]);
+  new Set([
+    "none",
+    "folder",
+    "lender",
+    "lenderType",
+    "currency",
+    "direction",
+    "paymentStatus",
+    "recurrence",
+    "vigencia",
+  ]);
 
 function parsePersistedGroupByMode(
   value: unknown,
