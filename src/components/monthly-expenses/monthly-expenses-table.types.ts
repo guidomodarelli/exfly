@@ -42,7 +42,13 @@ export const DEFAULT_USD_RATE_SETTINGS: MonthlyExpenseUsdRateSettings = {
 export const USD_RATE_IVA_FACTOR = 1.21;
 
 /** Row grouping mode for the monthly expenses table. */
-export type MonthlyExpensesGroupByMode = "none" | "folder";
+export type MonthlyExpensesGroupByMode =
+  | "none"
+  | "folder"
+  | "lender"
+  | "currency"
+  | "direction"
+  | "paymentStatus";
 
 /** Sort criterion for the unified loan "Deuda / cuotas" column. */
 export type LoanSortMode =

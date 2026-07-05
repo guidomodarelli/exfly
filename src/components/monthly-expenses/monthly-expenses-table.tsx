@@ -194,6 +194,13 @@ import {
   persistMonthlyExpensesTablePreferences,
 } from "./monthly-expenses-table-preferences";
 import {
+  getGroupKeyForMode,
+  getGroupLabelForMode,
+  getGroupPositionForMode,
+  GROUP_BY_MODE_LABELS,
+  GROUP_BY_MODE_MENU_OPTIONS,
+} from "./monthly-expenses-table-group-modes";
+import {
   getValidPaymentLink as getValidPaymentLinkUrl,
   PAYMENT_LINK_VALIDATION_ERROR_MESSAGE,
 } from "./payment-link";
@@ -230,7 +237,6 @@ const YEAR_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const MOVE_COMPLETED_TO_END_LABEL = "Mover completados al final";
 const MANUAL_SORTING_DISABLED_HELPER_TEXT =
   "Desactivado mientras haya un orden manual.";
-const UNASSIGNED_FOLDER_GROUP_LABEL = "Sin carpeta";
 
 /** Modo de agrupado visual de la tabla; v1 solo soporta carpeta. */
 
@@ -1470,7 +1476,7 @@ export function MonthlyExpensesTable({
         // El agrupado activo exige la entrada fantasma al frente del sorting,
         // igual que cuando el usuario lo activa desde el menú.
         setSorting(
-          persistedPreferences.groupByMode === "folder"
+          persistedPreferences.groupByMode !== "none"
             ? [GROUP_POSITION_SORT_ENTRY, ...persistedPreferences.sorting]
             : persistedPreferences.sorting,
         );
@@ -1615,7 +1621,7 @@ export function MonthlyExpensesTable({
   const applyUserSorting = useCallback(
     (nextUserSorting: SortingState) => {
       setSorting(
-        groupByMode === "folder"
+        groupByMode !== "none"
           ? [GROUP_POSITION_SORT_ENTRY, ...nextUserSorting]
           : nextUserSorting,
       );
@@ -1637,8 +1643,12 @@ export function MonthlyExpensesTable({
   const handleGroupByModeChange = useCallback(
     (nextGroupByMode: MonthlyExpensesGroupByMode) => {
       setGroupByMode(nextGroupByMode);
+      // Las claves de grupo colapsadas son propias de cada modo (ids de
+      // carpeta vs. contraparte vs. valores fijos): al cambiar de modo se
+      // resetean para no arrastrar colapsados de otro criterio.
+      setCollapsedGroupKeys(new Set());
       setSorting(
-        nextGroupByMode === "folder"
+        nextGroupByMode !== "none"
           ? [GROUP_POSITION_SORT_ENTRY, ...userSortingEntries]
           : userSortingEntries,
       );
@@ -2229,17 +2239,15 @@ export function MonthlyExpensesTable({
   // Totales por grupo sobre las filas visibles (respetan filtros), para
   // mostrarlos en el header aun con el grupo colapsado.
   const groupTotalsByKey = useMemo(() => {
-    if (groupByMode !== "folder") {
+    if (groupByMode === "none") {
       return null;
     }
 
+    const groupModeContext = { foldersById, lenderNamesById };
     const rowsByGroupKey = new Map<string, MonthlyExpensesEditableRow[]>();
 
     for (const row of rowsForTable) {
-      const groupKey =
-        row.expenseFolderId && foldersById.has(row.expenseFolderId)
-          ? row.expenseFolderId
-          : "";
+      const groupKey = getGroupKeyForMode(groupByMode, row, groupModeContext);
       const groupRows = rowsByGroupKey.get(groupKey) ?? [];
 
       groupRows.push(row);
@@ -2263,24 +2271,41 @@ export function MonthlyExpensesTable({
     }
 
     return totalsByGroupKey;
-  }, [exchangeRateSnapshot, foldersById, groupByMode, rowsForTable]);
+  }, [exchangeRateSnapshot, foldersById, groupByMode, lenderNamesById, rowsForTable]);
   // Config de grupos para el DataTable. Memoizada para no invalidar la memo del
   // cuerpo de la tabla en cada render; `undefined` desactiva el agrupado.
   const rowGroups = useMemo(() => {
-    if (groupByMode !== "folder") {
+    if (groupByMode === "none") {
       return undefined;
     }
+
+    const groupModeContext = { foldersById, lenderNamesById };
+    const folderPositionById = new Map(
+      expenseFolders.map((folder, folderIndex) => [folder.id, folderIndex]),
+    );
 
     return {
       collapsedGroupKeys,
       onGroupToggle: handleGroupToggle,
       getGroupKey: (row: MonthlyExpensesEditableRow) =>
-        row.expenseFolderId && foldersById.has(row.expenseFolderId)
-          ? row.expenseFolderId
-          : "",
+        getGroupKeyForMode(groupByMode, row, groupModeContext),
+      getGroupSortValue: (row: MonthlyExpensesEditableRow) =>
+        getGroupPositionForMode(groupByMode, row, {
+          ...groupModeContext,
+          folderPositionById,
+        }),
       renderGroupHeader: (groupKey: string, groupRowCount: number) => {
-        const folder = groupKey ? foldersById.get(groupKey) ?? null : null;
-        const folderName = folder?.name ?? UNASSIGNED_FOLDER_GROUP_LABEL;
+        // El swatch de color/icono solo existe para carpetas; el resto de los
+        // modos usa el pill con la etiqueta del grupo.
+        const folder =
+          groupByMode === "folder" && groupKey
+            ? foldersById.get(groupKey) ?? null
+            : null;
+        const folderName = getGroupLabelForMode(
+          groupByMode,
+          groupKey,
+          groupModeContext,
+        );
         const groupRowCountLabel = `${groupRowCount} gasto${groupRowCount === 1 ? "" : "s"}`;
         const groupTotals = groupTotalsByKey?.get(groupKey) ?? null;
 
@@ -2330,10 +2355,12 @@ export function MonthlyExpensesTable({
     };
   }, [
     collapsedGroupKeys,
+    expenseFolders,
     foldersById,
     groupByMode,
     groupTotalsByKey,
     handleGroupToggle,
+    lenderNamesById,
   ]);
   const folderCounts = useMemo(() => {
     const countsByFolderId: Record<string, number> = {};
@@ -2361,15 +2388,42 @@ export function MonthlyExpensesTable({
       {
         // Columna fantasma del agrupado: invisible (visibility false, sin
         // header ni celda) y no ocultable desde el menú. Solo existe para que
-        // TanStack ordene primero por posición de grupo ("Sin carpeta" al
+        // TanStack ordene primero por posición de grupo (los "sin valor" al
         // final) y el orden del usuario aplique dentro de cada grupo.
         id: GROUP_POSITION_COLUMN_ID,
-        accessorFn: (row: MonthlyExpensesEditableRow) =>
-          folderPositionById.get(row.expenseFolderId) ?? expenseFolders.length,
+        // El accessor es un dummy: TanStack cachea los valores por fila
+        // (_valuesCache) y al cambiar el modo de agrupado en runtime seguiría
+        // ordenando con las posiciones del modo anterior. El sortingFn lee la
+        // fila original en cada comparación, sin pasar por ese cache.
+        accessorFn: () => 0,
         cell: () => null,
         enableHiding: false,
         header: () => null,
-        sortingFn: "basic",
+        sortingFn: (rowA, rowB) => {
+          const activeGroupByMode =
+            groupByMode === "none" ? "folder" : groupByMode;
+          const groupPositionContext = {
+            folderPositionById,
+            foldersById,
+            lenderNamesById,
+          };
+          const leftPosition = getGroupPositionForMode(
+            activeGroupByMode,
+            rowA.original,
+            groupPositionContext,
+          );
+          const rightPosition = getGroupPositionForMode(
+            activeGroupByMode,
+            rowB.original,
+            groupPositionContext,
+          );
+
+          if (leftPosition === rightPosition) {
+            return 0;
+          }
+
+          return leftPosition < rightPosition ? -1 : 1;
+        },
       },
       {
         id: BULK_SELECTION_COLUMN_ID,
@@ -3308,6 +3362,8 @@ export function MonthlyExpensesTable({
       selectedExpenseIdsInCurrentRows,
       expenseFolders,
       foldersById,
+      groupByMode,
+      lenderNamesById,
       vigenciaSortMode,
   ]);
 
@@ -3827,8 +3883,8 @@ export function MonthlyExpensesTable({
                   <DropdownMenu key="group-by-menu">
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="outline">
-                        {groupByMode === "folder"
-                          ? "Agrupar por: Carpeta"
+                        {groupByMode !== "none"
+                          ? `Agrupar por: ${GROUP_BY_MODE_LABELS[groupByMode]}`
                           : "Agrupar por"}
                         <ChevronDown aria-hidden="true" />
                       </Button>
@@ -3837,7 +3893,12 @@ export function MonthlyExpensesTable({
                       <DropdownMenuRadioGroup
                         onValueChange={(nextValue) => {
                           handleGroupByModeChange(
-                            nextValue === "folder" ? "folder" : "none",
+                            GROUP_BY_MODE_MENU_OPTIONS.some(
+                              (groupByOption) =>
+                                groupByOption.value === nextValue,
+                            )
+                              ? (nextValue as MonthlyExpensesGroupByMode)
+                              : "none",
                           );
                         }}
                         value={groupByMode}
@@ -3850,14 +3911,17 @@ export function MonthlyExpensesTable({
                         >
                           Sin agrupar
                         </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                          }}
-                          value="folder"
-                        >
-                          Carpeta
-                        </DropdownMenuRadioItem>
+                        {GROUP_BY_MODE_MENU_OPTIONS.map((groupByOption) => (
+                          <DropdownMenuRadioItem
+                            key={groupByOption.value}
+                            onSelect={(event) => {
+                              event.preventDefault();
+                            }}
+                            value={groupByOption.value}
+                          >
+                            {groupByOption.label}
+                          </DropdownMenuRadioItem>
+                        ))}
                       </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                   </DropdownMenu>

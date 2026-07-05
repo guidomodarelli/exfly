@@ -94,14 +94,16 @@ function parsePersistedVigenciaSortMode(
   return value;
 }
 
+const PERSISTABLE_GROUP_BY_MODES: ReadonlySet<MonthlyExpensesGroupByMode> =
+  new Set(["none", "folder", "lender", "currency", "direction", "paymentStatus"]);
+
 function parsePersistedGroupByMode(
   value: unknown,
 ): MonthlyExpensesGroupByMode {
-  if (value !== "none" && value !== "folder") {
-    return DEFAULT_GROUP_BY_MODE;
-  }
-
-  return value;
+  return typeof value === "string" &&
+    PERSISTABLE_GROUP_BY_MODES.has(value as MonthlyExpensesGroupByMode)
+    ? (value as MonthlyExpensesGroupByMode)
+    : DEFAULT_GROUP_BY_MODE;
 }
 
 function parsePersistedCollapsedGroupKeys(value: unknown): string[] {

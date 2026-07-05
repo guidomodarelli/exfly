@@ -43,6 +43,54 @@ describe("DataTable", () => {
     }
   });
 
+  it("renders a single header per group even when the rows arrive interleaved", () => {
+    // Datos NO contiguos por grupo (p. ej. con orden manual del usuario): el
+    // agrupado debe particionar por clave, no depender de la contigüidad.
+    const rows: TableRow[] = [
+      { label: "USD uno", paid: false },
+      { label: "ARS uno", paid: true },
+      { label: "USD dos", paid: false },
+      { label: "ARS dos", paid: true },
+    ];
+    const columns: ColumnDef<TableRow>[] = [
+      { accessorKey: "label", header: "Estado" },
+    ];
+
+    render(
+      <DataTable
+        columns={columns}
+        data={rows}
+        emptyMessage="Sin datos"
+        rowGroups={{
+          getGroupKey: (row) => (row.paid ? "ARS" : "USD"),
+          // ARS antes que USD, sin importar el orden de aparición.
+          getGroupSortValue: (row) => (row.paid ? 0 : 1),
+          renderGroupHeader: (groupKey, groupRowCount) =>
+            `${groupKey} (${groupRowCount})`,
+        }}
+      />,
+    );
+
+    const headerTexts = Array.from(
+      document.querySelectorAll("[data-slot='table-group-header-row']"),
+    ).map((headerRow) => headerRow.textContent?.trim());
+
+    expect(headerTexts).toEqual(["ARS (2)", "USD (2)"]);
+
+    // Las filas quedan contiguas bajo su grupo.
+    const bodyTexts = Array.from(document.querySelectorAll("tbody tr")).map(
+      (tableRow) => tableRow.textContent?.trim(),
+    );
+    expect(bodyTexts).toEqual([
+      "ARS (2)",
+      "ARS uno",
+      "ARS dos",
+      "USD (2)",
+      "USD uno",
+      "USD dos",
+    ]);
+  });
+
   it("applies custom row class names based on the provided callback", () => {
     const rows: TableRow[] = [
       { label: "Pagado", paid: true },

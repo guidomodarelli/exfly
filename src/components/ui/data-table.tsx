@@ -152,6 +152,14 @@ interface DataTableProps<TData, TValue> {
    */
   rowGroups?: {
     getGroupKey: (row: TData) => string;
+    /**
+     * Valor de orden del grupo de una fila (comparable con <). Cuando se
+     * provee, los grupos se ordenan por este valor; si no, quedan en orden de
+     * primera aparición. Las filas se particionan por clave en ambos casos,
+     * así que un grupo nunca se repite aunque las filas lleguen intercaladas
+     * (p. ej. con orden manual del usuario).
+     */
+    getGroupSortValue?: (row: TData) => number | string;
     renderGroupHeader: (groupKey: string, groupRowCount: number) => React.ReactNode;
     /** Grupos cuyas filas están colapsadas (solo se ve su encabezado). */
     collapsedGroupKeys?: ReadonlySet<string>;
@@ -982,10 +990,49 @@ export function DataTable<TData, TValue>({
       }
     }
 
+    // Partición por grupo: garantiza un único bloque por clave aunque el row
+    // model llegue intercalado (orden manual, sorting sin la columna fantasma,
+    // etc.). El orden interno de cada grupo respeta el row model; el orden de
+    // los grupos usa getGroupSortValue (del primer row) o la primera aparición.
+    let rowsToRender = tableRowModelRows;
+
+    if (rowGroups) {
+      const rowsByGroupKey = new Map<string, typeof tableRowModelRows>();
+
+      for (const row of tableRowModelRows) {
+        const groupKey = rowGroups.getGroupKey(row.original);
+        const groupRows = rowsByGroupKey.get(groupKey);
+
+        if (groupRows) {
+          groupRows.push(row);
+        } else {
+          rowsByGroupKey.set(groupKey, [row]);
+        }
+      }
+
+      const groupEntries = [...rowsByGroupKey.values()];
+      const getGroupSortValue = rowGroups.getGroupSortValue;
+
+      if (getGroupSortValue) {
+        groupEntries.sort((leftRows, rightRows) => {
+          const leftValue = getGroupSortValue(leftRows[0].original);
+          const rightValue = getGroupSortValue(rightRows[0].original);
+
+          if (leftValue === rightValue) {
+            return 0;
+          }
+
+          return leftValue < rightValue ? -1 : 1;
+        });
+      }
+
+      rowsToRender = groupEntries.flat();
+    }
+
     const renderedRows: React.ReactNode[] = [];
     let previousGroupKey: string | null = null;
 
-    for (const row of tableRowModelRows) {
+    for (const row of rowsToRender) {
       if (rowGroups) {
         const groupKey = rowGroups.getGroupKey(row.original);
         const isGroupCollapsed =

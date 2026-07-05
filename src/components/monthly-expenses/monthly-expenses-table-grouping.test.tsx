@@ -35,12 +35,17 @@ const ROWS = [
   }),
 ];
 
-async function selectGroupByFolder(user: ReturnType<typeof userEvent.setup>) {
+async function selectGroupByMode(
+  user: ReturnType<typeof userEvent.setup>,
+  modeLabel: string | RegExp,
+) {
   await user.click(screen.getByRole("button", { name: /^Agrupar por/ }));
-  await user.click(
-    screen.getByRole("menuitemradio", { name: /Carpeta/ }),
-  );
+  await user.click(screen.getByRole("menuitemradio", { name: modeLabel }));
   await user.keyboard("{Escape}");
+}
+
+async function selectGroupByFolder(user: ReturnType<typeof userEvent.setup>) {
+  await selectGroupByMode(user, /Carpeta/);
 }
 
 describe("MonthlyExpensesTable group by folder", () => {
@@ -266,6 +271,151 @@ describe("MonthlyExpensesTable group by folder", () => {
       screen.getByRole("button", { name: "Agrupar por: Carpeta" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Alquiler")).toBeInTheDocument();
+  });
+
+  it("groups the rows by counterpart with unassigned rows at the end", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(
+      [
+        createRow({ description: "Sin deuda", id: "expense-1" }),
+        createRow({
+          description: "Cuota Camila",
+          id: "expense-2",
+          isLoan: true,
+          lenderId: "lender-camila",
+          lenderName: "Camila",
+        }),
+        createRow({
+          description: "Cuota Banco",
+          id: "expense-3",
+          isLoan: true,
+          lenderId: "lender-banco",
+          lenderName: "Banco Nación",
+        }),
+      ],
+      {
+        lenders: [
+          { id: "lender-camila", name: "Camila", type: "other" },
+          { id: "lender-banco", name: "Banco Nación", type: "bank" },
+        ],
+      },
+    );
+
+    await selectGroupByMode(user, /Contraparte/);
+
+    expect(
+      await screen.findByLabelText("Grupo Banco Nación: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Camila: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Sin contraparte: 1 gasto"),
+    ).toBeInTheDocument();
+    // Alfabético por nombre; sin contraparte al final.
+    expect(
+      getTableTextOrder([
+        "Banco Nación",
+        "Camila",
+        "Sin contraparte",
+      ]),
+    ).toEqual(["Banco Nación", "Camila", "Sin contraparte"]);
+    expect(
+      screen.getByRole("button", { name: "Agrupar por: Contraparte" }),
+    ).toBeInTheDocument();
+  });
+
+  it("groups the rows by currency with ARS before USD", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({ currency: "USD", description: "Suscripción", id: "expense-1" }),
+      createRow({ currency: "ARS", description: "Alquiler", id: "expense-2" }),
+    ]);
+
+    await selectGroupByMode(user, /Moneda/);
+
+    expect(
+      await screen.findByLabelText("Grupo ARS: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Grupo USD: 1 gasto")).toBeInTheDocument();
+    expect(getTableTextOrder(["Alquiler", "Suscripción"])).toEqual([
+      "Alquiler",
+      "Suscripción",
+    ]);
+  });
+
+  it("groups the rows by payment status with pending before paid", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({
+        description: "Pagada",
+        id: "expense-1",
+        manualCoveredPayments: "1",
+        occurrencesPerMonth: "1",
+      }),
+      createRow({
+        description: "Pendiente todavía",
+        id: "expense-2",
+        manualCoveredPayments: "0",
+        occurrencesPerMonth: "1",
+      }),
+    ]);
+
+    await selectGroupByMode(user, /Estado de pago/);
+
+    expect(
+      await screen.findByLabelText("Grupo Pendiente: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Grupo Pagado: 1 gasto")).toBeInTheDocument();
+    expect(
+      getTableTextOrder(["Pendiente todavía", "Pagada"]),
+    ).toEqual(["Pendiente todavía", "Pagada"]);
+  });
+
+  it("groups the rows by loan direction with Yo debo, Me deben and Sin deuda", async () => {
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable([
+      createRow({ description: "Compra suelta", id: "expense-1" }),
+      createRow({
+        description: "Préstamo recibido",
+        id: "expense-2",
+        isLoan: true,
+        lenderId: "lender-1",
+        lenderName: "Camila",
+        loanDirection: "payable",
+      }),
+      createRow({
+        description: "Préstamo otorgado",
+        id: "expense-3",
+        isLoan: true,
+        lenderId: "lender-2",
+        lenderName: "Adrián",
+        loanDirection: "receivable",
+      }),
+    ]);
+
+    await selectGroupByMode(user, /Dirección/);
+
+    expect(
+      await screen.findByLabelText("Grupo Yo debo: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Me deben: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Grupo Sin deuda: 1 gasto"),
+    ).toBeInTheDocument();
+    expect(
+      getTableTextOrder([
+        "Préstamo recibido",
+        "Préstamo otorgado",
+        "Compra suelta",
+      ]),
+    ).toEqual(["Préstamo recibido", "Préstamo otorgado", "Compra suelta"]);
   });
 
   it("does not overwrite the persisted preferences with defaults during the StrictMode remount", async () => {
