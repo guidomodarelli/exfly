@@ -40,6 +40,23 @@ describe("lendersCatalogDocument", () => {
     });
   });
 
+  it("accepts the fintech and partner lender types", () => {
+    const result = createLendersCatalogDocument(
+      {
+        lenders: [
+          { id: "lender-1", name: "Mercado Pago", type: "fintech" },
+          { id: "lender-2", name: "Vero", type: "partner" },
+        ],
+      },
+      "Saving lenders catalog",
+    );
+
+    expect(result.lenders.map((lender) => lender.type)).toEqual([
+      "fintech",
+      "partner",
+    ]);
+  });
+
   it("rejects duplicate lender names", () => {
     expect(() =>
       createLendersCatalogDocument(

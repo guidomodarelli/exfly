@@ -170,6 +170,8 @@ export function LenderCreateDialog({
                   <SelectItem value="bank">Banco</SelectItem>
                   <SelectItem value="family">Familiar</SelectItem>
                   <SelectItem value="friend">Amigo</SelectItem>
+                  <SelectItem value="fintech">Fintech / Billetera</SelectItem>
+                  <SelectItem value="partner">Pareja</SelectItem>
                   <SelectItem value="other">Otro</SelectItem>
                 </SelectContent>
               </Select>

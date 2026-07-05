@@ -27,6 +27,10 @@ function getLenderTypeLabel(type: LenderOption["type"]): string {
       return "Familiar";
     case "friend":
       return "Amigo";
+    case "fintech":
+      return "Fintech / Billetera";
+    case "partner":
+      return "Pareja";
     case "other":
       return "Otro";
   }

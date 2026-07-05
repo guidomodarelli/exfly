@@ -17,7 +17,7 @@ export interface LenderOption {
   id: string;
   name: string;
   notes?: string;
-  type: "bank" | "family" | "friend" | "other";
+  type: "bank" | "family" | "friend" | "fintech" | "partner" | "other";
 }
 
 interface LenderPickerProps {
@@ -40,6 +40,10 @@ function getLenderTypeLabel(type: LenderOption["type"]): string {
       return "Familiar";
     case "friend":
       return "Amigo";
+    case "fintech":
+      return "Fintech / Billetera";
+    case "partner":
+      return "Pareja";
     case "other":
       return "Otro";
   }

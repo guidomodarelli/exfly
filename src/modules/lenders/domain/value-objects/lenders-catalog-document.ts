@@ -1,4 +1,11 @@
-export const LENDER_TYPES = ["bank", "family", "friend", "other"] as const;
+export const LENDER_TYPES = [
+  "bank",
+  "family",
+  "friend",
+  "fintech",
+  "partner",
+  "other",
+] as const;
 
 export type LenderType = (typeof LENDER_TYPES)[number];
 

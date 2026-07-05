@@ -20,6 +20,8 @@ const LENDER_TYPE_QUALIFIER_OPTIONS: FilterQualifierOption[] = [
   { label: "Bancos", slug: "banco", value: "bank" },
   { label: "Familiares", slug: "familiar", value: "family" },
   { label: "Amigos", slug: "amigo", value: "friend" },
+  { label: "Fintech / Billeteras", slug: "fintech", value: "fintech" },
+  { label: "Parejas", slug: "pareja", value: "partner" },
   { label: "Otros", slug: "otro", value: "other" },
   { label: "Sin prestamista", slug: "sin-prestamista", value: "unassigned" },
 ];

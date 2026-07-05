@@ -22,7 +22,7 @@ const lenderSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
   notes: z.string().optional(),
-  type: z.enum(["bank", "family", "friend", "other"]),
+  type: z.enum(["bank", "family", "friend", "fintech", "partner", "other"]),
 });
 
 const lendersRequestBodySchema = z.object({

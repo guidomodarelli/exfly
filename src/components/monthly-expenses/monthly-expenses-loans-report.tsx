@@ -41,6 +41,8 @@ type MonthlyExpensesLenderType =
   | "bank"
   | "family"
   | "friend"
+  | "fintech"
+  | "partner"
   | "other"
   | "unassigned";
 
@@ -57,7 +59,9 @@ const MAX_VISIBLE_ACTIVE_LOANS = 3;
 
 const LENDER_TYPE_SHADE: Record<MonthlyExpensesLenderType, number> = {
   bank: 1,
+  fintech: 0.85,
   family: 0.72,
+  partner: 0.62,
   friend: 0.52,
   other: 0.36,
   unassigned: 0.22,
@@ -126,6 +130,10 @@ function getTypeLabel(type: MonthlyExpensesLenderType): string {
       return "Familiar";
     case "friend":
       return "Amigo";
+    case "fintech":
+      return "Fintech / Billetera";
+    case "partner":
+      return "Pareja";
     case "other":
       return "Otro";
     case "unassigned":
