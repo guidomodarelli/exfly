@@ -167,6 +167,10 @@ export function MonthlyExpensesFilterPresetsBar({
   const [editNameDraft, setEditNameDraft] = useState("");
   const [editQueryDraft, setEditQueryDraft] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  // Preset con la confirmación de borrado abierta (la X no elimina directo).
+  const [deletingPresetName, setDeletingPresetName] = useState<string | null>(
+    null,
+  );
 
   const handleEditPopoverOpenChange = (
     preset: MonthlyExpensesFilterPreset,
@@ -227,6 +231,10 @@ export function MonthlyExpensesFilterPresetsBar({
 
   return (
     <div className={styles.presetsBar}>
+      <span className={styles.presetsBarLabel}>
+        <Bookmark aria-hidden="true" />
+        Filtros guardados:
+      </span>
       {presets.map((preset) => (
         <span className={styles.presetChip} key={preset.name}>
           <button
@@ -315,14 +323,48 @@ export function MonthlyExpensesFilterPresetsBar({
               </Button>
             </PopoverContent>
           </Popover>
-          <button
-            aria-label={`Eliminar filtro guardado ${preset.name}`}
-            className={styles.presetDeleteButton}
-            onClick={() => onDeletePreset(preset.name)}
-            type="button"
+          <Popover
+            onOpenChange={(nextOpen) =>
+              setDeletingPresetName(nextOpen ? preset.name : null)
+            }
+            open={deletingPresetName === preset.name}
           >
-            <X aria-hidden="true" />
-          </button>
+            <PopoverTrigger asChild>
+              <button
+                aria-label={`Eliminar filtro guardado ${preset.name}`}
+                className={styles.presetDeleteButton}
+                type="button"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className={styles.deletePopover}>
+              <p className={styles.deletePopoverMessage}>
+                {`¿Querés eliminar el filtro guardado "${preset.name}"?`}
+              </p>
+              <div className={styles.deletePopoverActions}>
+                <Button
+                  onClick={() => setDeletingPresetName(null)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => {
+                    setDeletingPresetName(null);
+                    onDeletePreset(preset.name);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="destructive"
+                >
+                  Eliminar
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </span>
       ))}
     </div>

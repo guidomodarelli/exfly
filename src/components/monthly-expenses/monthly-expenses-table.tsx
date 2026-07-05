@@ -1217,14 +1217,16 @@ export function MonthlyExpensesTable({
   >([]);
 
   useEffect(() => {
-    // Igual que la restauración de preferencias: fuera del cuerpo del efecto
-    // para no disparar renders en cascada (react-hooks/set-state-in-effect).
-    const restoreFrameId = window.requestAnimationFrame(() => {
+    // Igual que la restauración de preferencias: diferido para no disparar
+    // renders en cascada (react-hooks/set-state-in-effect), y con setTimeout
+    // en vez de requestAnimationFrame porque los rAF no corren en pestañas en
+    // background y los presets quedaban sin restaurar.
+    const restoreTimeoutId = window.setTimeout(() => {
       setFilterPresets(getPersistedMonthlyExpensesFilterPresets());
-    });
+    }, 0);
 
     return () => {
-      window.cancelAnimationFrame(restoreFrameId);
+      window.clearTimeout(restoreTimeoutId);
     };
   }, []);
 

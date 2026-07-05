@@ -5,6 +5,39 @@
   gap: 0.4rem;
 }
 
+// Rótulo que explica qué son los chips (queries guardadas de la barra).
+.presetsBarLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+
+  svg {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+}
+
+// Confirmación de borrado de un filtro guardado.
+.deletePopover {
+  display: grid;
+  gap: 0.75rem;
+  width: 17rem;
+}
+
+.deletePopoverMessage {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.deletePopoverActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .savePopover {
   display: grid;
   gap: 0.5rem;

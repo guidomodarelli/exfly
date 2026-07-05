@@ -202,7 +202,7 @@ describe("MonthlyExpensesTable filter presets", () => {
     ]);
   });
 
-  it("deletes a saved preset", async () => {
+  it("deletes a saved preset after confirming", async () => {
     persistMonthlyExpensesFilterPresets([
       { name: "Solo Internet", query: "Internet" },
     ]);
@@ -216,6 +216,18 @@ describe("MonthlyExpensesTable filter presets", () => {
       }),
     );
 
+    // La X abre una confirmación; todavía no borra nada.
+    expect(
+      await screen.findByText(
+        '¿Querés eliminar el filtro guardado "Solo Internet"?',
+      ),
+    ).toBeInTheDocument();
+    expect(getPersistedMonthlyExpensesFilterPresets()).toEqual([
+      { name: "Solo Internet", query: "Internet" },
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
     await waitFor(() => {
       expect(
         screen.queryByRole("button", {
@@ -224,5 +236,30 @@ describe("MonthlyExpensesTable filter presets", () => {
       ).not.toBeInTheDocument();
     });
     expect(getPersistedMonthlyExpensesFilterPresets()).toEqual([]);
+  });
+
+  it("keeps the preset when the delete confirmation is cancelled", async () => {
+    persistMonthlyExpensesFilterPresets([
+      { name: "Solo Internet", query: "Internet" },
+    ]);
+    const user = userEvent.setup();
+
+    renderMonthlyExpensesTable(ROWS);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Eliminar filtro guardado Solo Internet",
+      }),
+    );
+    await user.click(await screen.findByRole("button", { name: "Cancelar" }));
+
+    expect(
+      screen.getByRole("button", {
+        name: "Aplicar filtro guardado Solo Internet",
+      }),
+    ).toBeInTheDocument();
+    expect(getPersistedMonthlyExpensesFilterPresets()).toEqual([
+      { name: "Solo Internet", query: "Internet" },
+    ]);
   });
 });
