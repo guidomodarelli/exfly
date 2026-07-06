@@ -8,13 +8,18 @@ import {
   parseTechnicalErrorResponse,
 } from "@/modules/shared/infrastructure/errors/technical-error";
 
-const exchangeRateSettingsRequestSchema = z.object({
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const monthlyIibbRateRequestSchema = z.object({
   iibbRateDecimal: z.number(),
+  month: z.string().regex(MONTH_PATTERN),
 });
 
-const exchangeRateSettingsResultSchema = z.object({
+const monthlyIibbRateResultSchema = z.object({
   data: z.object({
     iibbRateDecimal: z.number(),
+    month: z.string(),
+    solidarityRate: z.number(),
   }),
 });
 
@@ -33,11 +38,11 @@ export class ExchangeRateSettingsApiError extends Error {
   }
 }
 
-export async function saveGlobalExchangeRateSettingsViaApi(
-  payload: z.infer<typeof exchangeRateSettingsRequestSchema>,
+export async function saveMonthlyIibbRateViaApi(
+  payload: z.infer<typeof monthlyIibbRateRequestSchema>,
   fetchImplementation: typeof fetch = fetch,
-): Promise<z.infer<typeof exchangeRateSettingsResultSchema>["data"]> {
-  const normalizedPayload = exchangeRateSettingsRequestSchema.parse(payload);
+): Promise<z.infer<typeof monthlyIibbRateResultSchema>["data"]> {
+  const normalizedPayload = monthlyIibbRateRequestSchema.parse(payload);
   const response = await fetchImplementation("/api/exchange-rates/settings", {
     body: JSON.stringify(normalizedPayload),
     headers: withCorrelationIdHeaders({
@@ -59,5 +64,5 @@ export async function saveGlobalExchangeRateSettingsViaApi(
     );
   }
 
-  return exchangeRateSettingsResultSchema.parse(responseJson).data;
+  return monthlyIibbRateResultSchema.parse(responseJson).data;
 }

@@ -12,8 +12,7 @@ import { Label } from "@/components/ui/label";
 import {
   type ExchangeRatesRoutePageProps,
 } from "@/modules/exchange-rates/infrastructure/pages/exchange-rates-server-props";
-import { saveGlobalExchangeRateSettingsViaApi } from "@/modules/exchange-rates/infrastructure/api/exchange-rates-settings-api";
-import { calculateSolidarityRate } from "@/modules/exchange-rates/application/use-cases/get-monthly-exchange-rate-snapshot";
+import { saveMonthlyIibbRateViaApi } from "@/modules/exchange-rates/infrastructure/api/exchange-rates-settings-api";
 import {
   getTechnicalErrorCode,
 } from "@/modules/shared/infrastructure/errors/technical-error";
@@ -121,25 +120,23 @@ export default function ExchangeRatesPage({
     setFeedbackErrorCode(null);
 
     try {
-      const savedSettings = await saveGlobalExchangeRateSettingsViaApi({
+      const savedRate = await saveMonthlyIibbRateViaApi({
         iibbRateDecimal: parsedIibbRateDecimal,
+        month: currentResult.selectedMonth,
       });
 
       setCurrentResult((previousResult) => ({
         ...previousResult,
-        iibbRateDecimal: savedSettings.iibbRateDecimal,
-        solidarityRate: calculateSolidarityRate(
-          previousResult.officialRate,
-          savedSettings.iibbRateDecimal,
-        ),
+        iibbRateDecimal: savedRate.iibbRateDecimal,
+        solidarityRate: savedRate.solidarityRate,
       }));
-      setIibbInputValue(String(savedSettings.iibbRateDecimal));
-      toast.success("La configuración global de IIBB se guardó correctamente.");
+      setIibbInputValue(String(savedRate.iibbRateDecimal));
+      toast.success("El IIBB del mes se guardó correctamente.");
     } catch (error) {
       const nextFeedbackMessage =
         error instanceof Error
           ? error.message
-          : "No pudimos guardar la configuración global de IIBB.";
+          : "No pudimos guardar el IIBB del mes.";
 
       setFeedbackMessage(nextFeedbackMessage);
       const technicalErrorCode = getTechnicalErrorCode(error);
@@ -147,7 +144,7 @@ export default function ExchangeRatesPage({
       setFeedbackErrorCode(technicalErrorCode);
       toast.error(
         renderErrorWithCode(
-          "No pudimos guardar la configuración global de IIBB.",
+          "No pudimos guardar el IIBB del mes.",
           technicalErrorCode,
         ),
       );
@@ -232,7 +229,9 @@ export default function ExchangeRatesPage({
         </section>
 
         <section className={styles.settingsBlock}>
-          <h2 className={styles.blockTitle}>Configuración global de IIBB</h2>
+          <h2 className={styles.blockTitle}>
+            IIBB del mes {currentResult.selectedMonth}
+          </h2>
           {currentResult.canEditIibb ? (
             <form className={styles.settingsForm} onSubmit={handleSubmit}>
               <div className={styles.settingsField}>
@@ -247,7 +246,8 @@ export default function ExchangeRatesPage({
                   value={iibbInputValue}
                 />
                 <p className={styles.helperText}>
-                  Usá decimal. Ejemplo: 0.02 equivale a 2%.
+                  Usá decimal. Ejemplo: 0.02 equivale a 2%. Se aplica solo al mes
+                  seleccionado.
                 </p>
               </div>
               <div className={styles.settingsActions}>
@@ -262,8 +262,8 @@ export default function ExchangeRatesPage({
                 {formatPercentage(currentResult.iibbRateDecimal)}
               </p>
               <p className={styles.helperText}>
-                Solo los admins configurados en la allowlist pueden editar este
-                valor global.
+                Solo los admins configurados en la allowlist pueden editar el
+                IIBB del mes.
               </p>
             </div>
           )}

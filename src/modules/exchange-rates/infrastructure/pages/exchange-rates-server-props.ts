@@ -33,7 +33,6 @@ import {
 import { DEFAULT_IIBB_RATE_DECIMAL } from "../../application/use-cases/get-monthly-exchange-rate-snapshot";
 import { DrizzleMonthlyExpensesRepository } from "@/modules/monthly-expenses/infrastructure/turso/repositories/drizzle-monthly-expenses-repository";
 import { AmbitoExchangeRatesRepository } from "../api/ambito-exchange-rates-repository";
-import { DrizzleGlobalExchangeRateSettingsRepository } from "../turso/repositories/drizzle-global-exchange-rate-settings-repository";
 import { DrizzleMonthlyExchangeRateSnapshotsRepository } from "../turso/repositories/drizzle-monthly-exchange-rate-snapshots-repository";
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -126,9 +125,6 @@ export async function getExchangeRatesServerSideProps(
 
   try {
     const database = await createMigratedTursoDatabase();
-    const settingsRepository = new DrizzleGlobalExchangeRateSettingsRepository(
-      database,
-    );
     const exchangeRatesRepository = new AmbitoExchangeRatesRepository();
     const monthlyExchangeRateSnapshotsRepository =
       new DrizzleMonthlyExchangeRateSnapshotsRepository(database);
@@ -171,7 +167,6 @@ export async function getExchangeRatesServerSideProps(
           minSelectableMonth,
           month: selectedMonth,
           monthlyExchangeRateSnapshotsRepository,
-          settingsRepository,
         }),
       },
     };

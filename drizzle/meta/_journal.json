@@ -120,6 +120,20 @@
       "when": 1783212000000,
       "tag": "0016_usd_rate_surcharges",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1783297540551,
+      "tag": "0017_drop_global_exchange_rate_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1783297564951,
+      "tag": "0018_backfill_usd_rate_iva_additive",
+      "breakpoints": true
     }
   ]
 }

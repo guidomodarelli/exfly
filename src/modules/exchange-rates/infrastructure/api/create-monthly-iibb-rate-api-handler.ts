@@ -24,10 +24,13 @@ import {
   createTechnicalErrorEnvelope,
 } from "@/modules/shared/infrastructure/errors/technical-error";
 
-import type { SaveGlobalExchangeRateSettingsCommand } from "../../application/commands/save-global-exchange-rate-settings-command";
+import type { SaveMonthlyIibbRateCommand } from "../../application/commands/save-monthly-iibb-rate-command";
 
-const globalExchangeRateSettingsRequestBodySchema = z.object({
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const monthlyIibbRateRequestBodySchema = z.object({
   iibbRateDecimal: z.number(),
+  month: z.string().regex(MONTH_PATTERN),
 });
 
 async function getDefaultDatabase(): Promise<TursoDatabase> {
@@ -38,7 +41,7 @@ async function getDefaultDatabase(): Promise<TursoDatabase> {
   return createMigratedTursoDatabase();
 }
 
-export function createGlobalExchangeRateSettingsApiHandler<TResult>({
+export function createMonthlyIibbRateApiHandler<TResult>({
   getDatabase = getDefaultDatabase,
   getUserEmail = getAuthenticatedUserEmailFromRequest,
   save,
@@ -46,51 +49,42 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
   getDatabase?: () => Promise<TursoDatabase> | TursoDatabase;
   getUserEmail?: (request: NextApiRequest) => Promise<string>;
   save: (dependencies: {
-    command: SaveGlobalExchangeRateSettingsCommand;
+    command: SaveMonthlyIibbRateCommand;
     database: TursoDatabase;
     request: NextApiRequest;
     userEmail: string;
   }) => Promise<TResult>;
 }): NextApiHandler {
-  return async function globalExchangeRateSettingsApiHandler(request, response) {
+  return async function monthlyIibbRateApiHandler(request, response) {
     const requestContext = createRequestLogContext(request);
 
     if (request.method !== "POST") {
-      appLogger.warn(
-        "global exchange rate settings API received an unsupported method",
-        {
-          context: {
-            ...requestContext,
-            operation: "global-exchange-rate-settings-api:method-not-allowed",
-          },
+      appLogger.warn("monthly IIBB rate API received an unsupported method", {
+        context: {
+          ...requestContext,
+          operation: "monthly-iibb-rate-api:method-not-allowed",
         },
-      );
+      });
       response.setHeader("Allow", "POST");
 
       return response.status(405).json({
-        error:
-          "global-exchange-rate-settings only supports POST requests on this endpoint.",
+        error: "monthly-iibb-rate only supports POST requests on this endpoint.",
       });
     }
 
-    const parsedBody = globalExchangeRateSettingsRequestBodySchema.safeParse(
-      request.body,
-    );
+    const parsedBody = monthlyIibbRateRequestBodySchema.safeParse(request.body);
 
     if (!parsedBody.success) {
-      appLogger.warn(
-        "global exchange rate settings API received an invalid payload",
-        {
-          context: {
-            ...requestContext,
-            operation: "global-exchange-rate-settings-api:invalid-payload",
-          },
+      appLogger.warn("monthly IIBB rate API received an invalid payload", {
+        context: {
+          ...requestContext,
+          operation: "monthly-iibb-rate-api:invalid-payload",
         },
-      );
+      });
 
       return response.status(400).json({
         error:
-          "global-exchange-rate-settings requires a JSON body with a numeric iibbRateDecimal value.",
+          "monthly-iibb-rate requires a JSON body with a YYYY-MM month and a numeric iibbRateDecimal value.",
       });
     }
 
@@ -99,8 +93,7 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
 
       if (!isGoogleAdminEmail(userEmail)) {
         return response.status(403).json({
-          error:
-            "Only Google admins can update the global IIBB configuration.",
+          error: "Only Google admins can update the monthly IIBB configuration.",
         });
       }
 
@@ -116,10 +109,10 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
         data: result,
       });
     } catch (error) {
-      appLogger.error("global exchange rate settings API request failed", {
+      appLogger.error("monthly IIBB rate API request failed", {
         context: {
           ...requestContext,
-          operation: "global-exchange-rate-settings-api:post",
+          operation: "monthly-iibb-rate-api:post",
         },
         error,
       });
@@ -127,7 +120,7 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
       if (error instanceof GoogleOAuthAuthenticationError) {
         return response.status(401).json({
           ...createTechnicalErrorEnvelope(
-            "Google authentication is required before saving the global IIBB configuration.",
+            "Google authentication is required before saving the monthly IIBB configuration.",
             TECHNICAL_ERROR_CODES.GOOGLE_AUTHENTICATION_REQUIRED,
           ),
         });
@@ -136,7 +129,7 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
       if (error instanceof GoogleOAuthConfigurationError) {
         return response.status(500).json({
           ...createTechnicalErrorEnvelope(
-            "Google OAuth server configuration is incomplete for global IIBB configuration.",
+            "Google OAuth server configuration is incomplete for monthly IIBB configuration.",
             TECHNICAL_ERROR_CODES.GOOGLE_OAUTH_CONFIGURATION_INCOMPLETE,
           ),
         });
@@ -145,7 +138,7 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
       if (error instanceof TursoConfigurationError) {
         return response.status(500).json({
           ...createTechnicalErrorEnvelope(
-            "Database server configuration is incomplete for global IIBB configuration.",
+            "Database server configuration is incomplete for monthly IIBB configuration.",
             TECHNICAL_ERROR_CODES.TURSO_CONFIGURATION_INCOMPLETE,
           ),
         });
@@ -159,7 +152,7 @@ export function createGlobalExchangeRateSettingsApiHandler<TResult>({
 
       return response.status(500).json({
         ...createTechnicalErrorEnvelope(
-          "We could not save the global IIBB configuration right now. Try again later.",
+          "We could not save the monthly IIBB configuration right now. Try again later.",
           TECHNICAL_ERROR_CODES.EXCHANGE_RATES_SETTINGS_API_UNEXPECTED_ERROR,
         ),
       });

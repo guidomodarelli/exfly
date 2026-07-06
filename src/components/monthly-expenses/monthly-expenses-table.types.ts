@@ -30,16 +30,24 @@ export interface MonthlyExpenseUsdRateSettings {
   customRate: number | null;
 }
 
-/** Historical default: official quote with the IIBB perception (solidario). */
+/**
+ * Historical default: the solidario, i.e. the official quote with the IIBB
+ * perception plus the 21% VAT. Both surcharges are modeled explicitly and stack
+ * additively over the base (see `USD_RATE_IVA_DECIMAL`).
+ */
 export const DEFAULT_USD_RATE_SETTINGS: MonthlyExpenseUsdRateSettings = {
   appliesIibb: true,
-  appliesIva: false,
+  appliesIva: true,
   base: "official",
   customRate: null,
 };
 
-/** VAT surcharge factor applied when `appliesIva` is on. */
-export const USD_RATE_IVA_FACTOR = 1.21;
+/**
+ * VAT surcharge as a decimal of the base rate, added when `appliesIva` is on.
+ * Surcharges are additive over the base (`base × (1 + IIBB + VAT)`), never
+ * compounded, so IIBB and VAT can be toggled independently without stacking.
+ */
+export const USD_RATE_IVA_DECIMAL = 0.21;
 
 /** Row grouping mode for the monthly expenses table. */
 export type MonthlyExpensesGroupByMode =

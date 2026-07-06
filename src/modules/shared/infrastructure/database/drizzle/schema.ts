@@ -201,15 +201,6 @@ export const applicationSettingsDocumentsTable = sqliteTable(
   ],
 );
 
-export const globalExchangeRateSettingsTable = sqliteTable(
-  "global_exchange_rate_settings",
-  {
-    iibbRateDecimal: real("iibb_rate_decimal").notNull(),
-    settingKey: text("setting_key").primaryKey(),
-    updatedAtIso: text("updated_at_iso").notNull(),
-  },
-);
-
 export const monthlyExchangeRatesTable = sqliteTable("monthly_exchange_rates", {
   blueRate: real("blue_rate").notNull(),
   iibbRateDecimalUsed: real("iibb_rate_decimal_used").notNull(),

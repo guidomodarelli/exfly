@@ -1,5 +1,4 @@
 import type { ExchangeRatesRepository } from "../../domain/repositories/exchange-rates-repository";
-import type { GlobalExchangeRateSettingsRepository } from "../../domain/repositories/global-exchange-rate-settings-repository";
 import type { MonthlyExchangeRateSnapshotsRepository } from "../../domain/repositories/monthly-exchange-rate-snapshots-repository";
 
 import type { ExchangeRatesPageResult } from "../results/exchange-rates-page-result";
@@ -12,7 +11,6 @@ export async function getExchangeRatesPageResult({
   minSelectableMonth,
   month,
   monthlyExchangeRateSnapshotsRepository,
-  settingsRepository,
 }: {
   canEditIibb: boolean;
   exchangeRatesRepository: ExchangeRatesRepository;
@@ -20,13 +18,11 @@ export async function getExchangeRatesPageResult({
   minSelectableMonth: string;
   month: string;
   monthlyExchangeRateSnapshotsRepository: MonthlyExchangeRateSnapshotsRepository;
-  settingsRepository: GlobalExchangeRateSettingsRepository;
 }): Promise<ExchangeRatesPageResult> {
   const snapshot = await getMonthlyExchangeRateSnapshot({
     exchangeRatesRepository,
     month,
     monthlyExchangeRateSnapshotsRepository,
-    settingsRepository,
   });
 
   return {

@@ -6,7 +6,7 @@ jest.mock("../../../auth/infrastructure/next-auth/authenticated-user-email", () 
   getAuthenticatedUserEmailFromRequest: jest.fn(),
 }));
 
-import { createGlobalExchangeRateSettingsApiHandler } from "./create-global-exchange-rate-settings-api-handler";
+import { createMonthlyIibbRateApiHandler } from "./create-monthly-iibb-rate-api-handler";
 
 interface MockJsonResponse {
   body: unknown | undefined;
@@ -40,7 +40,7 @@ function createMockResponse(): NextApiResponse & MockJsonResponse {
   return response as unknown as NextApiResponse & MockJsonResponse;
 }
 
-describe("createGlobalExchangeRateSettingsApiHandler", () => {
+describe("createMonthlyIibbRateApiHandler", () => {
   const originalAllowlist = process.env.GOOGLE_ADMIN_EMAIL_ALLOWLIST;
 
   beforeEach(() => {
@@ -53,12 +53,14 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     process.env.GOOGLE_ADMIN_EMAIL_ALLOWLIST = originalAllowlist;
   });
 
-  it("allows admins to save the global IIBB value", async () => {
+  it("allows admins to save the monthly IIBB value", async () => {
     const database = {} as TursoDatabase;
     const save = jest.fn().mockResolvedValue({
       iibbRateDecimal: 0.04,
+      month: "2026-03",
+      solidarityRate: 1250,
     });
-    const handler = createGlobalExchangeRateSettingsApiHandler({
+    const handler = createMonthlyIibbRateApiHandler({
       getDatabase: jest.fn().mockResolvedValue(database),
       getUserEmail: jest.fn().mockResolvedValue("admin@example.com"),
       save,
@@ -66,6 +68,7 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     const request = {
       body: {
         iibbRateDecimal: 0.04,
+        month: "2026-03",
       },
       method: "POST",
     } as NextApiRequest;
@@ -76,6 +79,7 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     expect(save).toHaveBeenCalledWith({
       command: {
         iibbRateDecimal: 0.04,
+        month: "2026-03",
       },
       database,
       request,
@@ -85,12 +89,14 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     expect(response.body).toEqual({
       data: {
         iibbRateDecimal: 0.04,
+        month: "2026-03",
+        solidarityRate: 1250,
       },
     });
   });
 
   it("returns 403 for authenticated users outside the admin allowlist", async () => {
-    const handler = createGlobalExchangeRateSettingsApiHandler({
+    const handler = createMonthlyIibbRateApiHandler({
       getDatabase: jest.fn(),
       getUserEmail: jest.fn().mockResolvedValue("user@example.com"),
       save: jest.fn(),
@@ -98,6 +104,7 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     const request = {
       body: {
         iibbRateDecimal: 0.04,
+        month: "2026-03",
       },
       method: "POST",
     } as NextApiRequest;
@@ -107,19 +114,19 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
 
     expect(response.statusCode).toBe(403);
     expect(response.body).toEqual({
-      error: "Only Google admins can update the global IIBB configuration.",
+      error: "Only Google admins can update the monthly IIBB configuration.",
     });
   });
 
-  it("returns 400 when the payload is invalid", async () => {
-    const handler = createGlobalExchangeRateSettingsApiHandler({
+  it("returns 400 when the payload is missing the month", async () => {
+    const handler = createMonthlyIibbRateApiHandler({
       getDatabase: jest.fn(),
       getUserEmail: jest.fn(),
       save: jest.fn(),
     });
     const request = {
       body: {
-        iibbRateDecimal: "0.04",
+        iibbRateDecimal: 0.04,
       },
       method: "POST",
     } as unknown as NextApiRequest;
@@ -130,7 +137,7 @@ describe("createGlobalExchangeRateSettingsApiHandler", () => {
     expect(response.statusCode).toBe(400);
     expect(response.body).toEqual({
       error:
-        "global-exchange-rate-settings requires a JSON body with a numeric iibbRateDecimal value.",
+        "monthly-iibb-rate requires a JSON body with a YYYY-MM month and a numeric iibbRateDecimal value.",
     });
   });
 });

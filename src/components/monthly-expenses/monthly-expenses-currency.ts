@@ -6,7 +6,7 @@ import type {
 } from "./monthly-expenses-table.types";
 import {
   DEFAULT_USD_RATE_SETTINGS,
-  USD_RATE_IVA_FACTOR,
+  USD_RATE_IVA_DECIMAL,
 } from "./monthly-expenses-table.types";
 
 const CURRENCY_FORMATTER_BY_CURRENCY: Record<
@@ -79,9 +79,30 @@ function getBaseUsdRate(
 }
 
 /**
+ * Derives the month's IIBB perception as a decimal of the base rate from the
+ * snapshot. The solidario is defined as `oficial × (1 + IIBB + IVA)`, so the
+ * IIBB decimal is recovered as `solidario/oficial - 1 - IVA`. Returns `null`
+ * when the snapshot is missing or the official quote is not usable.
+ */
+function getIibbDecimalFromSnapshot(
+  exchangeRateSnapshot: ExchangeRateSnapshot | null,
+): number | null {
+  if (!exchangeRateSnapshot || exchangeRateSnapshot.officialRate <= 0) {
+    return null;
+  }
+
+  return (
+    exchangeRateSnapshot.solidarityRate / exchangeRateSnapshot.officialRate -
+    1 -
+    USD_RATE_IVA_DECIMAL
+  );
+}
+
+/**
  * Resolves the effective ARS-per-USD rate for a row: its base quote plus the
- * optional IIBB perception (derived from the snapshot as solidario/oficial)
- * and the optional 21% VAT. Returns `null` when a needed quote is missing.
+ * optional IIBB perception and the optional 21% VAT. Both surcharges stack
+ * additively over the base (`base × (1 + IIBB + IVA)`), so enabling both never
+ * double-counts the VAT. Returns `null` when a needed quote is missing.
  */
 export function getUsdRateForRow({
   exchangeRateSnapshot,
@@ -96,22 +117,23 @@ export function getUsdRateForRow({
     return null;
   }
 
-  let effectiveUsdRate = baseUsdRate;
+  let surchargeDecimal = 0;
 
   if (usdRate.appliesIibb) {
-    if (!exchangeRateSnapshot || exchangeRateSnapshot.officialRate <= 0) {
+    const iibbDecimal = getIibbDecimalFromSnapshot(exchangeRateSnapshot);
+
+    if (iibbDecimal == null) {
       return null;
     }
 
-    effectiveUsdRate *=
-      exchangeRateSnapshot.solidarityRate / exchangeRateSnapshot.officialRate;
+    surchargeDecimal += iibbDecimal;
   }
 
   if (usdRate.appliesIva) {
-    effectiveUsdRate *= USD_RATE_IVA_FACTOR;
+    surchargeDecimal += USD_RATE_IVA_DECIMAL;
   }
 
-  return effectiveUsdRate;
+  return baseUsdRate * (1 + surchargeDecimal);
 }
 
 /**

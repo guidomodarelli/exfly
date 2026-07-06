@@ -1,4 +1,3 @@
-import type { GlobalExchangeRateSettingsRepository } from "../../domain/repositories/global-exchange-rate-settings-repository";
 import type { MonthlyExchangeRateSnapshot } from "../../domain/entities/monthly-exchange-rate-snapshot";
 import type { ExchangeRatesRepository } from "../../domain/repositories/exchange-rates-repository";
 import type { MonthlyExchangeRateSnapshotsRepository } from "../../domain/repositories/monthly-exchange-rate-snapshots-repository";
@@ -46,36 +45,20 @@ export async function getMonthlyExchangeRateSnapshot({
   month,
   monthlyExchangeRateSnapshotsRepository,
   now = () => new Date(),
-  settingsRepository,
 }: {
   exchangeRatesRepository: ExchangeRatesRepository;
   month: string;
   monthlyExchangeRateSnapshotsRepository: MonthlyExchangeRateSnapshotsRepository;
   now?: () => Date;
-  settingsRepository: GlobalExchangeRateSettingsRepository;
 }): Promise<MonthlyExchangeRateSnapshot> {
-  const [cachedSnapshot, persistedSettings] = await Promise.all([
-    monthlyExchangeRateSnapshotsRepository.getByMonth(month),
-    settingsRepository.get(),
-  ]);
-  const iibbRateDecimal =
-    persistedSettings?.iibbRateDecimal ?? DEFAULT_IIBB_RATE_DECIMAL;
+  const cachedSnapshot =
+    await monthlyExchangeRateSnapshotsRepository.getByMonth(month);
 
+  // The cached snapshot is the source of truth for the month's IIBB. It is
+  // edited per month through `saveMonthlyIibbRate`, so it is returned untouched
+  // here instead of being overwritten by any global default.
   if (cachedSnapshot) {
-    if (cachedSnapshot.iibbRateDecimalUsed === iibbRateDecimal) {
-      return cachedSnapshot;
-    }
-
-    return monthlyExchangeRateSnapshotsRepository.save(
-      createSnapshotFromRates({
-        blueRate: cachedSnapshot.blueRate,
-        iibbRateDecimalUsed: iibbRateDecimal,
-        month,
-        now: now(),
-        officialRate: cachedSnapshot.officialRate,
-        sourceDateIso: cachedSnapshot.sourceDateIso,
-      }),
-    );
+    return cachedSnapshot;
   }
 
   const [officialRate, blueRate] = await Promise.all([
@@ -92,7 +75,7 @@ export async function getMonthlyExchangeRateSnapshot({
   return monthlyExchangeRateSnapshotsRepository.save(
     createSnapshotFromRates({
       blueRate: blueRate.rate,
-      iibbRateDecimalUsed: iibbRateDecimal,
+      iibbRateDecimalUsed: DEFAULT_IIBB_RATE_DECIMAL,
       month,
       now: now(),
       officialRate: officialRate.rate,

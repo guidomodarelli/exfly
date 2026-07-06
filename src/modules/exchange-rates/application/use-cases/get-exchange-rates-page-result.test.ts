@@ -27,13 +27,6 @@ describe("getExchangeRatesPageResult", () => {
         getByMonth: jest.fn().mockResolvedValue(null),
         save: jest.fn().mockImplementation(async (snapshot) => snapshot),
       },
-      settingsRepository: {
-        get: jest.fn().mockResolvedValue({
-          iibbRateDecimal: 0.02,
-          updatedAtIso: "2026-03-14T12:00:00.000Z",
-        }),
-        save: jest.fn(),
-      },
     });
 
     expect(result).toEqual({
@@ -70,13 +63,6 @@ describe("getExchangeRatesPageResult", () => {
           solidarityRate: 1476,
           source: "ambito-historico-general",
           sourceDateIso: "2026-03-31",
-          updatedAtIso: "2026-03-14T12:00:00.000Z",
-        }),
-        save: jest.fn(),
-      },
-      settingsRepository: {
-        get: jest.fn().mockResolvedValue({
-          iibbRateDecimal: 0.02,
           updatedAtIso: "2026-03-14T12:00:00.000Z",
         }),
         save: jest.fn(),

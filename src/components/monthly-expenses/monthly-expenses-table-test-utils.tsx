@@ -7,6 +7,7 @@ import {
   MonthlyExpensesTable,
   type MonthlyExpensesEditableRow,
 } from "./monthly-expenses-table";
+import { DEFAULT_USD_RATE_SETTINGS } from "./monthly-expenses-table.types";
 
 type MonthlyExpensesTableProps = ComponentProps<typeof MonthlyExpensesTable>;
 
@@ -52,12 +53,7 @@ export function createRow(
     subtotal: "1000",
     subtotalUnit: "occurrence",
     total: "1000",
-    usdRate: {
-      appliesIibb: true,
-      appliesIva: false,
-      base: "official",
-      customRate: null,
-    },
+    usdRate: { ...DEFAULT_USD_RATE_SETTINGS },
     ...overrides,
   };
 }

@@ -265,9 +265,9 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
     const table = screen.getAllByRole("table")[0];
     const tableText = normalizeSpaces(table.textContent ?? "");
 
-    // 10 × blue (1500) = 15.000; 10 × 1000 × 1,3 (IIBB) × 1,21 (IVA) = 15.730.
+    // 10 × blue (1500) = 15.000; 10 × 1000 × (1 + 0,09 IIBB + 0,21 IVA) = 13.000.
     expect(tableText).toContain("15.000");
-    expect(tableText).toContain("15.730");
+    expect(tableText).toContain("13.000");
   });
 
   it("shows a rate badge on USD rows with the effective rate in a tooltip", async () => {
@@ -306,8 +306,8 @@ describe("MonthlyExpensesTable per-expense USD rate", () => {
 
     const tooltip = await screen.findByRole("tooltip");
 
-    // 1000 × 1,3 (IIBB) × 1,21 (IVA) = 1.573 por USD.
-    expect(tooltip.textContent?.replace(/\s/g, " ")).toContain("1 USD = $ 1.573");
+    // 1000 × (1 + 0,09 IIBB + 0,21 IVA) = 1.300 por USD.
+    expect(tooltip.textContent?.replace(/\s/g, " ")).toContain("1 USD = $ 1.300");
 
     // Las filas ARS no llevan badge de tasa.
     const arsRow = screen.getByText("Alquiler").closest("tr");

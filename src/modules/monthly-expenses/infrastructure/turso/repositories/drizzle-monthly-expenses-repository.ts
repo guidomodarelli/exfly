@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import {
   expenseMonthsTable,
@@ -996,6 +996,44 @@ export class DrizzleMonthlyExpensesRepository
 
   async getByMonth(month: string): Promise<MonthlyExpensesDocument | null> {
     return this.getByMonthFromNormalized(month);
+  }
+
+  async refreshExchangeRateSolidarityForMonth({
+    month,
+    solidarityMultiplier,
+  }: {
+    month: string;
+    solidarityMultiplier: number;
+  }): Promise<void> {
+    const updatedAtIso = new Date().toISOString();
+
+    await this.database
+      .update(monthlyExpenseMonthsTable)
+      .set({
+        exchangeRateSolidarityRate: sql`${monthlyExpenseMonthsTable.exchangeRateOfficialRate} * ${solidarityMultiplier}`,
+        updatedAtIso,
+      })
+      .where(
+        and(
+          eq(monthlyExpenseMonthsTable.userSubject, this.userSubject),
+          eq(monthlyExpenseMonthsTable.month, month),
+          isNotNull(monthlyExpenseMonthsTable.exchangeRateOfficialRate),
+        ),
+      );
+
+    await this.database
+      .update(expenseMonthsTable)
+      .set({
+        exchangeRateSolidarityRate: sql`${expenseMonthsTable.exchangeRateOfficialRate} * ${solidarityMultiplier}`,
+        updatedAtIso,
+      })
+      .where(
+        and(
+          eq(expenseMonthsTable.userSubject, this.userSubject),
+          eq(expenseMonthsTable.month, month),
+          isNotNull(expenseMonthsTable.exchangeRateOfficialRate),
+        ),
+      );
   }
 
   async getOldestStoredMonth(): Promise<string | null> {

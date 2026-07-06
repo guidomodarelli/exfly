@@ -17,7 +17,6 @@ const mockGetExchangeRatesPageResult = jest.fn();
 const mockGetAuthenticatedUserSubjectFromRequest = jest.fn();
 const mockDrizzleMonthlyExpensesRepository = jest.fn();
 const mockAmbitoExchangeRatesRepository = jest.fn();
-const mockDrizzleGlobalExchangeRateSettingsRepository = jest.fn();
 const mockDrizzleMonthlyExchangeRateSnapshotsRepository = jest.fn();
 
 jest.mock(
@@ -97,14 +96,6 @@ jest.mock("../api/ambito-exchange-rates-repository", () => ({
     ),
 }));
 
-jest.mock("../turso/repositories/drizzle-global-exchange-rate-settings-repository", () => ({
-  DrizzleGlobalExchangeRateSettingsRepository: jest
-    .fn()
-    .mockImplementation((...parameters: unknown[]) =>
-      mockDrizzleGlobalExchangeRateSettingsRepository(...parameters),
-    ),
-}));
-
 jest.mock("../turso/repositories/drizzle-monthly-exchange-rate-snapshots-repository", () => ({
   DrizzleMonthlyExchangeRateSnapshotsRepository: jest
     .fn()
@@ -159,7 +150,6 @@ describe("getExchangeRatesServerSideProps", () => {
       requestId: "request-id",
     });
     mockAmbitoExchangeRatesRepository.mockReturnValue({});
-    mockDrizzleGlobalExchangeRateSettingsRepository.mockReturnValue({});
     mockDrizzleMonthlyExchangeRateSnapshotsRepository.mockReturnValue({});
     mockDrizzleMonthlyExpensesRepository.mockReturnValue({
       getOldestStoredMonth: jest.fn().mockResolvedValue("2026-01"),

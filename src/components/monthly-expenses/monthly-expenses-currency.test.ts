@@ -48,29 +48,32 @@ describe("getUsdRateForRow", () => {
     ).toBe(1480.5);
   });
 
-  it("adds the IIBB perception derived from the snapshot", () => {
-    // Factor IIBB = solidario / oficial = 1300 / 1000 = 1.3.
+  it("adds only the IIBB perception (additive, without VAT) derived from the snapshot", () => {
+    // IIBB decimal = solidario / oficial - 1 - 0.21 = 1.3 - 1.21 = 0.09.
+    // Solo IIBB => base × (1 + 0.09).
     expect(
       getUsdRateForRow({
         exchangeRateSnapshot: SNAPSHOT,
         usdRate: buildUsdRate({ appliesIibb: true, base: "official" }),
       }),
-    ).toBe(1300);
+    ).toBeCloseTo(1090);
     expect(
       getUsdRateForRow({
         exchangeRateSnapshot: SNAPSHOT,
         usdRate: buildUsdRate({ appliesIibb: true, base: "blue" }),
       }),
-    ).toBeCloseTo(1950);
+    ).toBeCloseTo(1635);
   });
 
-  it("adds the 21% VAT surcharge on top of the base and IIBB", () => {
+  it("adds IIBB and 21% VAT additively without double-counting VAT", () => {
+    // Solo IVA => base × (1 + 0.21).
     expect(
       getUsdRateForRow({
         exchangeRateSnapshot: SNAPSHOT,
         usdRate: buildUsdRate({ appliesIva: true, base: "official" }),
       }),
     ).toBeCloseTo(1210);
+    // IIBB + IVA => base × (1 + 0.09 + 0.21) = solidario, sin duplicar el IVA.
     expect(
       getUsdRateForRow({
         exchangeRateSnapshot: SNAPSHOT,
@@ -80,7 +83,7 @@ describe("getUsdRateForRow", () => {
           base: "official",
         }),
       }),
-    ).toBeCloseTo(1573);
+    ).toBeCloseTo(1300);
   });
 
   it("supports surcharges over a custom base without needing the base quotes", () => {
@@ -143,7 +146,7 @@ describe("getConvertedAmountForCurrency", () => {
     ).toBe(15000);
   });
 
-  it("keeps official + IIBB (solidario) as the default when no settings are given", () => {
+  it("keeps the solidario (official + IIBB + VAT) as the default when no settings are given", () => {
     expect(
       getConvertedAmountForCurrency({
         currency: "ARS",

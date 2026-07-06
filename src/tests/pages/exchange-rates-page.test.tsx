@@ -141,6 +141,8 @@ describe("ExchangeRatesPage", () => {
       json: async () => ({
         data: {
           iibbRateDecimal: 0.05,
+          month: "2026-03",
+          solidarityRate: 1512,
         },
       }),
       ok: true,
@@ -205,7 +207,7 @@ describe("ExchangeRatesPage", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText(
-        "Solo los admins configurados en la allowlist pueden editar este valor global.",
+        "Solo los admins configurados en la allowlist pueden editar el IIBB del mes.",
       ),
     ).toBeInTheDocument();
   });

@@ -170,8 +170,8 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
       await selectUsdRateFromRowMenu(user, "Dólar blue");
       await flushDeferredMenuSelection();
 
-      // Feedback inmediato: 10 USD × blue (1500) × IIBB (1,3) = 19.500,
-      // aún sin ningún POST.
+      // Feedback inmediato: 10 USD × blue (1500) × (1 + 0,09 IIBB + 0,21 IVA)
+      // = 19.500, aún sin ningún POST.
       expect(getTableTextNormalized()).toContain("19.500");
       expect(getSaveCalls(fetchMock)).toHaveLength(0);
 
@@ -190,7 +190,7 @@ describe("MonthlyExpensesPage optimistic usd rate", () => {
 
       expect(payload.items[0].usdRate).toEqual({
         appliesIibb: true,
-        appliesIva: false,
+        appliesIva: true,
         base: "blue",
       });
     } finally {

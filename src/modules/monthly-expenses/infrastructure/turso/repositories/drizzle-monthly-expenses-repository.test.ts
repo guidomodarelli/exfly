@@ -660,3 +660,103 @@ describe("DrizzleMonthlyExpensesRepository", () => {
     expect(unitByExpenseId.get("without-unit")).toBeNull();
   });
 });
+
+describe("DrizzleMonthlyExpensesRepository.refreshExchangeRateSolidarityForMonth", () => {
+  async function createInMemoryDatabase() {
+    const { createClient } = await import("@libsql/client");
+    const { drizzle } = await import("drizzle-orm/libsql");
+    const { migrate } = await import("drizzle-orm/libsql/migrator");
+    const path = await import("node:path");
+    const schema = await import(
+      "@/modules/shared/infrastructure/database/drizzle/schema"
+    );
+
+    const client = createClient({ url: ":memory:" });
+    const database = drizzle(client, { schema });
+
+    await migrate(database, {
+      migrationsFolder: path.resolve(process.cwd(), "drizzle"),
+    });
+
+    return database;
+  }
+
+  function buildMonthlyRow(overrides: {
+    userSubject: string;
+    month: string;
+    exchangeRateOfficialRate: number | null;
+    exchangeRateSolidarityRate: number | null;
+  }) {
+    return {
+      exchangeRateBlueRate: 1500,
+      exchangeRateMonth: overrides.month,
+      exchangeRateOfficialRate: overrides.exchangeRateOfficialRate,
+      exchangeRateSolidarityRate: overrides.exchangeRateSolidarityRate,
+      hasReplicatedFromPreviousMonth: 0,
+      month: overrides.month,
+      updatedAtIso: "2026-03-01T00:00:00.000Z",
+      userSubject: overrides.userSubject,
+    };
+  }
+
+  it("recomputes the frozen solidario only for the acting user and month", async () => {
+    const database = await createInMemoryDatabase();
+    const { monthlyExpenseMonthsTable } = await import(
+      "@/modules/shared/infrastructure/database/drizzle/schema"
+    );
+
+    await database.insert(monthlyExpenseMonthsTable).values([
+      buildMonthlyRow({
+        userSubject: "user-1",
+        month: "2026-03",
+        exchangeRateOfficialRate: 1000,
+        exchangeRateSolidarityRate: 1210,
+      }),
+      buildMonthlyRow({
+        userSubject: "user-1",
+        month: "2026-04",
+        exchangeRateOfficialRate: 1000,
+        exchangeRateSolidarityRate: 1210,
+      }),
+      buildMonthlyRow({
+        userSubject: "user-2",
+        month: "2026-03",
+        exchangeRateOfficialRate: 1000,
+        exchangeRateSolidarityRate: 1210,
+      }),
+      buildMonthlyRow({
+        userSubject: "user-1",
+        month: "2026-05",
+        exchangeRateOfficialRate: null,
+        exchangeRateSolidarityRate: null,
+      }),
+    ]);
+
+    const repository = new DrizzleMonthlyExpensesRepository(
+      database as never,
+      "user-1",
+    );
+
+    // Multiplicador = 1 + 0.05 (IIBB) + 0.21 (IVA) = 1.26.
+    await repository.refreshExchangeRateSolidarityForMonth({
+      month: "2026-03",
+      solidarityMultiplier: 1.26,
+    });
+
+    const rows = await database.select().from(monthlyExpenseMonthsTable);
+    const byKey = new Map(
+      rows.map((row) => [`${row.userSubject}:${row.month}`, row]),
+    );
+
+    // 1000 × 1.26 = 1260 para el usuario y mes objetivo.
+    expect(byKey.get("user-1:2026-03")?.exchangeRateSolidarityRate).toBeCloseTo(
+      1260,
+    );
+    // Otro mes del mismo usuario: intacto.
+    expect(byKey.get("user-1:2026-04")?.exchangeRateSolidarityRate).toBe(1210);
+    // Otro usuario, mismo mes: intacto.
+    expect(byKey.get("user-2:2026-03")?.exchangeRateSolidarityRate).toBe(1210);
+    // Fila sin oficial congelado: intacta (null).
+    expect(byKey.get("user-1:2026-05")?.exchangeRateSolidarityRate).toBeNull();
+  });
+});
