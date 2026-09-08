@@ -1,7 +1,6 @@
+import { TooltipProvider } from "beez-ui";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import {
   ExpenseFolderFilterBar,

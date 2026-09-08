@@ -1,7 +1,6 @@
+import { Button } from "beez-ui";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-import { Button } from "@/components/ui/button";
 
 import styles from "./pwa-update-control.module.scss";
 

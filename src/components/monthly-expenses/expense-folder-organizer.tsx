@@ -1,3 +1,10 @@
+import {
+  Button,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  cn,
+} from "beez-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   draggable,
@@ -6,14 +13,6 @@ import {
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 import { Settings } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 import type { ExpenseFolderOption } from "./expense-folder-picker";
 import { LoanInfoPopover } from "./loan-info-popover";

@@ -1,9 +1,10 @@
 import {
-  normalizeFilterSlug,
   UNASSIGNED_FOLDER_FILTER_VALUE,
+  normalizeFilterSlug,
   type FilterQualifierConfig,
   type FilterQualifierOption,
-} from "@/components/ui/filter-query-grammar";
+} from "beez-ui";
+
 
 import type { ExpenseFolderOption } from "./expense-folder-picker";
 import type { LenderOption } from "./lender-picker";

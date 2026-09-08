@@ -1,4 +1,17 @@
 import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+  cn,
+} from "beez-ui";
+import {
   useEffect,
   useId,
   useMemo,
@@ -7,18 +20,6 @@ import {
 } from "react";
 
 import { ReceiptFileUploader } from "@/components/monthly-expenses/receipt-file-uploader";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
 
 import styles from "./expense-receipt-upload-dialog.module.scss";
 

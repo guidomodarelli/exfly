@@ -1,13 +1,13 @@
-import { matchesAdvancedYearMonthRangeFilter } from "@/components/ui/data-table";
 import {
+  UNASSIGNED_FOLDER_FILTER_VALUE,
+  matchesAdvancedYearMonthRangeFilter,
   normalizeFilterSlug,
   parseYearMonthSlug,
-  UNASSIGNED_FOLDER_FILTER_VALUE,
   type AppliedFilter,
   type AppliedFilterValue,
   type FolderFilterValue,
   type TextMatchFilterValue,
-} from "@/components/ui/filter-query-grammar";
+} from "beez-ui";
 
 import {
   matchesAdvancedEnumFilter,

@@ -1,11 +1,13 @@
+import {
+  Button,
+  DropdownMenuItem,
+  cn,
+} from "beez-ui";
 import { useMemo } from "react";
 import { Pencil } from "lucide-react";
 
 import { ConfirmDeleteButton } from "@/components/monthly-expenses/confirm-delete-button";
 import type { LenderOption } from "@/components/monthly-expenses/lender-picker";
-import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
 import styles from "./lenders-panel.module.scss";
 

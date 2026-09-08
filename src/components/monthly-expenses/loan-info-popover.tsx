@@ -1,8 +1,7 @@
+import { Button } from "beez-ui";
 import { useRef, useState } from "react";
 import { Info, X } from "lucide-react";
 import { Tooltip as TooltipPrimitive } from "radix-ui";
-
-import { Button } from "@/components/ui/button";
 
 import styles from "./loan-info-popover.module.scss";
 

@@ -1,10 +1,12 @@
+import {
+  Button,
+  Input,
+  Label,
+  cn,
+} from "beez-ui";
 import { useState } from "react";
 
 import { ConfirmDeleteButton } from "@/components/monthly-expenses/confirm-delete-button";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 import type { ExpenseFolderOption } from "./expense-folder-picker";
 import {

@@ -1,16 +1,15 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-
-import { TypingAnimation } from "@/components/ui/typing-animation";
-import { Button } from "@/components/ui/button";
 import {
+  Link,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+  TypingAnimation,
+} from "beez-ui";
+import type { Metadata } from "next";
 
 import styles from "./offline-page.module.scss";
 

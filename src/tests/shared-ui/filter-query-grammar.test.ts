@@ -6,7 +6,8 @@ import {
   serializeFilterQuery,
   tokenizeFilterQuery,
   type FilterQualifierConfig,
-} from "./filter-query-grammar";
+} from "beez-ui";
+
 
 const CONFIGS: FilterQualifierConfig[] = [
   { key: "", kind: "text", label: "Descripción" },

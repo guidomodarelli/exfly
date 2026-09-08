@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { MoreVertical, Trash2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "beez-ui";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { MoreVertical, Trash2 } from "lucide-react";
 
 import styles from "./confirm-delete-button.module.scss";
 

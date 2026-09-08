@@ -1,28 +1,23 @@
 import {
-  ChevronDownIcon,
-  LogInIcon,
-  LogOutIcon,
-  PlusIcon,
-} from "lucide-react";
-
-import {
   Avatar,
   AvatarBadge,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "beez-ui";
+import {
+  ChevronDownIcon,
+  LogInIcon,
+  LogOutIcon,
+  PlusIcon,
+} from "lucide-react";
 
 export type AccountMenuStatus = "authenticated" | "unauthenticated";
 

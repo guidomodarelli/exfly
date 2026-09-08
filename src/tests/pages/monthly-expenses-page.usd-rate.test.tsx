@@ -1,8 +1,9 @@
+import { toast } from "beez-ui";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { toast } from "sonner";
+
 
 import MonthlyExpensesPage from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
 import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";

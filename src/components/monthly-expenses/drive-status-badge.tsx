@@ -1,10 +1,9 @@
-import { AlertTriangle, CircleX } from "lucide-react";
-
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "beez-ui";
+import { AlertTriangle, CircleX } from "lucide-react";
 
 import styles from "./drive-status-badge.module.scss";
 import type { MonthlyExpenseDriveResourceStatus } from "./monthly-expenses-table.types";

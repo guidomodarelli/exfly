@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import type { ClientSafeProvider } from "next-auth/react";
-import type { ReactNode } from "react";
 
 import { SignInPageClient } from "@/app/auth/signin/signin-page-client";
 
@@ -15,11 +14,6 @@ jest.mock("next-auth/react", () => ({
   signIn: jest.fn(),
 }));
 
-jest.mock("@/components/ui/typing-animation", () => ({
-  TypingAnimation: ({ children }: { children: ReactNode }) => (
-    <h1>{children}</h1>
-  ),
-}));
 
 const mockedUseSearchParams = jest.mocked(useSearchParams);
 const mockedSignIn = jest.mocked(signIn);

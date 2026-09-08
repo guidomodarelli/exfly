@@ -1,19 +1,29 @@
 "use client";
 
-import { ThemeProvider } from "next-themes";
+import { ThemedToaster as Toaster, TooltipProvider } from "beez-ui";
+import { BeezUIProvider } from "beez-ui/next";
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { useEffect, type ReactNode } from "react";
 
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { registerServiceWorker } from "@/modules/shared/infrastructure/pages/register-service-worker";
+
+/** Retains existing saved preferences while using the shared library theme. */
+const APP_THEME_OPTIONS = {
+  defaultTheme: "system",
+  disableTransitionOnChange: true,
+  enableColorScheme: false,
+  enableSystem: true,
+  storageKey: "theme",
+  themes: ["light", "dark"],
+};
 
 interface AppProvidersProps {
   children: ReactNode;
   session: Session | null;
 }
 
+/** Composes authentication, the shared Next adapter and the existing PWA lifecycle. */
 export function AppProviders({ children, session }: AppProvidersProps) {
   useEffect(() => {
     registerServiceWorker();
@@ -21,20 +31,12 @@ export function AppProviders({ children, session }: AppProvidersProps) {
 
   return (
     <SessionProvider session={session}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        disableTransitionOnChange
-        enableColorScheme={false}
-        enableSystem
-        storageKey="theme"
-        themes={["light", "dark"]}
-      >
+      <BeezUIProvider themeOptions={APP_THEME_OPTIONS}>
         <TooltipProvider>
           {children}
           <Toaster closeButton position="top-center" richColors />
         </TooltipProvider>
-      </ThemeProvider>
+      </BeezUIProvider>
     </SessionProvider>
   );
 }

@@ -1,7 +1,3 @@
-import { useMemo, useState } from "react";
-import { ExternalLink, MoreVertical, Paperclip, Trash2 } from "lucide-react";
-
-import { ReceiptFileUploader } from "@/components/monthly-expenses/receipt-file-uploader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,22 +7,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+  Input,
+} from "beez-ui";
+import { useMemo, useState } from "react";
+import { ExternalLink, MoreVertical, Paperclip, Trash2 } from "lucide-react";
+
+import { ReceiptFileUploader } from "@/components/monthly-expenses/receipt-file-uploader";
 
 import styles from "./expense-receipt-coverage-edit-dialog.module.scss";
 

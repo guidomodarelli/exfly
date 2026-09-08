@@ -1,7 +1,3 @@
-import { useState } from "react";
-
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,14 +7,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "beez-ui";
+import { useState } from "react";
+
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import styles from "./monthly-expenses-table.module.scss";
 

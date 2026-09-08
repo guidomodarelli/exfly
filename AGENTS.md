@@ -131,25 +131,12 @@ npx create-next-app@latest . --ts --eslint --tailwind --src-dir --import-alias "
 
 ### UI baseline
 
-- Use `shadcn/ui` following the official installation flow.
-- Prefer `shadcn/ui` components whenever a user request can be satisfied with an existing component or variant from the library.
-- When touching existing UI, replace custom components with the closest `shadcn/ui` component or composition if the current behavior can be preserved.
-- When adding new UI or features that need interface building blocks, use `shadcn/ui` components by default.
-- If no existing `shadcn/ui` component or variant can satisfy the requested UX without forcing a poor implementation, stop and ask the user how they want to proceed before building a custom alternative.
-- Initialize it with the official CLI:
-
-```bash
-npx shadcn@latest init -t next
-```
-
-- Every `shadcn/ui` component must be added through the CLI only:
-
-```bash
-npx shadcn@latest add button
-```
-
-- Never hand-copy `shadcn/ui` components from documentation or other repositories.
-- Keep generated `shadcn/ui` components close to their defaults and customize behavior through composition first.
+- Use the published `beez-ui` package for shared UI components; group named imports from `beez-ui`.
+- Configure the Next.js adapter through `BeezUIProvider` from `beez-ui/next` in the application providers.
+- Import `beez-ui/styles.css` once from the global stylesheet and use the library's default theme, including fonts and color tokens.
+- Preserve the existing `theme` localStorage key and the sidebar preference contract through the application adapter.
+- Add or customize shared shadcn/ui primitives in the sibling `beez-ui` repository using the official CLI there. Do not reintroduce local `components/ui` copies or `components.json`.
+- Keep product-specific composition, upload workflows and SCSS in this application. See `docs/shared-ui.md` for integration boundaries.
 
 ### Receipt upload baseline
 
@@ -159,7 +146,7 @@ npx shadcn@latest add button
 
 ### Toast notifications baseline
 
-- Use `Sonner` integrated with `shadcn/ui` as the standard notification system for user-facing events.
+- Use `toast` and `ThemedToaster` from `beez-ui` as the standard notification system for user-facing events.
 - Mount a global toaster once through `src/app/layout.tsx` providers and trigger notifications from page/container handlers.
 - Select toast type by event intent:
   - `default`: neutral messages that acknowledge a relevant user action.
@@ -180,7 +167,7 @@ npx shadcn@latest add button
   - `*.module.scss` for component-scoped styles
   - `src/styles/*` for global styles, tokens, mixins, and layout primitives
 - Avoid inline styles except for rare runtime-only values.
-- Tailwind remains available only because it is part of the official `shadcn/ui` setup. Product styling should default to `SCSS`.
+- Tailwind remains available for existing product utilities and the Untitled UI uploader. Shared beez-ui styles are precompiled; do not scan its source or node_modules. Product styling should default to `SCSS`.
 
 ## 4. SSR-First Data Flow
 
@@ -344,7 +331,7 @@ External API/SDK -> infrastructure DTO -> infrastructure mapper -> domain entity
 - Are external DTOs isolated in infrastructure?
 - Are UI-facing models isolated from vendor payloads?
 - Are domain input shapes modeled as value objects and application outputs modeled as `results/` contracts?
-- Was `shadcn/ui` added through the CLI only?
+- Are shared primitives imported from `beez-ui`, with no local shadcn/ui copies?
 - Are product styles implemented with `SCSS`?
 - Are Google tokens and secrets kept server-side only?
 - Were tests written first and left green at the end?

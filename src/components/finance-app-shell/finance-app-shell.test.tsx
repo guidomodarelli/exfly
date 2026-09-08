@@ -1,9 +1,8 @@
+import { TooltipProvider } from "beez-ui";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { FinanceAppShell } from "./finance-app-shell";
 
@@ -27,6 +26,7 @@ const mockedRouterPush = jest.fn();
 
 describe("FinanceAppShell", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     jest.mocked(signIn).mockReset();
     jest.mocked(signOut).mockReset();
     mockedUseSession.mockReturnValue({
@@ -51,7 +51,7 @@ describe("FinanceAppShell", () => {
     } as ReturnType<typeof useSearchParams>);
   });
 
-  it("renders the shadcn sidebar variant with brand, navigation, and account footer", () => {
+  it("renders the shared sidebar variant with brand, navigation, and account footer", () => {
     render(
       <TooltipProvider>
         <FinanceAppShell
@@ -73,6 +73,38 @@ describe("FinanceAppShell", () => {
     expect(
       screen.getByRole("button", { name: "Abrir menu lateral" }),
     ).toBeInTheDocument();
+  });
+
+  it("should restore the collapsed sidebar when the existing preference is saved", async () => {
+    window.localStorage.setItem("control-mensual.sidebar.open", "false");
+    render(
+      <TooltipProvider>
+        <FinanceAppShell initialSidebarOpen isOAuthConfigured>
+          <h1>Page content</h1>
+        </FinanceAppShell>
+      </TooltipProvider>,
+    );
+
+    await waitFor(() => expect(document.querySelector("[data-slot='sidebar'][data-state]"))
+      .toHaveAttribute("data-state", "collapsed"));
+  });
+
+  it("should persist the SSR cookie and local preference when the sidebar is toggled", async () => {
+    const user = userEvent.setup();
+    render(
+      <TooltipProvider>
+        <FinanceAppShell initialSidebarOpen isOAuthConfigured>
+          <h1>Page content</h1>
+        </FinanceAppShell>
+      </TooltipProvider>,
+    );
+
+    await user.keyboard("{Control>}b{/Control}");
+
+    expect(window.localStorage.getItem("control-mensual.sidebar.open")).toBe("false");
+    expect(document.cookie).toContain("control-mensual.sidebar.open=false");
+    expect(document.querySelector("[data-slot='sidebar'][data-state]"))
+      .toHaveAttribute("data-state", "collapsed");
   });
 
   it("opens the account footer menu with app account actions", async () => {

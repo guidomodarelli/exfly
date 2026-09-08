@@ -1,12 +1,22 @@
 "use client";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  TypingAnimation,
+  toast,
+} from "beez-ui";
+
 import type {
   GetServerSidePropsContext,
 } from "next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { toast } from "sonner";
+
 
 import {
   useFinanceAppShellNavigation,
@@ -31,13 +41,7 @@ import {
   ExpenseFoldersPanel,
   type ExpenseFolderAppearanceDraft,
 } from "@/components/monthly-expenses/expense-folders-panel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
 import { MonthlyExpensesLoansReport } from "@/components/monthly-expenses/monthly-expenses-loans-report";
 import {
   MonthlyExpensesTable,
@@ -61,7 +65,7 @@ import {
   normalizePaymentLink,
   PAYMENT_LINK_VALIDATION_ERROR_MESSAGE,
 } from "@/components/monthly-expenses/payment-link";
-import { TypingAnimation } from "@/components/ui/typing-animation";
+
 import type { ExpenseEditableFieldName } from "@/components/monthly-expenses/expense-sheet";
 import {
   type LendersCatalogDocumentResult,

@@ -1,20 +1,17 @@
-import { useRef, useState, type FormEvent } from "react";
-import { Plus } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
+  Button,
+  Input,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@/components/ui/input-group";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "beez-ui";
+import { useRef, useState, type FormEvent } from "react";
+import { Plus } from "lucide-react";
 
 import type { MonthlyExpenseCurrency } from "./monthly-expenses-table.types";
 import styles from "./quick-add-expense-form.module.scss";

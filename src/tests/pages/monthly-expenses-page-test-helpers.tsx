@@ -1,9 +1,10 @@
+import { TooltipProvider } from "beez-ui";
 import { render, screen, within } from "@testing-library/react";
 import type { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { useSession } from "next-auth/react";
 import type { ReactElement } from "react";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
+
 import type { StorageBootstrapResult } from "@/modules/storage/application/results/storage-bootstrap";
 
 export const SIDEBAR_STORAGE_KEY = "control-mensual.sidebar.open";
@@ -124,6 +125,7 @@ export function createMockRouter(
   }>,
 ) {
   const router: MockMonthlyExpensesRouter = {
+    bfcacheId: "monthly-expenses-test",
     back: jest.fn(),
     forward: jest.fn(),
     isReady: true,

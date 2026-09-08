@@ -1,9 +1,11 @@
+import {
+  Input,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+  cn,
+} from "beez-ui";
 import { useId, useState, type ChangeEvent } from "react";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
 
 import { OccurrenceDurationInput } from "./occurrence-duration-input";
 import styles from "./payment-frequency-field.module.scss";

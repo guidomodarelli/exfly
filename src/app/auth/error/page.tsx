@@ -1,16 +1,16 @@
-import Link from "next/link";
-import type { Metadata } from "next";
-
-import { Button } from "@/components/ui/button";
-import { TypingAnimation } from "@/components/ui/typing-animation";
 import {
+  Link,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+  TypingAnimation,
+} from "beez-ui";
+import type { Metadata } from "next";
+
 import { getAuthErrorMessage } from "@/modules/auth/application/queries/get-auth-error-message";
 import type { AppPageSearchParams } from "@/modules/shared/infrastructure/next-app/legacy-page-context";
 

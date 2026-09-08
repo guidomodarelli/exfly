@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
 
 /**
@@ -21,6 +21,6 @@ export async function selectDropdownSubmenuItem(
 
   const submenuItem = await screen.findByRole(itemRole, { name: itemName });
 
-  submenuItem.focus();
+  act(() => submenuItem.focus());
   await user.keyboard("{Enter}");
 }

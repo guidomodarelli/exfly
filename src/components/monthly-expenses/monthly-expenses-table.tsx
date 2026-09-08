@@ -1,9 +1,3 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  ColumnDef,
-  SortingState,
-  VisibilityState,
-} from "@tanstack/react-table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,15 +7,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
+  Badge,
+  Button,
   DataTable,
-  type DataTableQueryFilterControls,
-  matchesAdvancedYearMonthRangeFilter,
-} from "@/components/ui/data-table";
-import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -34,45 +28,37 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Highlighter,
-} from "@/components/ui/highlighter";
-import { Input } from "@/components/ui/input";
-import {
+  Input,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
+  Label,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
+  RadioGroup,
+  RadioGroupItem,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
+  Textarea,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+  cn,
+  matchesAdvancedYearMonthRangeFilter,
+  type AppliedFilter,
+  type DataTableQueryFilterControls,
+} from "beez-ui";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  ColumnDef,
+  SortingState,
+  VisibilityState,
+} from "@tanstack/react-table";
 
 import {
   AlertTriangle,
@@ -172,7 +158,7 @@ import {
   COLUMN_BACKED_QUALIFIER_KEYS,
 } from "./monthly-expenses-filter-qualifiers";
 import { buildMonthlyExpensesQueryPredicate } from "./monthly-expenses-filter-predicate";
-import type { AppliedFilter } from "@/components/ui/filter-query-grammar";
+
 import {
   compareValuesKeepingInvalidLast,
   getColumnSortDirection,

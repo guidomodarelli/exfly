@@ -1,8 +1,7 @@
+import { ThemedToaster as Toaster } from "beez-ui";
 import type { ReactElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { useTheme } from "next-themes";
-
-import { Toaster } from "./sonner";
 
 jest.mock("next-themes", () => ({
   useTheme: jest.fn(),

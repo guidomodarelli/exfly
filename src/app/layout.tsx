@@ -2,7 +2,6 @@ import "@/styles/globals.css";
 import "@/styles/globals.scss";
 
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import type { ReactNode } from "react";
@@ -16,16 +15,6 @@ import {
 } from "@/modules/shared/infrastructure/pages/sidebar-state";
 
 import { AppProviders } from "./providers";
-
-const interSans = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter-sans",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-});
 
 const APP_NAME = "Control Mensual";
 const APP_DESCRIPTION = "Gestiona tu control mensual: pagos, deudas, cuotas, prestamos, comprobantes y prestamistas, con reportes de seguimiento.";
@@ -105,7 +94,7 @@ export default async function RootLayout({
 
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${interSans.className} ${interSans.variable} ${geistMono.variable}`}>
+      <body>
         <AppProviders session={session}>
           <FinanceAppShell
             initialSidebarOpen={initialSidebarOpen}

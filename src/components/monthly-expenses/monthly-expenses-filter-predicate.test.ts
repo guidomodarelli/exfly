@@ -1,6 +1,5 @@
-import type {
-  AppliedFilter,
-} from "@/components/ui/filter-query-grammar";
+import { type AppliedFilter } from "beez-ui";
+
 
 import {
   buildMonthlyExpensesQueryPredicate,

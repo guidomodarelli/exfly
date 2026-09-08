@@ -1,9 +1,8 @@
+import { DataTable } from "beez-ui";
 import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import { DataTable } from "./data-table";
 
 type TableRow = {
   label: string;

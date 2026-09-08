@@ -1,26 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Flag } from "lucide-react";
-
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
+  Avatar,
+  AvatarFallback,
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { FilterQueryBar } from "@/components/ui/filter-query-bar";
-import { parseFilterQuery } from "@/components/ui/filter-query-grammar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
+  FilterQueryBar,
+  Skeleton,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+  parseFilterQuery,
+} from "beez-ui";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Flag } from "lucide-react";
 
 import {
   buildLoansReportFilterQualifiers,

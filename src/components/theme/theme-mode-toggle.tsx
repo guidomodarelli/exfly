@@ -1,13 +1,13 @@
-import { Moon, Sun, SunMoon } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useSyncExternalStore } from "react";
-
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+  useTheme,
+} from "beez-ui";
+import { Moon, Sun, SunMoon } from "lucide-react";
+
+import { useSyncExternalStore } from "react";
 
 const THEME_TRANSITION_ATTRIBUTE = "transition-style";
 const THEME_TRANSITION_VALUE = "in:circle:center";

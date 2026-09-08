@@ -1,4 +1,5 @@
-import type { DataTableColumnFilterValue } from "@/components/ui/data-table";
+import { type DataTableColumnFilterValue } from "beez-ui";
+
 
 /**
  * Matches a numeric value against an advanced number-range filter. Returns

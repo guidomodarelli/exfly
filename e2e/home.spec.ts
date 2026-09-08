@@ -5,7 +5,7 @@ test("renders monthly expenses on root route", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/gastos/);
   await expect(
-    page.getByRole("link", { name: "Gastos del mes" }),
+    page.getByRole("heading", { name: "Control mensual", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Detalle del mes" }),
@@ -22,6 +22,7 @@ test("keeps light theme after reload when persisted theme is light", async ({ pa
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/gastos/);
+  await expect(page.getByRole("heading", { name: "Detalle del mes" })).toBeVisible();
 
   await expect.poll(async () => {
     return await page.evaluate(() => {
@@ -34,15 +35,10 @@ test("keeps light theme after reload when persisted theme is light", async ({ pa
   await expect.poll(async () => {
     return await page.evaluate(() => {
       const rootStyles = getComputedStyle(document.documentElement);
-      const bodyBackgroundColor = getComputedStyle(document.body).backgroundColor;
-      const colorChannels = bodyBackgroundColor
-        .match(/-?\d+(\.\d+)?/g)
-        ?.map((value) => Number.parseFloat(value)) ?? [];
-      const hasLightBackground = bodyBackgroundColor.startsWith("lab")
-        ? Number.isFinite(colorChannels[0]) && colorChannels[0] > 90
-        : bodyBackgroundColor.startsWith("rgb")
-          ? colorChannels.slice(0, 3).every((channel) => channel > 240)
-          : false;
+      // Browsers may serialize the same compiled color as lab, rgb or oklch.
+      const hasLightBackground = /^(lab\(100|rgb\(255, 255, 255|oklch\(1 )/.test(
+        getComputedStyle(document.body).backgroundColor,
+      );
 
       return {
         colorScheme: rootStyles.colorScheme,
@@ -67,6 +63,7 @@ test("uses system theme when no persisted theme exists", async ({ page }) => {
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/gastos/);
+  await expect(page.getByRole("heading", { name: "Detalle del mes" })).toBeVisible();
 
   await expect.poll(async () => {
     return await page.evaluate(() => {
@@ -83,6 +80,7 @@ test("toggles to dark correctly after reloading in persisted light mode", async 
 
   await page.goto("/");
   await expect(page).toHaveURL(/\/gastos/);
+  await expect(page.getByRole("heading", { name: "Detalle del mes" })).toBeVisible();
   await page.reload();
 
   await expect.poll(async () => {
@@ -92,6 +90,7 @@ test("toggles to dark correctly after reloading in persisted light mode", async 
   }).toBe(false);
 
   await page.getByRole("button", { name: "Alternar tema" }).click();
+  await page.getByRole("menuitemradio", { name: "Oscuro", exact: true }).click();
 
   await expect.poll(async () => {
     return await page.evaluate(() => {

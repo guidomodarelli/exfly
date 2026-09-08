@@ -1,19 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { signIn, type ClientSafeProvider } from "next-auth/react";
-
-import { Button } from "@/components/ui/button";
-import { TypingAnimation } from "@/components/ui/typing-animation";
 import {
+  Link,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+  TypingAnimation,
+} from "beez-ui";
+
+import { useSearchParams } from "next/navigation";
+import { signIn, type ClientSafeProvider } from "next-auth/react";
 
 import styles from "../auth-page.module.scss";
 

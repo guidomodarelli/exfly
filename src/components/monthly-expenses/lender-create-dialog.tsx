@@ -1,27 +1,25 @@
-import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
-import { X } from "lucide-react";
-
-import type { LenderOption } from "@/components/monthly-expenses/lender-picker";
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+  cn,
+} from "beez-ui";
+import type { FormEvent } from "react";
+import { useMemo, useState } from "react";
+import { X } from "lucide-react";
+
+import type { LenderOption } from "@/components/monthly-expenses/lender-picker";
 
 import styles from "./lenders-panel.module.scss";
 

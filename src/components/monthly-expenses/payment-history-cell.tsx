@@ -1,36 +1,29 @@
-import { useCallback, useState } from "react";
-
-import { Clock3, ExternalLink, Mail, Paperclip, Plus } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
+  Input,
+  Label,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+  cn,
+} from "beez-ui";
+import { useCallback, useState } from "react";
+
+import { Clock3, ExternalLink, Mail, Paperclip, Plus } from "lucide-react";
 
 import { DriveStatusBadge } from "./drive-status-badge";
 import {

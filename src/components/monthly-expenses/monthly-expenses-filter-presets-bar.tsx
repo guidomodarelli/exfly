@@ -1,21 +1,18 @@
-import { useState } from "react";
-import { Bookmark, Pencil, X } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
+  Button,
+  FilterQueryBar,
+  Input,
+  Label,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { FilterQueryBar } from "@/components/ui/filter-query-bar";
-import type { FilterQualifierConfig } from "@/components/ui/filter-query-grammar";
+  type FilterQualifierConfig,
+} from "beez-ui";
+import { useState } from "react";
+import { Bookmark, Pencil, X } from "lucide-react";
 
 import type { MonthlyExpensesFilterPreset } from "./monthly-expenses-filter-presets";
 import styles from "./monthly-expenses-filter-presets-bar.module.scss";

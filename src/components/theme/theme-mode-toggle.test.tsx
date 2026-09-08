@@ -1,8 +1,7 @@
+import { TooltipProvider } from "beez-ui";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useTheme, type UseThemeProps } from "next-themes";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { ThemeModeToggle } from "./theme-mode-toggle";
 

@@ -2,7 +2,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import type { ReactNode } from "react";
 
 import ReceiptShareTargetPage from "./receipt-share-target-page";
 
@@ -29,11 +28,6 @@ jest.mock("@/components/finance-app-shell/finance-app-shell", () => ({
   useFinanceAppShellNavigation: jest.fn(),
 }));
 
-jest.mock("@/components/ui/typing-animation", () => ({
-  TypingAnimation: ({ children }: { children: ReactNode }) => (
-    <h1>{children}</h1>
-  ),
-}));
 
 jest.mock("@/components/monthly-expenses/receipt-file-uploader", () => ({
   ReceiptFileUploader: ({ onInvalidFileType }: { onInvalidFileType?: () => void }) => (

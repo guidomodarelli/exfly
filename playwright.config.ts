@@ -8,7 +8,7 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   reporter: isCI ? [["list"], ["html", { open: "never" }]] : [["line"]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3112",
     trace: "on-first-retry",
   },
   projects: [
@@ -16,11 +16,14 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "chromium-mobile", use: { ...devices["Pixel 7"] } },
+    { name: "webkit-mobile", use: { ...devices["iPhone 13"] } },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
+    command: "npm run build && npm run start -- --port 3112",
+    url: "http://localhost:3112",
     reuseExistingServer: !isCI,
-    timeout: 120000,
+    timeout: 180000,
   },
 });

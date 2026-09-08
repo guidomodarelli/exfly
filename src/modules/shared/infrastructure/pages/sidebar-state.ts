@@ -1,4 +1,4 @@
-export const SIDEBAR_STATE_COOKIE_NAME = "control-mensual.sidebar.open";
+export { SIDEBAR_STATE_COOKIE_NAME } from "@/modules/shared/shared/constants/sidebar";
 
 export function getRequestedSidebarOpen(cookieValue: string | undefined): boolean {
   if (cookieValue === "false") {

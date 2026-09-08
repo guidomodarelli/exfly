@@ -1,8 +1,9 @@
+import { toast } from "beez-ui";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { toast } from "sonner";
+
 
 import MonthlyExpensesPage from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
 import { selectDropdownSubmenuItem } from "@/tests/utils/radix-menu-test-helpers";
@@ -75,6 +76,27 @@ registerMonthlyExpensesPageDefaultHooks({
   mockedUseSession,
   originalFetch,
 });
+
+  it("should keep edit menus closed when there is no authenticated session", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <MonthlyExpensesPage {...basePageProps} initialDocument={{
+        month: "2026-03",
+        items: [{ id: "expense-1", description: "Agua", currency: "ARS",
+          occurrencesPerMonth: 1, subtotal: 100, total: 100 }],
+      }} />,
+    );
+
+    const trigger = screen.getByRole("button", {
+      name: "Abrir acciones de subtotal y cantidad para Agua",
+    });
+    expect(trigger).toBeDisabled();
+    await user.click(trigger);
+
+    expect(screen.queryByRole("menuitem", { name: "Editar subtotal y cantidad" }))
+      .not.toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 
   /**
    * Builds a payment record with a receipt for the receipt-share fixtures.
@@ -1552,6 +1574,12 @@ registerMonthlyExpensesPageDefaultHooks({
   });
 
   it("opens a unified subtotal and quantity modal from the actions menu", async () => {
+    // Editing and folder actions require an authenticated account.
+    mockedUseSession.mockReturnValue({
+      data: { expires: "2099-01-01T00:00:00.000Z", user: { name: "Test user" } },
+      status: "authenticated",
+      update: jest.fn(),
+    });
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -1589,6 +1617,12 @@ registerMonthlyExpensesPageDefaultHooks({
   });
 
   it("opens a dedicated receipt share modal from the enviar actions menu", async () => {
+    // Editing and folder actions require an authenticated account.
+    mockedUseSession.mockReturnValue({
+      data: { expires: "2099-01-01T00:00:00.000Z", user: { name: "Test user" } },
+      status: "authenticated",
+      update: jest.fn(),
+    });
     const user = userEvent.setup();
     const receiptViewUrl =
       "https://drive.google.com/file/d/receipt-file-id/view";

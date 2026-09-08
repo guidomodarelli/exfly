@@ -1,10 +1,9 @@
+import { TooltipProvider, toast } from "beez-ui";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { toast } from "sonner";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
 import type { MonthlyExpensesDocumentResult } from "@/modules/monthly-expenses/application/results/monthly-expenses-document-result";
 import { copyMonthlyExpenseTemplatesToMonth } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";
 import MonthlyExpensesPage, { getRequestedMonthlyExpensesTab } from "@/modules/monthly-expenses/shared/pages/monthly-expenses-page";

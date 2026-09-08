@@ -1,14 +1,17 @@
 "use client";
 
+import {
+  Button,
+  Input,
+  Label,
+  TypingAnimation,
+  toast,
+} from "beez-ui";
+
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
-import { TypingAnimation } from "@/components/ui/typing-animation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   type ExchangeRatesRoutePageProps,
 } from "@/modules/exchange-rates/infrastructure/pages/exchange-rates-server-props";

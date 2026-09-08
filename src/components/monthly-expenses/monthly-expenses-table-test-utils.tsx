@@ -1,7 +1,6 @@
+import { TooltipProvider } from "beez-ui";
 import { render, screen } from "@testing-library/react";
 import { StrictMode, type ComponentProps } from "react";
-
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 import {
   MonthlyExpensesTable,

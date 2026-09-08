@@ -1,12 +1,13 @@
+import { TooltipProvider, toast } from "beez-ui";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 import type { ReactElement } from "react";
-import { toast } from "sonner";
+
 
 import ExchangeRatesPage from "@/modules/exchange-rates/shared/pages/exchange-rates-page";
-import { TooltipProvider } from "@/components/ui/tooltip";
+
 import type { StorageBootstrapResult } from "@/modules/storage/application/results/storage-bootstrap";
 
 jest.mock("next/navigation", () => ({

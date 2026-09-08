@@ -1,17 +1,15 @@
-import { PlusIcon } from "lucide-react";
-
-import { AccountMenu } from "@/components/auth/account-menu";
 import {
   Avatar,
   AvatarBadge,
   AvatarFallback,
   AvatarImage,
-} from "@/components/ui/avatar";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "beez-ui";
+import { PlusIcon } from "lucide-react";
+
+import { AccountMenu } from "@/components/auth/account-menu";
 
 type GoogleAccountAvatarStatus = "authenticated" | "loading" | "unauthenticated";
 

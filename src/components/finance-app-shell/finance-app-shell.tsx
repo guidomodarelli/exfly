@@ -1,6 +1,23 @@
 "use client";
 
-import Link from "next/link";
+import {
+  Link,
+  AnimatedThemeToggler,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+  buttonVariants,
+  useSidebar,
+} from "beez-ui";
+
 import Image from "next/image";
 import {
   createContext,
@@ -24,23 +41,8 @@ import {
 import { AccountMenu } from "@/components/auth/account-menu";
 import { GoogleAccountAvatar } from "@/components/auth/google-account-avatar";
 import { PwaUpdateControl } from "@/components/pwa/pwa-update-control";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
+
+import { FinanceSidebarProvider } from "./finance-sidebar-provider";
 
 import styles from "./finance-app-shell.module.scss";
 
@@ -300,17 +302,12 @@ export function FinanceAppShell({
   };
 
   const expensesHref = expensesMonth
-    ? {
-        pathname: "/gastos",
-        query: {
-          month: expensesMonth,
-        },
-      }
+    ? `/gastos?${new URLSearchParams({ month: expensesMonth })}`
     : "/gastos";
 
   return (
     <FinanceAppShellNavigationContext.Provider value={navigationContextValue}>
-      <SidebarProvider defaultOpen={initialSidebarOpen}>
+      <FinanceSidebarProvider defaultOpen={initialSidebarOpen}>
         <Sidebar className={styles.sidebarShell} collapsible="icon" variant="sidebar">
           <SidebarHeader className={styles.sidebarHeader}>
             <div className={styles.sidebarBrand}>
@@ -398,7 +395,7 @@ export function FinanceAppShell({
             </div>
           </main>
         </SidebarInset>
-      </SidebarProvider>
+      </FinanceSidebarProvider>
     </FinanceAppShellNavigationContext.Provider>
   );
 }

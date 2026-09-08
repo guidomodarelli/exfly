@@ -1,8 +1,9 @@
+import { toast } from "beez-ui";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { toast } from "sonner";
+
 
 import {
   getSafeLendersErrorMessage,
@@ -2312,6 +2313,12 @@ registerMonthlyExpensesPageDefaultHooks({
   });
 
   it("renders receipt link inside the comprobantes popover and shows folder actions in row menu", async () => {
+    // Editing and folder actions require an authenticated account.
+    mockedUseSession.mockReturnValue({
+      data: { expires: "2099-01-01T00:00:00.000Z", user: { name: "Test user" } },
+      status: "authenticated",
+      update: jest.fn(),
+    });
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -2387,6 +2394,12 @@ registerMonthlyExpensesPageDefaultHooks({
   });
 
   it("shows folder actions in row menu when an item has folders metadata and no receipts", async () => {
+    // Editing and folder actions require an authenticated account.
+    mockedUseSession.mockReturnValue({
+      data: { expires: "2099-01-01T00:00:00.000Z", user: { name: "Test user" } },
+      status: "authenticated",
+      update: jest.fn(),
+    });
     const user = userEvent.setup();
 
     renderWithProviders(

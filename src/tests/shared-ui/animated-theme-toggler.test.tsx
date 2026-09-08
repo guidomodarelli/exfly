@@ -1,8 +1,7 @@
+import { AnimatedThemeToggler } from "beez-ui";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useTheme, type UseThemeProps } from "next-themes";
-
-import { AnimatedThemeToggler } from "./animated-theme-toggler";
 
 jest.mock("next-themes", () => ({
   useTheme: jest.fn(),

@@ -4,7 +4,8 @@ import {
   type FilterQualifierConfig,
   type FilterQualifierOption,
   type ParsedFilterQuery,
-} from "@/components/ui/filter-query-grammar";
+} from "beez-ui";
+
 
 import { buildLenderQualifierOptions } from "./monthly-expenses-filter-qualifiers";
 
